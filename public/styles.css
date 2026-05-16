@@ -1355,6 +1355,7 @@ h3 { font-size: 16px; font-weight: 700; }
 .jcv2-link {
   font-size: 13px; font-weight: 600;
   color: var(--snes-royal); cursor: pointer; background: none; border: none;
+  text-decoration: none;
   transition: color .15s var(--ease);
 }
 .jcv2-link:hover { color: var(--snes-royal-deep); text-decoration: underline; }

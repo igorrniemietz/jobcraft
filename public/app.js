@@ -672,7 +672,7 @@ function jobCardV2(j, dynMatch) {
       </div>
       <div class="jcv2-sep"></div>
       <div class="jcv2-foot">
-        <button class="jcv2-link">Ver vaga →</button>
+        <a class="jcv2-link" href="${escapeHtml(j.externalUrl || '#')}" target="_blank" rel="noopener noreferrer">Ver vaga →</a>
         <span class="jcv2-match">
           Compatibilidade <span class="jcv2-match-pct ${matchCls}">${match}%</span>
         </span>
