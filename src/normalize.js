@@ -2,6 +2,16 @@
 
 const PALETTE = ['#6C63FF','#E91E63','#00BCD4','#FF5722','#4CAF50','#FF9800','#2196F3','#9C27B0','#F7931A','#EA1D2C'];
 
+// Extrai até 8 tags técnicas relevantes de título + descrição
+const TECH_RE = /\b(python|javascript|typescript|java(?:script)?|golang?|rust|kotlin|swift|c\+\+|c#|\.net|php|ruby|scala|react|vue|angular|next\.?js|svelte|node\.?js|express|fastapi|django|flask|spring|aws|gcp|azure|kubernetes|k8s|docker|terraform|ansible|linux|git|ci\/cd|devops|devsecops|appsec|pentest|soc\b|siem|iam|owasp|burp|metasploit|kali|oscp|red.?team|blue.?team|splunk|elastic|kafka|spark|postgresql|postgres|mysql|mongodb|redis|sql|flutter|react.?native)\b/gi;
+
+function extractTags(title, description) {
+  const text  = `${title} ${description}`.replace(/<[^>]+>/g, ' ');
+  const found = new Set();
+  for (const m of text.matchAll(TECH_RE)) found.add(m[0].toLowerCase().trim());
+  return [...found].slice(0, 8);
+}
+
 function colorFor(s) {
   let h = 0;
   for (const c of String(s)) h = (h * 31 + c.charCodeAt(0)) & 0x7fffffff;
@@ -77,7 +87,7 @@ function fromGupy(raw) {
     level,
     companySize: null,
     salary:      null,
-    tags:        [],
+    tags:        extractTags(raw.name || '', raw.description || ''),
     match:       0,
     stage:       null,
     posted:      relTime(raw.publishedDate),

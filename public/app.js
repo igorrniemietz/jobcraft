@@ -10,7 +10,7 @@ const store = {
   quests: [],
   ui: {
     route: location.hash || '#/jobs',
-    jobSearch: { cargo: '', localidade: '', skills: [], mode: 'todos', graduacao: '', contracts: [], levels: [], sizes: [] },
+    jobSearch: { cargo: '', localidade: '', skills: [], mode: 'todos', region: 'todas', graduacao: '', contracts: [], levels: [], sizes: [] },
     realJobsStatus: 'idle', // idle | loading | ok | error
     rpTab: 'missoes',
     rpVoucher: false,
@@ -406,7 +406,8 @@ function renderJobsPage() {
   `).join('');
 
   const filterBtns = (filter, opts) => opts.map(([val, label]) => {
-    const active = filter === 'mode' ? s.mode === val : s[filter + 's'].includes(val);
+    const isSingle = filter === 'mode' || filter === 'region';
+    const active   = isSingle ? s[filter] === val : s[filter + 's'].includes(val);
     return `<button class="mode-btn ${active ? 'active' : ''}" data-filter="${filter}" data-value="${val}">${label}</button>`;
   }).join('');
 
@@ -475,6 +476,12 @@ function renderJobsPage() {
             <span class="inline-filter-label">Regime:</span>
             <div class="inline-filter-opts">
               ${filterBtns('mode', [['todos','Todos'],['remoto','Remoto'],['híbrido','Híbrido'],['presencial','Presencial']])}
+            </div>
+          </div>
+          <div class="inline-filter-row">
+            <span class="inline-filter-label">Região:</span>
+            <div class="inline-filter-opts">
+              ${filterBtns('region', [['todas','Todas'],['br','Brasil 🇧🇷'],['internacional','Internacional 🌎']])}
             </div>
           </div>
         </div>
@@ -592,15 +599,30 @@ function filterJobs() {
     const contractMatch = s.contracts.length === 0 || s.contracts.includes(j.contract);
     const levelMatch    = s.levels.length === 0    || s.levels.includes(j.level);
     const sizeMatch     = s.sizes.length === 0     || s.sizes.includes(j.companySize);
-    return cargoMatch && skillsMatch && localMatch && modeMatch && contractMatch && levelMatch && sizeMatch;
+    const regionMatch   = s.region === 'todas'
+      || (s.region === 'br'            && (j.source === 'gupy'     || j.source === 'adzuna'))
+      || (s.region === 'internacional' &&  j.source === 'remotive');
+    return cargoMatch && skillsMatch && localMatch && modeMatch && contractMatch && levelMatch && sizeMatch && regionMatch;
   });
 }
 
+const TRACK_KWORDS = {
+  'application security': ['appsec','owasp','security','pentest','sast','vulnerability','segurança'],
+  'soc / blue team':      ['soc','siem','splunk','elastic','blueteam','blue','incident','threat'],
+  'ethical hacking':      ['pentest','kali','oscp','redteam','metasploit','burp','exploit'],
+};
+
 function calcDynamicMatch(j, skills) {
-  if (!skills.length) return j.match;
-  const jobText = (j.title + ' ' + j.tags.join(' ')).toLowerCase();
-  const matched = skills.filter(sk => jobText.includes(sk.toLowerCase())).length;
-  return Math.round((matched / skills.length) * 100);
+  const jobText = (j.title + ' ' + (j.description || '') + ' ' + j.tags.join(' ')).toLowerCase();
+  if (skills.length > 0) {
+    const matched = skills.filter(sk => jobText.includes(sk.toLowerCase())).length;
+    return Math.round((matched / skills.length) * 100);
+  }
+  const tracks = store.user?.tracks || [];
+  if (!tracks.length || !j.tags.length) return j.match;
+  const kwords = [...new Set(tracks.flatMap(t => TRACK_KWORDS[t.toLowerCase()] || t.toLowerCase().split(/\W+/).filter(Boolean)))];
+  const matched = kwords.filter(k => jobText.includes(k)).length;
+  return kwords.length ? Math.round((matched / kwords.length) * 100) : j.match;
 }
 
 function calcMarket(jobs) {
@@ -735,9 +757,9 @@ function bindJobsPageEvents() {
     if (!btn) return;
     const filter = btn.dataset.filter;
     const value  = btn.dataset.value;
-    if (filter === 'mode') {
-      s.mode = value;
-      $$('[data-filter="mode"]').forEach(b => b.classList.toggle('active', b.dataset.value === value));
+    if (filter === 'mode' || filter === 'region') {
+      s[filter] = value;
+      $$(`[data-filter="${filter}"]`).forEach(b => b.classList.toggle('active', b.dataset.value === value));
     } else {
       const key = filter + 's';
       if (s[key].includes(value)) {
@@ -752,7 +774,7 @@ function bindJobsPageEvents() {
   });
 
   $('#ms-clear')?.addEventListener('click', () => {
-    s.cargo = ''; s.localidade = ''; s.skills = []; s.mode = 'todos'; s.graduacao = '';
+    s.cargo = ''; s.localidade = ''; s.skills = []; s.mode = 'todos'; s.region = 'todas'; s.graduacao = '';
     s.contracts = []; s.levels = []; s.sizes = [];
     renderJobsPage();
   });
