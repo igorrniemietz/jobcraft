@@ -43,16 +43,15 @@ async function fetchJSON(path) {
 
 /* ============== bootstrap ============== */
 async function boot() {
-  const [user, jobs, courses, certs, achievements, leaderboard, quests] = await Promise.all([
+  const [user, courses, certs, achievements, leaderboard, quests] = await Promise.all([
     fetchJSON('/data/user.json'),
-    fetchJSON('/data/jobs.json'),
     fetchJSON('/data/courses.json'),
     fetchJSON('/data/certifications.json'),
     fetchJSON('/data/achievements.json'),
     fetchJSON('/data/leaderboard.json'),
     fetchJSON('/data/quests.json'),
   ]);
-  Object.assign(store, { user, jobs, courses, certs, achievements, leaderboard, quests });
+  Object.assign(store, { user, jobs: [], courses, certs, achievements, leaderboard, quests });
 
   paintUser();
   bindShell();
@@ -65,20 +64,19 @@ async function boot() {
 
 async function loadRealJobs() {
   store.ui.realJobsStatus = 'loading';
-  updateJobResults();
+  if (store.ui.route === '#/jobs') updateJobResults();
   try {
     const res  = await fetch('/api/jobs');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    if (data.ok && data.jobs.length) {
-      // prefixos de fontes reais: gy-, rm-, az-
-      const realIds = new Set(['gy-', 'rm-', 'az-']);
-      const isMock  = j => !realIds.has(j.id.slice(0, 3));
-      store.jobs = [...data.jobs, ...store.jobs.filter(isMock)];
-      store.ui.realJobsStatus = 'ok';
+    if (data.ok && Array.isArray(data.jobs)) {
+      store.jobs = data.jobs;
+      store.ui.realJobsStatus = data.jobs.length === 0 ? 'empty' : 'ok';
     } else {
-      store.ui.realJobsStatus = data.jobs?.length === 0 ? 'empty' : 'error';
+      throw new Error('resposta inválida');
     }
-  } catch {
+  } catch (e) {
+    console.error('[loadRealJobs]', e.message);
     store.ui.realJobsStatus = 'error';
   }
   if (store.ui.route === '#/jobs') updateJobResults();
