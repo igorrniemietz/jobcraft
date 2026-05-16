@@ -473,6 +473,10 @@ function updateJobResults() {
   const filtered = filterJobs();
   const marketData = calcMarket(filtered);
 
+  const rankedJobs = filtered
+    .map(j => ({ j, m: calcDynamicMatch(j, s.skills) }))
+    .sort((a, b) => b.m - a.m);
+
   el.innerHTML = `
     <div class="market-box">
       <div class="market-title">
@@ -494,7 +498,7 @@ function updateJobResults() {
         <div class="market-stat">
           <div class="market-stat-label">Salário máx</div>
           <div class="market-stat-value green">${marketData.max}</div>
-          <div class="market-stat-sub">ábrik r</div>
+          <div class="market-stat-sub">estimado</div>
         </div>
         <div class="market-stat">
           <div class="market-stat-label">Tendência BR</div>
@@ -507,7 +511,7 @@ function updateJobResults() {
       <strong>${filtered.length}</strong> ${filtered.length === 1 ? 'vaga encontrada' : 'vagas encontradas'}
     </div>
     <div class="jobs-grid-v2">
-      ${filtered.sort((a, b) => b.match - a.match).map(jobCardV2).join('')}
+      ${rankedJobs.map(({ j, m }) => jobCardV2(j, m)).join('')}
     </div>`;
 
   if (window.lucide) lucide.createIcons();
@@ -527,6 +531,13 @@ function filterJobs() {
   });
 }
 
+function calcDynamicMatch(j, skills) {
+  if (!skills.length) return j.match;
+  const jobText = (j.title + ' ' + j.tags.join(' ')).toLowerCase();
+  const matched = skills.filter(sk => jobText.includes(sk.toLowerCase())).length;
+  return Math.round((matched / skills.length) * 100);
+}
+
 function calcMarket(jobs) {
   if (!jobs.length) return { min: 'R$ —', med: 'R$ —', max: 'R$ —' };
   const parseRange = s => {
@@ -543,14 +554,15 @@ function calcMarket(jobs) {
   return { min: fmtBrl(min), med: fmtBrl(med), max: fmtBrl(max) };
 }
 
-function jobCardV2(j) {
+function jobCardV2(j, dynMatch) {
+  const match = dynMatch !== undefined ? dynMatch : j.match;
   const typeTag = j.type?.split('·')[0]?.trim() || '';
   const locType = j.location?.split('·')[0]?.trim() || j.location;
   const locClass = locType.toLowerCase().includes('remoto') ? 'remote'
     : locType.toLowerCase().includes('híbrido') ? 'hybrid'
     : 'onsite';
   const isCLT = j.type?.includes('CLT');
-  const matchCls = j.match >= 80 ? '' : j.match >= 60 ? 'mid' : 'low';
+  const matchCls = match >= 80 ? '' : match >= 60 ? 'mid' : 'low';
 
   return `
     <article class="job-card-v2" data-id="${j.id}">
@@ -577,7 +589,7 @@ function jobCardV2(j) {
       <div class="jcv2-foot">
         <button class="jcv2-link">Ver vaga →</button>
         <span class="jcv2-match">
-          Compatibilidade <span class="jcv2-match-pct ${matchCls}">${j.match}%</span>
+          Compatibilidade <span class="jcv2-match-pct ${matchCls}">${match}%</span>
         </span>
       </div>
     </article>
@@ -587,9 +599,9 @@ function jobCardV2(j) {
 function bindJobsPageEvents() {
   const s = store.ui.jobSearch;
 
-  $('#ms-cargo')?.addEventListener('input', e => { s.cargo = e.target.value; });
-  $('#ms-local')?.addEventListener('input', e => { s.localidade = e.target.value; });
-  $('#ms-graduacao')?.addEventListener('input', e => { s.graduacao = e.target.value; });
+  $('#ms-cargo')?.addEventListener('input', e => { s.cargo = e.target.value; updateJobResults(); });
+  $('#ms-local')?.addEventListener('input', e => { s.localidade = e.target.value; updateJobResults(); });
+  $('#ms-graduacao')?.addEventListener('input', e => { s.graduacao = e.target.value; updateJobResults(); });
 
   const skillInput = $('#ms-skill-input');
 
@@ -653,6 +665,7 @@ function bindJobsPageEvents() {
     btn.addEventListener('click', () => {
       s.mode = btn.dataset.mode;
       $$('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === s.mode));
+      updateJobResults();
     });
   });
 
