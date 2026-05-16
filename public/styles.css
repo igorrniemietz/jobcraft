@@ -1176,6 +1176,24 @@ h3 { font-size: 16px; font-weight: 700; }
 }
 .mission-skills-add:hover { background: var(--snes-royal); color: white; }
 
+.mission-filters {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 14px 0 4px;
+  border-top: 1px solid var(--border);
+}
+
+.inline-filter-row {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+}
+
+.inline-filter-label {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 1px; color: var(--text-mut);
+  min-width: 62px; flex-shrink: 0;
+}
+
+.inline-filter-opts { display: flex; gap: 6px; flex-wrap: wrap; }
+
 .mission-footer {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
 }

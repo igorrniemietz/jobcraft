@@ -384,106 +384,91 @@ function renderJobsPage() {
     </span>
   `).join('');
 
-  const mkCheck = (filter, val, label) => `
-    <label class="filter-check">
-      <input type="checkbox" data-filter="${filter}" value="${val}"
-        ${s[filter + 's'].includes(val) ? 'checked' : ''}>
-      ${label}
-    </label>`;
+  const filterBtns = (filter, opts) => opts.map(([val, label]) => {
+    const active = filter === 'mode' ? s.mode === val : s[filter + 's'].includes(val);
+    return `<button class="mode-btn ${active ? 'active' : ''}" data-filter="${filter}" data-value="${val}">${label}</button>`;
+  }).join('');
 
   $('#view').innerHTML = `
-    <div class="jobs-page-wrap">
-
-      <aside class="jobs-filters">
-        <div class="filter-title">Filtros</div>
-
-        <div class="filter-group">
-          <div class="filter-group-label">Contrato</div>
-          ${mkCheck('contract','CLT','CLT')}
-          ${mkCheck('contract','PJ','PJ')}
-          ${mkCheck('contract','Estágio','Estágio')}
+    <div class="mission-wrap">
+      <div class="mission-box">
+        <div class="mission-title">
+          <span class="mission-title-arrow">▶</span> NOVA MISSÃO
         </div>
 
-        <div class="filter-group">
-          <div class="filter-group-label">Nível</div>
-          ${mkCheck('level','Júnior','Júnior')}
-          ${mkCheck('level','Pleno','Pleno')}
-          ${mkCheck('level','Sênior','Sênior')}
-        </div>
-
-        <div class="filter-group">
-          <div class="filter-group-label">Tamanho da empresa</div>
-          ${mkCheck('size','Startup','Startup')}
-          ${mkCheck('size','PME','Pequena/Média')}
-          ${mkCheck('size','Grande empresa','Grande empresa')}
-        </div>
-
-        <div class="filter-group">
-          <div class="filter-group-label">Regime</div>
-          ${['todos','remoto','híbrido','presencial'].map(m => `
-            <label class="filter-check">
-              <input type="radio" name="regime" data-filter="mode" value="${m}"
-                ${s.mode === m ? 'checked' : ''}>
-              ${m.charAt(0).toUpperCase() + m.slice(1)}
-            </label>`).join('')}
-        </div>
-
-        <button class="filter-reset" id="filter-reset-btn">↺ Limpar filtros</button>
-      </aside>
-
-      <div class="jobs-main">
-        <div class="mission-box">
-          <div class="mission-title">
-            <span class="mission-title-arrow">▶</span> NOVA MISSÃO
+        <div class="mission-fields">
+          <div class="mission-field-group">
+            <label class="mission-field-label">Cargo pretendido</label>
+            <input id="ms-cargo" class="mission-field-input" type="text"
+              placeholder="ex: analista, engenheiro..." value="${escapeHtml(s.cargo)}" />
           </div>
-
-          <div class="mission-fields">
-            <div class="mission-field-group">
-              <label class="mission-field-label">Cargo pretendido</label>
-              <input id="ms-cargo" class="mission-field-input" type="text"
-                placeholder="ex: analista, engenheiro..." value="${escapeHtml(s.cargo)}" />
-            </div>
-            <div class="mission-field-group">
-              <label class="mission-field-label">Localidade</label>
-              <input id="ms-local" class="mission-field-input" type="text"
-                placeholder="ex: São Paulo, Remoto..." value="${escapeHtml(s.localidade)}" />
-            </div>
+          <div class="mission-field-group">
+            <label class="mission-field-label">Localidade</label>
+            <input id="ms-local" class="mission-field-input" type="text"
+              placeholder="ex: São Paulo, Remoto..." value="${escapeHtml(s.localidade)}" />
           </div>
+        </div>
 
-          <div class="mission-row2">
-            <div class="mission-skills-wrap">
-              <label class="mission-field-label">
-                Habilidades
-                <span class="mission-field-hint">Digite a skill — Enter</span>
-              </label>
-              <div class="mission-skills-row">
-                <div class="mission-skills-tags" id="skills-tags">
-                  ${skillsHtml}
-                  <input id="ms-skill-input" class="mission-skills-input"
-                    type="text" placeholder="${s.skills.length ? 'mais skills...' : 'python, docker, aws...'}" />
-                </div>
-                <button class="mission-skills-add" id="ms-skill-add" type="button">+</button>
+        <div class="mission-row2">
+          <div class="mission-skills-wrap">
+            <label class="mission-field-label">
+              Habilidades
+              <span class="mission-field-hint">Digite a skill — Enter</span>
+            </label>
+            <div class="mission-skills-row">
+              <div class="mission-skills-tags" id="skills-tags">
+                ${skillsHtml}
+                <input id="ms-skill-input" class="mission-skills-input"
+                  type="text" placeholder="${s.skills.length ? 'mais skills...' : 'python, docker, aws...'}" />
               </div>
-            </div>
-            <div class="mission-field-group">
-              <label class="mission-field-label">Graduação</label>
-              <input id="ms-graduacao" class="mission-field-input" type="text"
-                placeholder="ex: Ciência da Computação..." value="${escapeHtml(s.graduacao)}" />
+              <button class="mission-skills-add" id="ms-skill-add" type="button">+</button>
             </div>
           </div>
+          <div class="mission-field-group">
+            <label class="mission-field-label">Graduação</label>
+            <input id="ms-graduacao" class="mission-field-input" type="text"
+              placeholder="ex: Ciência da Computação..." value="${escapeHtml(s.graduacao)}" />
+          </div>
+        </div>
 
-          <div class="mission-footer">
-            <div class="mission-actions" style="margin-left:auto">
-              <button class="btn-clear" id="ms-clear" type="button">Limpar</button>
-              <button class="btn-search" id="ms-search" type="button">
-                <span class="btn-search-arrow">▶</span> Buscar Vagas
-              </button>
+        <div class="mission-filters">
+          <div class="inline-filter-row">
+            <span class="inline-filter-label">Contrato:</span>
+            <div class="inline-filter-opts">
+              ${filterBtns('contract', [['CLT','CLT'],['PJ','PJ'],['Estágio','Estágio']])}
+            </div>
+          </div>
+          <div class="inline-filter-row">
+            <span class="inline-filter-label">Nível:</span>
+            <div class="inline-filter-opts">
+              ${filterBtns('level', [['Júnior','Júnior'],['Pleno','Pleno'],['Sênior','Sênior']])}
+            </div>
+          </div>
+          <div class="inline-filter-row">
+            <span class="inline-filter-label">Empresa:</span>
+            <div class="inline-filter-opts">
+              ${filterBtns('size', [['Startup','Startup'],['PME','Pequena/Média'],['Grande empresa','Grande empresa']])}
+            </div>
+          </div>
+          <div class="inline-filter-row">
+            <span class="inline-filter-label">Regime:</span>
+            <div class="inline-filter-opts">
+              ${filterBtns('mode', [['todos','Todos'],['remoto','Remoto'],['híbrido','Híbrido'],['presencial','Presencial']])}
             </div>
           </div>
         </div>
 
-        <div id="jobs-results"></div>
+        <div class="mission-footer">
+          <div class="mission-actions" style="margin-left:auto">
+            <button class="btn-clear" id="ms-clear" type="button">Limpar</button>
+            <button class="btn-search" id="ms-search" type="button">
+              <span class="btn-search-arrow">▶</span> Buscar Vagas
+            </button>
+          </div>
+        </div>
       </div>
+
+      <div id="jobs-results"></div>
     </div>
   `;
 
@@ -707,23 +692,25 @@ function bindJobsPageEvents() {
     renderRightPanel(s.cargo || s.skills.join(' '));
   });
 
-  $('.jobs-filters')?.addEventListener('change', e => {
-    const input = e.target;
-    const filter = input.dataset.filter;
-    if (!filter) return;
+  $('.mission-filters')?.addEventListener('click', e => {
+    const btn = e.target.closest('[data-filter]');
+    if (!btn) return;
+    const filter = btn.dataset.filter;
+    const value  = btn.dataset.value;
     if (filter === 'mode') {
-      s.mode = input.value;
+      s.mode = value;
+      $$('[data-filter="mode"]').forEach(b => b.classList.toggle('active', b.dataset.value === value));
     } else {
       const key = filter + 's';
-      if (input.checked) { if (!s[key].includes(input.value)) s[key].push(input.value); }
-      else s[key] = s[key].filter(v => v !== input.value);
+      if (s[key].includes(value)) {
+        s[key] = s[key].filter(v => v !== value);
+        btn.classList.remove('active');
+      } else {
+        s[key].push(value);
+        btn.classList.add('active');
+      }
     }
     updateJobResults();
-  });
-
-  $('#filter-reset-btn')?.addEventListener('click', () => {
-    s.contracts = []; s.levels = []; s.sizes = []; s.mode = 'todos';
-    renderJobsPage();
   });
 
   $('#ms-clear')?.addEventListener('click', () => {
