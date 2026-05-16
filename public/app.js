@@ -412,9 +412,9 @@ function renderJobsPage() {
         </div>
 
         <div class="filter-group">
-          <div class="filter-group-label">Empresa</div>
+          <div class="filter-group-label">Tamanho da empresa</div>
           ${mkCheck('size','Startup','Startup')}
-          ${mkCheck('size','PME','PME')}
+          ${mkCheck('size','PME','Pequena/Média')}
           ${mkCheck('size','Grande empresa','Grande empresa')}
         </div>
 
