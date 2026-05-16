@@ -44,8 +44,19 @@ const GUPY_CONTRACT = {
   internship: 'Estágio', apprentice: 'Estágio', trainee: 'Estágio',
 };
 
+function cleanGupyCompany(raw) {
+  const name = raw.careerPageName || '';
+  // taglines tem emoji, #, maiúsculas excessivas ou são muito longas
+  const isTagline = /[#🚀🧡💚🔥✨]/.test(name) || name.length > 40 || name === name.toUpperCase();
+  if (!isTagline) return name;
+  // fallback: extrair subdomínio da careerPageUrl (ex: fcamara.gupy.io → FCamara)
+  const m = (raw.careerPageUrl || '').match(/https?:\/\/([^.]+)\.gupy\.io/);
+  if (m) return m[1].replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  return 'Empresa';
+}
+
 function fromGupy(raw) {
-  const company  = raw.careerPageName || 'Empresa';
+  const company  = cleanGupyCompany(raw);
   const contract = GUPY_CONTRACT[(raw.type || '').toLowerCase()] || 'CLT';
   const level    = extractLevel(raw.name || '') || 'Pleno';
   const remote   = raw.isRemoteWork || raw.workplaceType === 'remote';

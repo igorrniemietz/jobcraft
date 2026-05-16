@@ -20,7 +20,10 @@ async function fetchGupy() {
       const url = `https://portal.api.gupy.io/api/v1/jobs?jobName=${encodeURIComponent(q)}&limit=50`;
       const { status, body } = await getJSON(url);
       if (status !== 200) { console.warn(`[gupy] HTTP ${status} para "${q}"`); continue; }
-      const list = body.data || [];
+      const now  = Date.now();
+      const list = (body.data || []).filter(j =>
+        !j.applicationDeadline || new Date(j.applicationDeadline).getTime() > now
+      );
       results.push(...list.map(fromGupy));
       console.log(`[gupy] "${q}" → ${list.length} vagas`);
       await sleep(400);

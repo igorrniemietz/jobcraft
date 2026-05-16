@@ -507,9 +507,9 @@ function updateJobResults() {
   const statusBanner = status === 'loading'
     ? `<div class="real-jobs-banner loading">Buscando vagas reais…</div>`
     : status === 'error'
-    ? `<div class="real-jobs-banner error">Não foi possível carregar vagas externas — exibindo dados locais.</div>`
+    ? `<div class="real-jobs-banner error">Erro ao carregar vagas — tente recarregar a página.</div>`
     : status === 'empty'
-    ? `<div class="real-jobs-banner empty">Nenhuma vaga real encontrada para essa busca.</div>`
+    ? `<div class="real-jobs-banner empty">Nenhuma vaga encontrada no momento.</div>`
     : '';
 
   const realJobs   = store.jobs.filter(j => ['gupy','remotive','adzuna'].includes(j.source));
