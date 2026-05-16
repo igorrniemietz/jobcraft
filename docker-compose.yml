@@ -26,6 +26,14 @@ services:
     container_name: jobcraft_app
     expose:
       - "8080"
+    environment:
+      # Desative qualquer fonte com =false a qualquer momento e reinicie
+      GUPY_ENABLED:     "${GUPY_ENABLED:-true}"
+      REMOTIVE_ENABLED: "${REMOTIVE_ENABLED:-true}"
+      ADZUNA_ENABLED:   "${ADZUNA_ENABLED:-false}"
+      ADZUNA_APP_ID:    "${ADZUNA_APP_ID:-}"
+      ADZUNA_APP_KEY:   "${ADZUNA_APP_KEY:-}"
+      SYNC_INTERVAL_MS: "${SYNC_INTERVAL_MS:-21600000}"
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.jobcraft.rule=Host(`localhost`)"

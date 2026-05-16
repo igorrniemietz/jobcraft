@@ -64,20 +64,19 @@ async function boot() {
 }
 
 async function loadRealJobs() {
-  const s = store.ui.jobSearch;
   store.ui.realJobsStatus = 'loading';
   updateJobResults();
-
-  const q      = s.cargo || (store.user?.tracks?.[0] ?? 'segurança');
-  const skills = s.skills.join(',');
   try {
-    const res  = await fetch(`/api/jobs?q=${encodeURIComponent(q)}&skills=${encodeURIComponent(skills)}`);
+    const res  = await fetch('/api/jobs');
     const data = await res.json();
     if (data.ok && data.jobs.length) {
-      store.jobs = [...data.jobs, ...store.jobs.filter(j => !j.id.startsWith('gh-'))];
+      // prefixos de fontes reais: gy-, rm-, az-
+      const realIds = new Set(['gy-', 'rm-', 'az-']);
+      const isMock  = j => !realIds.has(j.id.slice(0, 3));
+      store.jobs = [...data.jobs, ...store.jobs.filter(isMock)];
       store.ui.realJobsStatus = 'ok';
     } else {
-      store.ui.realJobsStatus = data.jobs.length === 0 ? 'empty' : 'error';
+      store.ui.realJobsStatus = data.jobs?.length === 0 ? 'empty' : 'error';
     }
   } catch {
     store.ui.realJobsStatus = 'error';
@@ -515,9 +514,11 @@ function updateJobResults() {
     ? `<div class="real-jobs-banner empty">Nenhuma vaga real encontrada para essa busca.</div>`
     : '';
 
-  const realCount = store.jobs.filter(j => j.source === 'geekhunter').length;
-  const countLabel = realCount
-    ? `${store.jobs.length} vagas (${realCount} GeekHunter)`
+  const realJobs   = store.jobs.filter(j => ['gupy','remotive','adzuna'].includes(j.source));
+  const bySrc      = realJobs.reduce((a, j) => { a[j.source] = (a[j.source] || 0) + 1; return a; }, {});
+  const srcLabel   = Object.entries(bySrc).map(([s, n]) => `${n} ${s}`).join(' · ');
+  const countLabel = realJobs.length
+    ? `${store.jobs.length} vagas (${srcLabel})`
     : `${store.jobs.length} vagas disponíveis`;
 
   const filtered   = filterJobs();
@@ -645,7 +646,7 @@ function jobCardV2(j, dynMatch) {
         ${j.level    ? `<span class="jcv2-badge jcv2-badge-${levelCls}">${escapeHtml(j.level)}</span>` : ''}
         ${j.contract ? `<span class="jcv2-badge jcv2-badge-${contractCls}">${escapeHtml(j.contract)}</span>` : ''}
         ${j.companySize ? `<span class="jcv2-badge jcv2-badge-${sizeCls}">${escapeHtml(j.companySize)}</span>` : ''}
-        ${j.source === 'geekhunter' ? `<span class="jcv2-badge jcv2-badge-source">GH</span>` : ''}
+        ${{ gupy: '<span class="jcv2-badge jcv2-badge-source">GY</span>', remotive: '<span class="jcv2-badge jcv2-badge-source">RM</span>', adzuna: '<span class="jcv2-badge jcv2-badge-source">AZ</span>' }[j.source] || ''}
       </div>
       <div class="jcv2-salary">
         ${j.salary
