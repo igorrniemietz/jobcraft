@@ -10,7 +10,7 @@ const store = {
   quests: [],
   ui: {
     route: location.hash || '#/jobs',
-    jobSearch: { cargo: '', localidade: '', skills: [], mode: 'todos', graduacao: '' },
+    jobSearch: { cargo: '', localidade: '', skills: [], mode: 'todos', graduacao: '', contracts: [], levels: [], sizes: [] },
     rpTab: 'missoes',
     rpVoucher: false,
     rpLastQuery: '',
@@ -384,67 +384,106 @@ function renderJobsPage() {
     </span>
   `).join('');
 
+  const mkCheck = (filter, val, label) => `
+    <label class="filter-check">
+      <input type="checkbox" data-filter="${filter}" value="${val}"
+        ${s[filter + 's'].includes(val) ? 'checked' : ''}>
+      ${label}
+    </label>`;
+
   $('#view').innerHTML = `
-    <div class="mission-wrap">
-      <div class="mission-box">
-        <div class="mission-title">
-          <span class="mission-title-arrow">▶</span> NOVA MISSÃO
+    <div class="jobs-page-wrap">
+
+      <aside class="jobs-filters">
+        <div class="filter-title">Filtros</div>
+
+        <div class="filter-group">
+          <div class="filter-group-label">Contrato</div>
+          ${mkCheck('contract','CLT','CLT')}
+          ${mkCheck('contract','PJ','PJ')}
+          ${mkCheck('contract','Estágio','Estágio')}
         </div>
 
-        <div class="mission-fields">
-          <div class="mission-field-group">
-            <label class="mission-field-label">Cargo pretendido</label>
-            <input id="ms-cargo" class="mission-field-input" type="text"
-              placeholder="ex: analista, engenheiro..." value="${escapeHtml(s.cargo)}" />
-          </div>
-          <div class="mission-field-group">
-            <label class="mission-field-label">Localidade</label>
-            <input id="ms-local" class="mission-field-input" type="text"
-              placeholder="ex: São Paulo, Remoto..." value="${escapeHtml(s.localidade)}" />
-          </div>
+        <div class="filter-group">
+          <div class="filter-group-label">Nível</div>
+          ${mkCheck('level','Júnior','Júnior')}
+          ${mkCheck('level','Pleno','Pleno')}
+          ${mkCheck('level','Sênior','Sênior')}
         </div>
 
-        <div class="mission-row2">
-          <div class="mission-skills-wrap">
-            <label class="mission-field-label">
-              Habilidades
-              <span class="mission-field-hint">Digite a skill — Enter</span>
-            </label>
-            <div class="mission-skills-row">
-              <div class="mission-skills-tags" id="skills-tags">
-                ${skillsHtml}
-                <input id="ms-skill-input" class="mission-skills-input"
-                  type="text" placeholder="${s.skills.length ? 'mais skills...' : 'python, docker, aws...'}" />
-              </div>
-              <button class="mission-skills-add" id="ms-skill-add" type="button">+</button>
+        <div class="filter-group">
+          <div class="filter-group-label">Empresa</div>
+          ${mkCheck('size','Startup','Startup')}
+          ${mkCheck('size','PME','PME')}
+          ${mkCheck('size','Grande empresa','Grande empresa')}
+        </div>
+
+        <div class="filter-group">
+          <div class="filter-group-label">Regime</div>
+          ${['todos','remoto','híbrido','presencial'].map(m => `
+            <label class="filter-check">
+              <input type="radio" name="regime" data-filter="mode" value="${m}"
+                ${s.mode === m ? 'checked' : ''}>
+              ${m.charAt(0).toUpperCase() + m.slice(1)}
+            </label>`).join('')}
+        </div>
+
+        <button class="filter-reset" id="filter-reset-btn">↺ Limpar filtros</button>
+      </aside>
+
+      <div class="jobs-main">
+        <div class="mission-box">
+          <div class="mission-title">
+            <span class="mission-title-arrow">▶</span> NOVA MISSÃO
+          </div>
+
+          <div class="mission-fields">
+            <div class="mission-field-group">
+              <label class="mission-field-label">Cargo pretendido</label>
+              <input id="ms-cargo" class="mission-field-input" type="text"
+                placeholder="ex: analista, engenheiro..." value="${escapeHtml(s.cargo)}" />
+            </div>
+            <div class="mission-field-group">
+              <label class="mission-field-label">Localidade</label>
+              <input id="ms-local" class="mission-field-input" type="text"
+                placeholder="ex: São Paulo, Remoto..." value="${escapeHtml(s.localidade)}" />
             </div>
           </div>
-          <div class="mission-field-group">
-            <label class="mission-field-label">Graduação</label>
-            <input id="ms-graduacao" class="mission-field-input" type="text"
-              placeholder="ex: Ciência da Computação..." value="${escapeHtml(s.graduacao)}" />
-          </div>
-        </div>
 
-        <div class="mission-footer">
-          <span class="mission-mode-label">Modo:</span>
-          <div class="mission-modes">
-            ${['todos','remoto','híbrido','presencial'].map(m => `
-              <button class="mode-btn ${s.mode === m ? 'active' : ''}" data-mode="${m}">
-                ${m.charAt(0).toUpperCase() + m.slice(1)}
+          <div class="mission-row2">
+            <div class="mission-skills-wrap">
+              <label class="mission-field-label">
+                Habilidades
+                <span class="mission-field-hint">Digite a skill — Enter</span>
+              </label>
+              <div class="mission-skills-row">
+                <div class="mission-skills-tags" id="skills-tags">
+                  ${skillsHtml}
+                  <input id="ms-skill-input" class="mission-skills-input"
+                    type="text" placeholder="${s.skills.length ? 'mais skills...' : 'python, docker, aws...'}" />
+                </div>
+                <button class="mission-skills-add" id="ms-skill-add" type="button">+</button>
+              </div>
+            </div>
+            <div class="mission-field-group">
+              <label class="mission-field-label">Graduação</label>
+              <input id="ms-graduacao" class="mission-field-input" type="text"
+                placeholder="ex: Ciência da Computação..." value="${escapeHtml(s.graduacao)}" />
+            </div>
+          </div>
+
+          <div class="mission-footer">
+            <div class="mission-actions" style="margin-left:auto">
+              <button class="btn-clear" id="ms-clear" type="button">Limpar</button>
+              <button class="btn-search" id="ms-search" type="button">
+                <span class="btn-search-arrow">▶</span> Buscar Vagas
               </button>
-            `).join('')}
-          </div>
-          <div class="mission-actions">
-            <button class="btn-clear" id="ms-clear" type="button">Limpar</button>
-            <button class="btn-search" id="ms-search" type="button">
-              <span class="btn-search-arrow">▶</span> Buscar Vagas
-            </button>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div id="jobs-results"></div>
+        <div id="jobs-results"></div>
+      </div>
     </div>
   `;
 
@@ -457,32 +496,34 @@ function updateJobResults() {
   const el = $('#jobs-results');
   if (!el) return;
   const s = store.ui.jobSearch;
-  const hasSearch = !!(s.cargo || s.skills.length || s.localidade || s.graduacao);
 
-  if (!hasSearch) {
+  const filtered   = filterJobs();
+  const hasFilters = s.contracts.length || s.levels.length || s.sizes.length || s.mode !== 'todos';
+  const hasText    = !!(s.cargo || s.skills.length || s.localidade || s.graduacao);
+  const ranked     = filtered
+    .map(j => ({ j, m: calcDynamicMatch(j, s.skills) }))
+    .sort((a, b) => b.m - a.m);
+
+  if (!hasText && !hasFilters) {
     el.innerHTML = `
       <div class="jobs-count" style="padding-top:0">
         Todas as vagas disponíveis (${store.jobs.length})
       </div>
       <div class="jobs-grid-v2">
-        ${store.jobs.slice().sort((a, b) => b.match - a.match).map(jobCardV2).join('')}
+        ${ranked.map(({ j, m }) => jobCardV2(j, m)).join('')}
       </div>`;
     return;
   }
 
-  const filtered = filterJobs();
   const marketData = calcMarket(filtered);
-
-  const rankedJobs = filtered
-    .map(j => ({ j, m: calcDynamicMatch(j, s.skills) }))
-    .sort((a, b) => b.m - a.m);
+  const label = escapeHtml(s.cargo || s.skills[0] || s.contracts[0] || s.levels[0] || '');
 
   el.innerHTML = `
+    ${hasText ? `
     <div class="market-box">
       <div class="market-title">
-        <span class="market-title-dot">●</span>
-        MERCADO
-        <span class="market-query">→ ${escapeHtml(s.cargo || s.skills[0] || '')}</span>
+        <span class="market-title-dot">●</span> MERCADO
+        <span class="market-query">→ ${label}</span>
       </div>
       <div class="market-grid">
         <div class="market-stat">
@@ -506,12 +547,12 @@ function updateJobResults() {
           <div class="market-stat-sub">Google Trends BR</div>
         </div>
       </div>
-    </div>
-    <div class="jobs-count">
+    </div>` : ''}
+    <div class="jobs-count" style="padding-top:0">
       <strong>${filtered.length}</strong> ${filtered.length === 1 ? 'vaga encontrada' : 'vagas encontradas'}
     </div>
     <div class="jobs-grid-v2">
-      ${rankedJobs.map(({ j, m }) => jobCardV2(j, m)).join('')}
+      ${ranked.map(({ j, m }) => jobCardV2(j, m)).join('')}
     </div>`;
 
   if (window.lucide) lucide.createIcons();
@@ -521,13 +562,16 @@ function filterJobs() {
   const s = store.ui.jobSearch;
   return store.jobs.filter(j => {
     const text = (j.title + ' ' + j.company + ' ' + j.tags.join(' ')).toLowerCase();
-    const cargoMatch = !s.cargo || text.includes(s.cargo.toLowerCase());
-    const skillsMatch = s.skills.length === 0 || s.skills.some(sk => text.includes(sk.toLowerCase()));
-    const modeMap = { todos: null, remoto: 'Remoto', híbrido: 'Híbrido', presencial: 'Presencial' };
-    const modeTarget = modeMap[s.mode];
-    const modeMatch = !modeTarget || j.location.toLowerCase().includes(modeTarget.toLowerCase()) || j.type.toLowerCase().includes(modeTarget.toLowerCase());
-    const localMatch = !s.localidade || j.location.toLowerCase().includes(s.localidade.toLowerCase());
-    return cargoMatch && skillsMatch && modeMatch && localMatch;
+    const cargoMatch    = !s.cargo || text.includes(s.cargo.toLowerCase());
+    const skillsMatch   = s.skills.length === 0 || s.skills.some(sk => text.includes(sk.toLowerCase()));
+    const localMatch    = !s.localidade || j.location.toLowerCase().includes(s.localidade.toLowerCase());
+    const modeMap       = { todos: null, remoto: 'Remoto', híbrido: 'Híbrido', presencial: 'Presencial' };
+    const modeTarget    = modeMap[s.mode];
+    const modeMatch     = !modeTarget || j.location.toLowerCase().includes(modeTarget.toLowerCase());
+    const contractMatch = s.contracts.length === 0 || s.contracts.includes(j.contract);
+    const levelMatch    = s.levels.length === 0    || s.levels.includes(j.level);
+    const sizeMatch     = s.sizes.length === 0     || s.sizes.includes(j.companySize);
+    return cargoMatch && skillsMatch && localMatch && modeMatch && contractMatch && levelMatch && sizeMatch;
   });
 }
 
@@ -555,14 +599,15 @@ function calcMarket(jobs) {
 }
 
 function jobCardV2(j, dynMatch) {
-  const match = dynMatch !== undefined ? dynMatch : j.match;
-  const typeTag = j.type?.split('·')[0]?.trim() || '';
+  const match   = dynMatch !== undefined ? dynMatch : j.match;
   const locType = j.location?.split('·')[0]?.trim() || j.location;
   const locClass = locType.toLowerCase().includes('remoto') ? 'remote'
-    : locType.toLowerCase().includes('híbrido') ? 'hybrid'
-    : 'onsite';
-  const isCLT = j.type?.includes('CLT');
+    : locType.toLowerCase().includes('híbrido') ? 'hybrid' : 'onsite';
   const matchCls = match >= 80 ? '' : match >= 60 ? 'mid' : 'low';
+
+  const levelCls = j.level === 'Júnior' ? 'junior' : j.level === 'Sênior' ? 'senior' : 'pleno';
+  const contractCls = j.contract === 'PJ' ? 'pj' : j.contract === 'Estágio' ? 'estagio' : 'clt';
+  const sizeCls = j.companySize === 'Startup' ? 'startup' : j.companySize === 'Grande empresa' ? 'grande' : 'pme';
 
   return `
     <article class="job-card-v2" data-id="${j.id}">
@@ -575,8 +620,9 @@ function jobCardV2(j, dynMatch) {
       </div>
       <div class="jcv2-tags">
         ${locType ? `<span class="jcv2-tag ${locClass}">${escapeHtml(locType)}</span>` : ''}
-        ${typeTag ? `<span class="jcv2-tag ${locClass}">${escapeHtml(typeTag)}</span>` : ''}
-        ${isCLT ? `<span class="jcv2-tag clt">CLT</span>` : ''}
+        ${j.level    ? `<span class="jcv2-badge jcv2-badge-${levelCls}">${escapeHtml(j.level)}</span>` : ''}
+        ${j.contract ? `<span class="jcv2-badge jcv2-badge-${contractCls}">${escapeHtml(j.contract)}</span>` : ''}
+        ${j.companySize ? `<span class="jcv2-badge jcv2-badge-${sizeCls}">${escapeHtml(j.companySize)}</span>` : ''}
       </div>
       <div class="jcv2-salary">
         <span class="jcv2-salary-icon">🔥</span>
@@ -661,24 +707,29 @@ function bindJobsPageEvents() {
     renderRightPanel(s.cargo || s.skills.join(' '));
   });
 
-  $$('.mode-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      s.mode = btn.dataset.mode;
-      $$('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === s.mode));
-      updateJobResults();
-    });
+  $('.jobs-filters')?.addEventListener('change', e => {
+    const input = e.target;
+    const filter = input.dataset.filter;
+    if (!filter) return;
+    if (filter === 'mode') {
+      s.mode = input.value;
+    } else {
+      const key = filter + 's';
+      if (input.checked) { if (!s[key].includes(input.value)) s[key].push(input.value); }
+      else s[key] = s[key].filter(v => v !== input.value);
+    }
+    updateJobResults();
+  });
+
+  $('#filter-reset-btn')?.addEventListener('click', () => {
+    s.contracts = []; s.levels = []; s.sizes = []; s.mode = 'todos';
+    renderJobsPage();
   });
 
   $('#ms-clear')?.addEventListener('click', () => {
     s.cargo = ''; s.localidade = ''; s.skills = []; s.mode = 'todos'; s.graduacao = '';
-    const cargoEl = $('#ms-cargo'); if (cargoEl) cargoEl.value = '';
-    const localEl = $('#ms-local'); if (localEl) localEl.value = '';
-    const gradEl  = $('#ms-graduacao'); if (gradEl)  gradEl.value  = '';
-    $$('.mission-skill-tag').forEach(t => t.remove());
-    if (skillInput) { skillInput.value = ''; skillInput.placeholder = 'python, docker, aws...'; }
-    $$('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === 'todos'));
-    updateJobResults();
-    renderRightPanel('');
+    s.contracts = []; s.levels = []; s.sizes = [];
+    renderJobsPage();
   });
 
   $('#ms-search')?.addEventListener('click', () => renderJobsPage());

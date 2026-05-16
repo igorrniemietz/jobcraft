@@ -995,6 +995,77 @@ h3 { font-size: 16px; font-weight: 700; }
 .rp-course-meta { font-size: 10px; color: var(--text-mut); }
 
 /* ============================================================
+   Jobs page — layout com sidebar de filtros
+   ============================================================ */
+.jobs-page-wrap {
+  display: grid;
+  grid-template-columns: 210px 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.jobs-main {
+  display: flex; flex-direction: column; gap: 16px;
+  min-width: 0;
+}
+
+.jobs-filters {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  position: sticky;
+  top: calc(var(--tb-h) + 16px);
+}
+
+.filter-title {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 1.4px; color: var(--text-mut);
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 14px;
+}
+
+.filter-group {
+  margin-bottom: 16px;
+}
+
+.filter-group-label {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 1px; color: var(--text);
+  margin-bottom: 8px;
+}
+
+.filter-check {
+  display: flex; align-items: center; gap: 8px;
+  padding: 4px 0; cursor: pointer;
+  font-size: 13px; color: var(--text-body);
+  user-select: none;
+}
+.filter-check:hover { color: var(--text); }
+.filter-check input[type="checkbox"],
+.filter-check input[type="radio"] {
+  width: 14px; height: 14px;
+  accent-color: var(--snes-royal); cursor: pointer; flex-shrink: 0;
+}
+
+.filter-reset {
+  width: 100%; padding: 8px;
+  margin-top: 4px;
+  border: 1px dashed var(--border); border-radius: var(--radius-sm);
+  font-size: 11px; font-weight: 600; color: var(--text-mut);
+  background: transparent; cursor: pointer;
+  transition: all .15s var(--ease);
+}
+.filter-reset:hover { border-color: var(--snes-royal-light); color: var(--snes-royal); }
+
+@media (max-width: 900px) {
+  .jobs-page-wrap { grid-template-columns: 1fr; }
+  .jobs-filters { position: static; display: flex; flex-wrap: wrap; gap: 12px; }
+  .filter-group { margin-bottom: 0; min-width: 140px; }
+}
+
+/* ============================================================
    NOVA MISSÃO — Página de busca de vagas
    ============================================================ */
 .mission-wrap {
@@ -1271,4 +1342,21 @@ h3 { font-size: 16px; font-weight: 700; }
 .jcv2-match-pct { color: var(--success); font-size: 12px; }
 .jcv2-match-pct.mid { color: var(--warning); }
 .jcv2-match-pct.low { color: var(--danger); }
+
+/* Badges de nível, contrato e empresa nos cards */
+.jcv2-badge {
+  display: inline-flex; align-items: center;
+  font-size: 9px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .4px; padding: 2px 6px; border-radius: 0;
+  border: 1px solid transparent;
+}
+.jcv2-badge-junior  { background: #FEF3C7; color: #92400E; border-color: #FDE68A; }
+.jcv2-badge-pleno   { background: #DBEAFE; color: #1E40AF; border-color: #BFDBFE; }
+.jcv2-badge-senior  { background: #EDE9FE; color: #5B21B6; border-color: #DDD6FE; }
+.jcv2-badge-clt     { background: #DCFCE7; color: #166534; border-color: #BBF7D0; }
+.jcv2-badge-pj      { background: #FEE2E2; color: #991B1B; border-color: #FECACA; }
+.jcv2-badge-estagio { background: #FFF7ED; color: #C2410C; border-color: #FED7AA; }
+.jcv2-badge-startup { background: #F0FDF4; color: #15803D; border-color: #BBF7D0; }
+.jcv2-badge-grande  { background: #EFF6FF; color: #1D4ED8; border-color: #BFDBFE; }
+.jcv2-badge-pme     { background: #FFFBEB; color: #B45309; border-color: #FDE68A; }
 
