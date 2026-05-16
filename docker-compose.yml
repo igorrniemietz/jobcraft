@@ -28,11 +28,13 @@ services:
       - "3000:8080"
     environment:
       # Desative qualquer fonte com =false a qualquer momento e reinicie
-      GUPY_ENABLED:     "${GUPY_ENABLED:-true}"
-      REMOTIVE_ENABLED: "${REMOTIVE_ENABLED:-true}"
+      GUPY_ENABLED:     "${GUPY_ENABLED:-false}"
+      REMOTIVE_ENABLED: "${REMOTIVE_ENABLED:-false}"
       ADZUNA_ENABLED:   "${ADZUNA_ENABLED:-false}"
-      ADZUNA_APP_ID:    "${ADZUNA_APP_ID:-}"
-      ADZUNA_APP_KEY:   "${ADZUNA_APP_KEY:-}"
+      VAGAS_ENABLED:    "${VAGAS_ENABLED:-true}"
+      INDEED_ENABLED:   "${INDEED_ENABLED:-true}"
+      CATHO_ENABLED:    "${CATHO_ENABLED:-true}"
+      TRAMPOS_ENABLED:  "${TRAMPOS_ENABLED:-true}"
       SYNC_INTERVAL_MS: "${SYNC_INTERVAL_MS:-21600000}"
     labels:
       - "traefik.enable=true"

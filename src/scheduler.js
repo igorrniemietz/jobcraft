@@ -1,8 +1,7 @@
 'use strict';
-const { fetchGupy }     = require('./collectors/gupy');
-const { fetchRemotive } = require('./collectors/remotive');
-const { fetchAdzuna }   = require('./collectors/adzuna');
-const store             = require('./jobStore');
+// Gupy e fontes internacionais (remotive, adzuna) desativados neste branch.
+// Fontes ativas: scrapers BR (vagas.com, indeed, catho, trampos)
+const store = require('./jobStore');
 
 const INTERVAL_MS = parseInt(process.env.SYNC_INTERVAL_MS || String(6 * 60 * 60 * 1000)); // 6h
 
@@ -25,11 +24,13 @@ async function syncSource(name, fetchFn) {
 
 async function syncAll() {
   console.log('[sync] iniciando sincronização de todas as fontes…');
-  await Promise.allSettled([
-    syncSource('gupy',     fetchGupy),
-    syncSource('remotive', fetchRemotive),
-    syncSource('adzuna',   fetchAdzuna),
-  ]);
+  // Scrapers BR — serão importados aqui após implementação
+  // await Promise.allSettled([
+  //   syncSource('vagas',   fetchVagas),
+  //   syncSource('indeed',  fetchIndeed),
+  //   syncSource('catho',   fetchCatho),
+  //   syncSource('trampos', fetchTrampos),
+  // ]);
   console.log(`[sync] concluído — ${store.count()} vagas únicas no store`);
 }
 
