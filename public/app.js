@@ -467,12 +467,6 @@ function renderJobsPage() {
             </div>
           </div>
           <div class="inline-filter-row">
-            <span class="inline-filter-label">Empresa:</span>
-            <div class="inline-filter-opts">
-              ${filterBtns('size', [['Startup','Startup'],['PME','Pequena/Média'],['Grande empresa','Grande empresa']])}
-            </div>
-          </div>
-          <div class="inline-filter-row">
             <span class="inline-filter-label">Regime:</span>
             <div class="inline-filter-opts">
               ${filterBtns('mode', [['todos','Todos'],['remoto','Remoto'],['híbrido','Híbrido'],['presencial','Presencial']])}

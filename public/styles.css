@@ -1177,10 +1177,13 @@ h3 { font-size: 16px; font-weight: 700; }
 .mission-skills-add:hover { background: var(--snes-royal); color: white; }
 
 .mission-filters {
-  display: flex; flex-direction: column; gap: 4px;
-  padding: 8px 0 2px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 24px;
+  padding: 10px 0 6px;
   border-top: 1px solid var(--border);
 }
+@media (max-width: 700px) { .mission-filters { grid-template-columns: 1fr; } }
 
 .inline-filter-row {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
@@ -1189,13 +1192,15 @@ h3 { font-size: 16px; font-weight: 700; }
 .inline-filter-label {
   font-size: 9px; font-weight: 700; text-transform: uppercase;
   letter-spacing: .8px; color: var(--text-mut);
-  min-width: 56px; flex-shrink: 0;
+  min-width: 66px; flex-shrink: 0;
 }
 
 .inline-filter-opts { display: flex; gap: 4px; flex-wrap: wrap; }
 
 .mission-footer {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
 }
 .mission-mode-label {
   font-size: 11px; font-weight: 700; text-transform: uppercase;
