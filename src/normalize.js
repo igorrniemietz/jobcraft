@@ -163,4 +163,90 @@ function fromAdzuna(raw) {
   };
 }
 
-module.exports = { fromGupy, fromRemotive, fromAdzuna };
+/* ── Vagas.com ──────────────────────────────────────────────────── */
+function parseBrDate(str) {
+  const m = (str || '').match(/(\d{2})\/(\d{2})\/(\d{4})/);
+  if (!m) return null;
+  return `${m[3]}-${m[2]}-${m[1]}`;
+}
+
+function fromVagas(raw) {
+  const company  = raw.company || 'Empresa';
+  const title    = raw.title   || '';
+  const level    = raw.level   ? raw.level.trim() : (extractLevel(title) || null);
+
+  const locRaw   = raw.location || '';
+  const remote   = /remot/i.test(locRaw);
+  const location = remote ? 'Remoto · BR'
+    : locRaw === 'Localização não informada' || !locRaw ? 'Brasil'
+    : locRaw;
+
+  const contract = extractLevel(title) ? null : null; // vagas.com não expõe CLT/PJ na listagem
+
+  return {
+    id:          `vg-${raw.id}`,
+    source:      'vagas',
+    title,
+    company,
+    logo:        initials(company),
+    color:       colorFor(company),
+    location,
+    type:        level || 'CLT',
+    contract:    null,
+    level,
+    companySize: null,
+    salary:      null,
+    tags:        extractTags(title, raw.desc || ''),
+    match:       0,
+    stage:       null,
+    posted:      relTime(parseBrDate(raw.date)),
+    applicants:  0,
+    saved:       false,
+    applied:     false,
+    description: String(raw.desc || '').slice(0, 500),
+    externalUrl: raw.href ? `https://www.vagas.com.br${raw.href}` : '',
+  };
+}
+
+/* ── Trampos ────────────────────────────────────────────────────── */
+function fromTrampos(raw) {
+  const company = raw.company?.name || raw.empresa || raw.companyName || 'Empresa';
+  const title   = raw.title    || raw.titulo   || raw.nome || '';
+  const desc    = raw.description || raw.descricao || raw.body || '';
+
+  const contractRaw = (raw.contractType || raw.tipo || '').toLowerCase();
+  const contract = contractRaw.includes('clt')    ? 'CLT'
+                 : contractRaw.includes('estágio') ? 'Estágio'
+                 : 'PJ'; // trampos é majoritariamente PJ/freelance
+
+  const remote   = /remot/i.test(contractRaw) || raw.remote || raw.remoto || false;
+  const city     = raw.city || raw.cidade || raw.location || '';
+  const location = remote ? 'Remoto · BR' : city || 'Brasil';
+  const level    = extractLevel(title) || 'Pleno';
+
+  return {
+    id:          `tr-${raw.id || raw.slug}`,
+    source:      'trampos',
+    title,
+    company,
+    logo:        initials(company),
+    color:       colorFor(company),
+    location,
+    type:        `${contract} · ${level}`,
+    contract,
+    level,
+    companySize: null,
+    salary:      raw.salary || raw.salario || null,
+    tags:        extractTags(title, desc),
+    match:       0,
+    stage:       null,
+    posted:      relTime(raw.publishedAt || raw.createdAt || raw.created_at),
+    applicants:  0,
+    saved:       false,
+    applied:     false,
+    description: stripHtml(desc).slice(0, 500),
+    externalUrl: `https://trampos.co/oportunidades/${raw.slug || raw.id}`,
+  };
+}
+
+module.exports = { fromGupy, fromRemotive, fromAdzuna, fromVagas, fromTrampos };
