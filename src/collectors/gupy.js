@@ -14,6 +14,7 @@ async function fetchGupy() {
     return [];
   }
 
+  const MAX_AGE_MS = 90 * 24 * 60 * 60 * 1000;
   const results = [];
   for (const q of QUERIES) {
     try {
@@ -21,9 +22,15 @@ async function fetchGupy() {
       const { status, body } = await getJSON(url);
       if (status !== 200) { console.warn(`[gupy] HTTP ${status} para "${q}"`); continue; }
       const now  = Date.now();
-      const list = (body.data || []).filter(j =>
-        !j.applicationDeadline || new Date(j.applicationDeadline).getTime() > now
-      );
+      const list = (body.data || []).filter(j => {
+        const deadline = j.applicationDeadline ? new Date(j.applicationDeadline).getTime() : null;
+        if (deadline && deadline <= now) return false;           // prazo expirado
+        if (deadline && deadline > now)  return true;            // prazo futuro → sempre manter
+        if (j.publishedDate) {
+          return (now - new Date(j.publishedDate).getTime()) <= MAX_AGE_MS; // sem prazo: até 90 dias
+        }
+        return true;
+      });
       results.push(...list.map(fromGupy));
       console.log(`[gupy] "${q}" → ${list.length} vagas`);
       await sleep(400);

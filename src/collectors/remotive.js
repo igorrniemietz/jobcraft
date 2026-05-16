@@ -16,7 +16,12 @@ async function fetchRemotive() {
       const url = `https://remotive.com/api/remote-jobs?category=${cat}&limit=50`;
       const { status, body } = await getJSON(url);
       if (status !== 200) { console.warn(`[remotive] HTTP ${status} para "${cat}"`); continue; }
-      const list = body.jobs || [];
+      const now = Date.now();
+      const MAX_AGE_MS = 60 * 24 * 60 * 60 * 1000;
+      const list = (body.jobs || []).filter(j => {
+        if (!j.publication_date) return true;
+        return (now - new Date(j.publication_date).getTime()) <= MAX_AGE_MS;
+      });
       results.push(...list.map(fromRemotive));
       console.log(`[remotive] "${cat}" → ${list.length} vagas`);
     } catch (e) {

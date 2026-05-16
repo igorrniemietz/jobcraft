@@ -95,7 +95,7 @@ function fromGupy(raw) {
     saved:       false,
     applied:     false,
     description: stripHtml(raw.description).slice(0, 500),
-    externalUrl: raw.jobUrl || raw.careerPageUrl || '',
+    externalUrl: raw.jobUrl || '',
   };
 }
 
