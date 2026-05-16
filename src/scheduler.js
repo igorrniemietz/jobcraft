@@ -1,9 +1,11 @@
 'use strict';
 // Gupy e fontes internacionais (remotive, adzuna) desativados neste branch.
 // Fontes ativas: scrapers BR
-const { fetchTrampos } = require('./collectors/trampos');
-const { fetchVagas }   = require('./collectors/vagas');
-const store            = require('./jobStore');
+const { fetchTrampos }    = require('./collectors/trampos');
+const { fetchVagas }      = require('./collectors/vagas');
+const { fetchGreenhouse } = require('./collectors/greenhouse');
+const { fetchLever }      = require('./collectors/lever');
+const store               = require('./jobStore');
 
 const INTERVAL_MS = parseInt(process.env.SYNC_INTERVAL_MS || String(6 * 60 * 60 * 1000)); // 6h
 
@@ -27,10 +29,11 @@ async function syncSource(name, fetchFn) {
 async function syncAll() {
   console.log('[sync] iniciando sincronização de todas as fontes…');
   await Promise.allSettled([
-    syncSource('trampos', fetchTrampos),
-    syncSource('vagas',   fetchVagas),
-    // syncSource('catho',  fetchCatho),   // fase 3
-    // syncSource('indeed', fetchIndeed),  // fase 4
+    syncSource('trampos',    fetchTrampos),
+    syncSource('vagas',      fetchVagas),
+    syncSource('greenhouse', fetchGreenhouse),
+    syncSource('lever',      fetchLever),
+    // syncSource('catho',   fetchCatho),   // bloqueado por Akamai TLS — Fase 4
   ]);
   console.log(`[sync] concluído — ${store.count()} vagas únicas no store`);
 }

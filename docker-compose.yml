@@ -34,7 +34,9 @@ services:
       VAGAS_ENABLED:    "${VAGAS_ENABLED:-true}"
       INDEED_ENABLED:   "${INDEED_ENABLED:-true}"
       CATHO_ENABLED:    "${CATHO_ENABLED:-true}"
-      TRAMPOS_ENABLED:  "${TRAMPOS_ENABLED:-true}"
+      TRAMPOS_ENABLED:     "${TRAMPOS_ENABLED:-true}"
+      GREENHOUSE_ENABLED:  "${GREENHOUSE_ENABLED:-true}"
+      LEVER_ENABLED:       "${LEVER_ENABLED:-true}"
       SYNC_INTERVAL_MS: "${SYNC_INTERVAL_MS:-21600000}"
     labels:
       - "traefik.enable=true"

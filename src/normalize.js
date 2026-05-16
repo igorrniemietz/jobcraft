@@ -249,4 +249,83 @@ function fromTrampos(raw) {
   };
 }
 
-module.exports = { fromGupy, fromRemotive, fromAdzuna, fromVagas, fromTrampos };
+/* ── Greenhouse ─────────────────────────────────────────────────── */
+function fromGreenhouse(raw, companyName) {
+  const company = companyName || raw.company_name || 'Empresa';
+  const title   = raw.title || '';
+  const loc     = raw.location?.name || '';
+
+  const remote  = /remote|remoto/i.test(loc);
+  const locClean = remote ? 'Remoto · BR'
+    : loc.replace(/,\s*(brazil|brasil)/i, '').replace(/brazil|brasil/i, '').trim() || 'Brasil';
+
+  const level    = extractLevel(title) || 'Pleno';
+  const dept     = (raw.departments || []).map(d => d.name).join(', ');
+  const desc     = raw.content || '';
+  const tags     = extractTags(title, stripHtml(desc));
+
+  return {
+    id:          `gh-${raw.id}`,
+    source:      'greenhouse',
+    title,
+    company,
+    logo:        initials(company),
+    color:       colorFor(company),
+    location:    locClean,
+    type:        `CLT · ${level}`,
+    contract:    'CLT',
+    level,
+    companySize: 'Grande empresa',
+    salary:      null,
+    tags,
+    match:       0,
+    stage:       null,
+    posted:      relTime(raw.first_published || raw.updated_at),
+    applicants:  0,
+    saved:       false,
+    applied:     false,
+    description: stripHtml(desc).slice(0, 500),
+    externalUrl: raw.absolute_url || '',
+  };
+}
+
+/* ── Lever ──────────────────────────────────────────────────────── */
+function fromLever(raw, companyName) {
+  const company  = companyName || raw.company || 'Empresa';
+  const title    = raw.text || '';
+  const loc      = raw.categories?.location || '';
+  const remote   = /remote|remoto/i.test(loc);
+  const location = remote ? 'Remoto · BR' : loc || 'Brasil';
+  const level    = extractLevel(title) || 'Pleno';
+
+  const commitRaw = (raw.categories?.commitment || '').toLowerCase();
+  const contract  = commitRaw.includes('contract') ? 'PJ' : 'CLT';
+
+  const desc = raw.descriptionPlain || stripHtml(raw.description || '');
+
+  return {
+    id:          `lv-${raw.id}`,
+    source:      'lever',
+    title,
+    company,
+    logo:        initials(company),
+    color:       colorFor(company),
+    location,
+    type:        `${contract} · ${level}`,
+    contract,
+    level,
+    companySize: 'Startup',
+    salary:      null,
+    tags:        extractTags(title, desc),
+    match:       0,
+    stage:       null,
+    posted:      relTime(raw.createdAt ? new Date(raw.createdAt).toISOString() : null),
+    applicants:  0,
+    saved:       false,
+    applied:     false,
+    description: String(desc).slice(0, 500),
+    externalUrl: raw.hostedUrl || '',
+  };
+}
+
+module.exports = { fromGupy, fromRemotive, fromAdzuna, fromVagas, fromTrampos, fromGreenhouse, fromLever };
