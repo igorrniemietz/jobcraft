@@ -11,6 +11,7 @@ const store = {
   ui: {
     route: location.hash || '#/jobs',
     jobSearch: { cargo: '', localidade: '', skills: [], mode: 'todos', graduacao: '', contracts: [], levels: [], sizes: [] },
+    realJobsStatus: 'idle', // idle | loading | ok | error
     rpTab: 'missoes',
     rpVoucher: false,
     rpLastQuery: '',
@@ -59,6 +60,29 @@ async function boot() {
   if (!ROUTES[location.hash]) location.hash = '#/jobs';
   route();
   window.addEventListener('hashchange', route);
+  loadRealJobs();
+}
+
+async function loadRealJobs() {
+  const s = store.ui.jobSearch;
+  store.ui.realJobsStatus = 'loading';
+  updateJobResults();
+
+  const q      = s.cargo || (store.user?.tracks?.[0] ?? 'segurança');
+  const skills = s.skills.join(',');
+  try {
+    const res  = await fetch(`/api/jobs?q=${encodeURIComponent(q)}&skills=${encodeURIComponent(skills)}`);
+    const data = await res.json();
+    if (data.ok && data.jobs.length) {
+      store.jobs = [...data.jobs, ...store.jobs.filter(j => !j.id.startsWith('gh-'))];
+      store.ui.realJobsStatus = 'ok';
+    } else {
+      store.ui.realJobsStatus = data.jobs.length === 0 ? 'empty' : 'error';
+    }
+  } catch {
+    store.ui.realJobsStatus = 'error';
+  }
+  if (store.ui.route === '#/jobs') updateJobResults();
 }
 
 function paintUser() {
@@ -480,7 +504,21 @@ function renderJobsPage() {
 function updateJobResults() {
   const el = $('#jobs-results');
   if (!el) return;
-  const s = store.ui.jobSearch;
+  const s      = store.ui.jobSearch;
+  const status = store.ui.realJobsStatus;
+
+  const statusBanner = status === 'loading'
+    ? `<div class="real-jobs-banner loading">Buscando vagas reais…</div>`
+    : status === 'error'
+    ? `<div class="real-jobs-banner error">Não foi possível carregar vagas externas — exibindo dados locais.</div>`
+    : status === 'empty'
+    ? `<div class="real-jobs-banner empty">Nenhuma vaga real encontrada para essa busca.</div>`
+    : '';
+
+  const realCount = store.jobs.filter(j => j.source === 'geekhunter').length;
+  const countLabel = realCount
+    ? `${store.jobs.length} vagas (${realCount} GeekHunter)`
+    : `${store.jobs.length} vagas disponíveis`;
 
   const filtered   = filterJobs();
   const hasFilters = s.contracts.length || s.levels.length || s.sizes.length || s.mode !== 'todos';
@@ -491,9 +529,8 @@ function updateJobResults() {
 
   if (!hasText && !hasFilters) {
     el.innerHTML = `
-      <div class="jobs-count" style="padding-top:0">
-        Todas as vagas disponíveis (${store.jobs.length})
-      </div>
+      ${statusBanner}
+      <div class="jobs-count" style="padding-top:0">${countLabel}</div>
       <div class="jobs-grid-v2">
         ${ranked.map(({ j, m }) => jobCardV2(j, m)).join('')}
       </div>`;
@@ -608,10 +645,12 @@ function jobCardV2(j, dynMatch) {
         ${j.level    ? `<span class="jcv2-badge jcv2-badge-${levelCls}">${escapeHtml(j.level)}</span>` : ''}
         ${j.contract ? `<span class="jcv2-badge jcv2-badge-${contractCls}">${escapeHtml(j.contract)}</span>` : ''}
         ${j.companySize ? `<span class="jcv2-badge jcv2-badge-${sizeCls}">${escapeHtml(j.companySize)}</span>` : ''}
+        ${j.source === 'geekhunter' ? `<span class="jcv2-badge jcv2-badge-source">GH</span>` : ''}
       </div>
       <div class="jcv2-salary">
-        <span class="jcv2-salary-icon">🔥</span>
-        ${escapeHtml(j.salary)} <span style="font-weight:500;color:var(--text-mut);font-size:11px">/mês</span>
+        ${j.salary
+          ? `<span class="jcv2-salary-icon">🔥</span>${escapeHtml(j.salary)} <span style="font-weight:500;color:var(--text-mut);font-size:11px">/mês</span>`
+          : `<span style="color:var(--text-mut);font-size:11px">Salário não informado</span>`}
       </div>
       <div class="jcv2-skills">
         ${j.tags.slice(0, 4).map(t => `<span class="jcv2-skill">${escapeHtml(t)}</span>`).join('')}
@@ -719,7 +758,7 @@ function bindJobsPageEvents() {
     renderJobsPage();
   });
 
-  $('#ms-search')?.addEventListener('click', () => renderJobsPage());
+  $('#ms-search')?.addEventListener('click', () => { renderJobsPage(); loadRealJobs(); });
 
   $('#ms-cargo')?.addEventListener('keydown', e => { if (e.key === 'Enter') renderJobsPage(); });
   $('#ms-local')?.addEventListener('keydown', e => { if (e.key === 'Enter') renderJobsPage(); });
