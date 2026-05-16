@@ -1,0 +1,12 @@
+[
+  { "rank": 1, "name": "Lara Silva",      "handle": "@laras", "xp": 12450, "level": 28, "track": "Offensive", "country": "BR" },
+  { "rank": 2, "name": "Diego Tanaka",    "handle": "@dtanaka", "xp": 11820, "level": 27, "track": "Cloud Sec", "country": "BR" },
+  { "rank": 3, "name": "Marina Costa",    "handle": "@mcosta", "xp": 10930, "level": 25, "track": "AppSec", "country": "BR" },
+  { "rank": 4, "name": "Henrique Alves",  "handle": "@halves", "xp": 9870,  "level": 23, "track": "Blue Team", "country": "BR" },
+  { "rank": 5, "name": "Paula Mendes",    "handle": "@paulam", "xp": 9210,  "level": 22, "track": "DevSecOps", "country": "BR" },
+  { "rank": 6, "name": "Rafael Pinto",    "handle": "@rpinto", "xp": 8540,  "level": 20, "track": "Frontend", "country": "BR" },
+  { "rank": 7, "name": "Camila Reis",     "handle": "@creis",  "xp": 7980,  "level": 19, "track": "Crypto",    "country": "BR" },
+  { "rank": 8, "name": "Bruno Oliveira",  "handle": "@bruno_o","xp": 7340,  "level": 18, "track": "SRE",       "country": "PT" },
+  { "rank": 9, "name": "Vivaldo Júnior",  "handle": "@vivaldo","xp": 1750,  "level": 12, "track": "AppSec",    "country": "BR", "isMe": true },
+  { "rank": 10,"name": "Júlia Ferreira",  "handle": "@juliaf", "xp": 1610,  "level": 11, "track": "Frontend",  "country": "BR" }
+]

@@ -1,0 +1,84 @@
+[
+  {
+    "id": "cert-001",
+    "name": "CompTIA Security+",
+    "issuer": "CompTIA",
+    "category": "Segurança",
+    "status": "earned",
+    "earnedAt": "2025-08-12",
+    "credentialId": "COMP001022019384",
+    "color": "#C8202F",
+    "xp": 600
+  },
+  {
+    "id": "cert-002",
+    "name": "Certified Ethical Hacker (CEH)",
+    "issuer": "EC-Council",
+    "category": "Offensive",
+    "status": "earned",
+    "earnedAt": "2025-11-04",
+    "credentialId": "ECC8821-CEH",
+    "color": "#0A2540",
+    "xp": 800
+  },
+  {
+    "id": "cert-003",
+    "name": "OSCP",
+    "issuer": "Offensive Security",
+    "category": "Offensive",
+    "status": "in_progress",
+    "progress": 62,
+    "examAt": "2026-07-20",
+    "color": "#0F172A",
+    "xp": 1200
+  },
+  {
+    "id": "cert-004",
+    "name": "AWS Certified Security – Specialty",
+    "issuer": "Amazon Web Services",
+    "category": "Cloud",
+    "status": "in_progress",
+    "progress": 38,
+    "examAt": "2026-09-15",
+    "color": "#FF9900",
+    "xp": 900
+  },
+  {
+    "id": "cert-005",
+    "name": "CISSP",
+    "issuer": "ISC²",
+    "category": "Gestão",
+    "status": "available",
+    "color": "#005A9C",
+    "xp": 1500
+  },
+  {
+    "id": "cert-006",
+    "name": "AZ-500 Microsoft Security",
+    "issuer": "Microsoft",
+    "category": "Cloud",
+    "status": "available",
+    "color": "#0078D4",
+    "xp": 850
+  },
+  {
+    "id": "cert-007",
+    "name": "GCIH (Incident Handler)",
+    "issuer": "GIAC / SANS",
+    "category": "Blue Team",
+    "status": "available",
+    "color": "#B91C1C",
+    "xp": 1100
+  },
+  {
+    "id": "cert-008",
+    "name": "CKS (Kubernetes Security)",
+    "issuer": "Linux Foundation",
+    "category": "Cloud",
+    "status": "earned",
+    "earnedAt": "2026-02-18",
+    "credentialId": "LF-CKS-29381",
+    "color": "#326CE5",
+    "xp": 950
+  }
+]

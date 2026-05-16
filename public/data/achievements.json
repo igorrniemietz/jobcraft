@@ -1,0 +1,14 @@
+[
+  { "id": "a-001", "name": "First Blood",          "desc": "Primeira candidatura enviada",         "icon": "sword",    "rarity": "bronze",   "unlocked": true,  "xp": 50 },
+  { "id": "a-002", "name": "Triagem Aprovada",     "desc": "Passou pela primeira triagem",         "icon": "check",    "rarity": "bronze",   "unlocked": true,  "xp": 80 },
+  { "id": "a-003", "name": "OWASP Hunter",         "desc": "Concluiu o curso OWASP Top 10",        "icon": "shield",   "rarity": "prata",    "unlocked": true,  "xp": 150 },
+  { "id": "a-004", "name": "Red Hand",             "desc": "Encerrou o Pentest Web Moderno",       "icon": "flame",    "rarity": "ouro",     "unlocked": true,  "xp": 300 },
+  { "id": "a-005", "name": "Streak 7 dias",        "desc": "Estudou 7 dias seguidos",              "icon": "flame",    "rarity": "prata",    "unlocked": true,  "xp": 120 },
+  { "id": "a-006", "name": "Streak 30 dias",       "desc": "30 dias seguidos de estudo",           "icon": "flame",    "rarity": "ouro",     "unlocked": false, "xp": 400 },
+  { "id": "a-007", "name": "Cripto Master",        "desc": "Conclua Criptografia Aplicada",        "icon": "key",      "rarity": "diamante", "unlocked": false, "xp": 600 },
+  { "id": "a-008", "name": "Cloud Guardian",       "desc": "Certificado AWS Security obtido",      "icon": "cloud",    "rarity": "ouro",     "unlocked": false, "xp": 500 },
+  { "id": "a-009", "name": "Hunter da Semana",     "desc": "Top 10 do leaderboard semanal",        "icon": "trophy",   "rarity": "prata",    "unlocked": true,  "xp": 200 },
+  { "id": "a-010", "name": "Lendário",             "desc": "Chegue ao nível 30",                   "icon": "crown",    "rarity": "diamante", "unlocked": false, "xp": 1000 },
+  { "id": "a-011", "name": "Forense Iniciado",     "desc": "Comece análise forense",               "icon": "fingerprint", "rarity": "bronze","unlocked": false, "xp": 80 },
+  { "id": "a-012", "name": "Zero Trust",           "desc": "Curso de Zero Trust concluído",        "icon": "lock",     "rarity": "bronze",   "unlocked": true,  "xp": 100 }
+]

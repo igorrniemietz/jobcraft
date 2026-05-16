@@ -1,0 +1,7 @@
+[
+  { "id": "q-001", "title": "Candidate-se a 3 vagas hoje",            "progress": 1, "goal": 3,  "xp": 100, "done": false },
+  { "id": "q-002", "title": "Conclua 2 módulos de OWASP Top 10",       "progress": 2, "goal": 2,  "xp": 80,  "done": true },
+  { "id": "q-003", "title": "Estude 30 min de Kubernetes Security",    "progress": 0, "goal": 1,  "xp": 60,  "done": false },
+  { "id": "q-004", "title": "Atualize seu currículo",                  "progress": 0, "goal": 1,  "xp": 50,  "done": false },
+  { "id": "q-005", "title": "Mantenha o streak (dia 7)",               "progress": 1, "goal": 1,  "xp": 120, "done": true }
+]

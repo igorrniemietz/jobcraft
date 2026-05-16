@@ -1,0 +1,12 @@
+{
+  "name": "Igor Reis",
+  "handle": "igor.reis@jobcraft.io",
+  "role": "Analista em Segurança da Informação",
+  "level": 1,
+  "xp": 0,
+  "xpNext": 500,
+  "streak": 0,
+  "coins": 0,
+  "avatar": "IR",
+  "tracks": ["Application Security", "SOC / Blue Team", "Ethical Hacking"]
+}

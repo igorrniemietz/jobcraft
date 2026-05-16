@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Jobcraft — Carreira gamificada em Tech & Segurança</title>
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css" />
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+</head>
+<body>
+  <aside id="sidebar">
+    <div class="brand">
+      <img src="/assets/logo.svg" alt="Jobcraft" class="brand-logo" />
+      <div class="brand-online">
+        <span class="online-dot"></span>
+        <span class="online-text pixel">Online</span>
+      </div>
+      <button id="sidebar-toggle" class="sb-toggle" aria-label="Recolher menu">
+        <i data-lucide="chevrons-left"></i>
+      </button>
+    </div>
+
+    <nav class="nav">
+      <a class="nav-item" data-route="#/dashboard">     <i data-lucide="layout-dashboard"></i><span>Dashboard</span></a>
+      <a class="nav-item" data-route="#/jobs">          <i data-lucide="briefcase"></i><span>Vagas</span><em class="nav-badge">12</em></a>
+      <a class="nav-item" data-route="#/courses">       <i data-lucide="graduation-cap"></i><span>Cursos</span></a>
+      <a class="nav-item" data-route="#/certifications"><i data-lucide="badge-check"></i><span>Certificações</span></a>
+      <a class="nav-item" data-route="#/achievements">  <i data-lucide="award"></i><span>Conquistas</span></a>
+      <a class="nav-item" data-route="#/leaderboard">   <i data-lucide="trophy"></i><span>Ranking</span></a>
+      <a class="nav-item" data-route="#/profile">       <i data-lucide="user"></i><span>Perfil</span></a>
+    </nav>
+
+    <div class="nav-divider"></div>
+
+    <div class="nav-section">Atalhos</div>
+    <nav class="nav">
+      <a class="nav-item ghost"><i data-lucide="message-square"></i><span>Mensagens</span></a>
+      <a class="nav-item ghost"><i data-lucide="settings"></i><span>Configurações</span></a>
+      <a class="nav-item ghost"><i data-lucide="life-buoy"></i><span>Ajuda</span></a>
+    </nav>
+
+    <div class="sb-xp" id="sb-xp">
+      <div class="sb-xp-head">
+        <span class="pixel">LV <strong id="sb-level">12</strong></span>
+        <span class="sb-xp-num" id="sb-xp-num">1750 / 2500 XP</span>
+      </div>
+      <div class="xpbar"><div class="xpbar-fill" id="sb-xp-fill"></div></div>
+    </div>
+  </aside>
+
+  <div id="layout">
+    <header id="topbar">
+      <div class="tb-left">
+        <button class="icon-btn mobile-only" id="sidebar-open" aria-label="Abrir menu"><i data-lucide="menu"></i></button>
+
+        <div class="hud-level-badge">
+          <span class="hud-lv-label pixel">LVL</span>
+          <span class="hud-lv-num pixel" id="hud-level-num">1</span>
+        </div>
+
+        <div class="hud-xp-block">
+          <div class="hud-xp-top">
+            <span class="pixel hud-exp-txt">EXP <span id="hud-xp-label">0/30</span></span>
+            <span class="pixel hud-pts-txt" id="hud-pts">0 pts</span>
+          </div>
+          <div class="hud-xpbar-outer">
+            <div class="hud-xpbar-fill" id="hud-xp-fill"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tb-right">
+        <button class="icon-btn has-dot" title="Notificações"><i data-lucide="bell"></i><span class="dot"></span></button>
+
+        <div class="user-chip" id="user-chip" tabindex="0">
+          <div class="avatar" id="user-avatar">VJ</div>
+          <div class="user-meta">
+            <div class="user-name" id="user-name">Vivaldo Júnior</div>
+            <div class="user-sub">
+              <span class="pixel level-tag">LV <strong id="user-level">12</strong></span>
+              <span class="user-role" id="user-role">Security Engineer</span>
+            </div>
+          </div>
+          <i data-lucide="chevron-down"></i>
+          <div class="user-menu" id="user-menu">
+            <a><i data-lucide="user"></i> Meu perfil</a>
+            <a><i data-lucide="settings"></i> Configurações</a>
+            <a><i data-lucide="moon"></i> Tema escuro</a>
+            <div class="user-menu-sep"></div>
+            <a class="danger"><i data-lucide="log-out"></i> Sair</a>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main id="view" aria-live="polite"></main>
+  </div>
+
+  <aside id="right-panel">
+    <div class="rp-header">
+      <span class="pixel rp-title">QUEST DIÁRIA</span>
+    </div>
+    <div class="rp-tabs">
+      <button class="rp-tab active" data-rptab="missoes">⚔ MISSÕES</button>
+      <button class="rp-tab" data-rptab="certs">🏆 CERTS</button>
+      <button class="rp-tab" data-rptab="cursos">📚 CURSOS</button>
+    </div>
+
+    <div class="rp-body" id="rp-pane-missoes">
+      <div class="rp-quest-header">
+        <span class="rp-quest-day pixel">Hoje</span>
+        <span class="rp-xp-total" id="rp-quest-total">0 XP disponível</span>
+      </div>
+      <div id="rp-quests-list" class="rp-list"></div>
+    </div>
+
+    <div class="rp-body" id="rp-pane-certs" style="display:none">
+      <input type="text" id="rp-filter-input" class="rp-filter-input" placeholder="Filtrar certificações..." />
+      <button class="rp-voucher-btn" id="rp-voucher-btn">
+        <span class="rp-coin-sm">🌕</span>
+        <span>Só com voucher</span>
+        <span class="rp-count" id="rp-cert-count">0 de 0</span>
+      </button>
+      <div class="rp-empty" id="rp-empty-certs">
+        Busque uma vaga para ver certificações
+      </div>
+      <div id="rp-certs-list" class="rp-list"></div>
+    </div>
+
+    <div class="rp-body" id="rp-pane-cursos" style="display:none">
+      <input type="text" class="rp-filter-input" placeholder="Filtrar cursos..." />
+      <div class="rp-empty" id="rp-empty-cursos">
+        Busque uma vaga para ver cursos relacionados
+      </div>
+      <div id="rp-cursos-list" class="rp-list"></div>
+    </div>
+  </aside>
+
+  <div id="toast-root"></div>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

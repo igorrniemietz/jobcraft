@@ -1,0 +1,16 @@
+node_modules/
+.env
+.env.*
+
+# banco
+*.db
+*.sqlite
+
+# certificados
+*.pem
+*.key
+*.crt
+certs/
+
+# build
+dist/

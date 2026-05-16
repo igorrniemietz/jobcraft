@@ -1,0 +1,37 @@
+version: "3.9"
+
+# Acesso: https://localhost
+# Porta 8080 interna — nunca exposta diretamente
+
+networks:
+  internal:
+    name: jobcraft_internal
+    driver: bridge
+
+services:
+  traefik:
+    image: traefik:v3.1
+    container_name: jobcraft_traefik
+    ports:
+      - "443:443"
+    volumes:
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - internal
+    restart: unless-stopped
+
+  jobcraft:
+    build: .
+    container_name: jobcraft_app
+    expose:
+      - "8080"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.jobcraft.rule=Host(`localhost`)"
+      - "traefik.http.routers.jobcraft.entrypoints=websecure"
+      - "traefik.http.routers.jobcraft.tls=true"
+      - "traefik.http.services.jobcraft.loadbalancer.server.port=8080"
+    networks:
+      - internal
+    restart: unless-stopped

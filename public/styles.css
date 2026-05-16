@@ -1,0 +1,1274 @@
+/* ============================================================
+   Jobcraft — Design System (SNES purple palette)
+   ============================================================ */
+
+:root {
+  /* Paleta SNES */
+  --snes-lavender: #B8B5E1;
+  --snes-royal:    #5B4FB3;
+  --snes-mauve:    #8E8A99;
+  --snes-pearl:    #D0CDD1;
+  --snes-obsidian: #1F1B25;
+
+  --snes-royal-deep:  #3F348A;
+  --snes-royal-light: #7A6FE0;
+
+  /* Superfícies */
+  --bg:        #F5F4FA;
+  --surface:   #FFFFFF;
+  --surface-2: #ECEAF3;
+  --border:    #E2DFEC;
+
+  /* Texto */
+  --text:      #1F1B25;
+  --text-body: #3B3744;
+  --text-mut:  #8E8A99;
+
+  /* Status */
+  --success: #4ADE80;
+  --warning: #F59E0B;
+  --danger:  #EF4444;
+  --info:    #38BDF8;
+  --xp-gold: #FACC15;
+  --xp-gold-deep: #F2B705;
+
+  /* Forma */
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+
+  --shadow-sm: 0 1px 2px rgba(31,27,37,.06);
+  --shadow-md: 0 8px 28px rgba(63,52,138,.10);
+  --shadow-lg: 0 18px 48px rgba(63,52,138,.18);
+  --shadow-pixel: 4px 4px 0 #1F1B25;
+
+  /* Sidebar */
+  --sb-w: 248px;
+  --sb-w-c: 76px;
+  --tb-h: 64px;
+
+  /* Right Panel */
+  --rp-w: 288px;
+
+  --ease: cubic-bezier(.2,.7,.3,1);
+}
+
+/* ===== Reset ===== */
+*,*::before,*::after { box-sizing: border-box; }
+html, body { margin: 0; }
+html { height: 100%; }
+body {
+  font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-body);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+a { color: inherit; text-decoration: none; }
+button { font: inherit; cursor: pointer; border: 0; background: transparent; color: inherit; }
+input { font: inherit; }
+.pixel, .pixel * { font-family: 'Press Start 2P', monospace; letter-spacing: .5px; }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: #C9C5D8; border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: var(--snes-royal-light); }
+
+/* ============================================================
+   Layout
+   ============================================================ */
+body {
+  min-height: 100vh;
+  padding-left: var(--sb-w);
+  padding-right: var(--rp-w);
+  transition: padding-left .25s var(--ease), padding-right .25s var(--ease);
+}
+body.sb-collapsed { padding-left: var(--sb-w-c); }
+body.rp-hidden { padding-right: 0; }
+
+#sidebar {
+  position: fixed;
+  top: 0; left: 0;
+  width: var(--sb-w);
+  height: 100vh;
+  background: var(--snes-obsidian);
+  color: #E7E4F3;
+  display: flex; flex-direction: column;
+  padding: 18px 14px;
+  border-right: 1px solid #2A2532;
+  transition: width .25s var(--ease), left .25s var(--ease);
+  z-index: 30;
+  overflow-y: auto;
+}
+body.sb-collapsed #sidebar { width: var(--sb-w-c); }
+body.sb-collapsed #sidebar .nav-item span,
+body.sb-collapsed #sidebar .nav-badge,
+body.sb-collapsed #sidebar .nav-section,
+body.sb-collapsed #sidebar .brand-logo,
+body.sb-collapsed #sidebar .sb-xp-head,
+body.sb-collapsed #sidebar .sb-xp-num { display: none; }
+body.sb-collapsed #sidebar .nav-item { justify-content: center; padding: 12px 0; }
+
+#layout { width: 100%; min-width: 0; display: flex; flex-direction: column; }
+
+#topbar {
+  position: sticky; top: 0; z-index: 20;
+  height: var(--tb-h);
+  background: var(--surface);
+  border-bottom: 3px solid var(--snes-obsidian);
+  display: flex; align-items: center; gap: 16px;
+  padding: 0 20px;
+  box-shadow: 0 3px 0 var(--snes-obsidian);
+}
+
+#view {
+  padding: 28px 32px 56px;
+  max-width: 1480px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* ============================================================
+   Sidebar
+   ============================================================ */
+.brand { display: flex; align-items: center; justify-content: space-between; padding: 4px 6px 14px; gap: 8px; flex-wrap: wrap; }
+.brand-logo { height: 40px; width: auto; min-width: 0; }
+.brand-online { display: flex; align-items: center; gap: 5px; flex: 1; }
+.online-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--success);
+  box-shadow: 0 0 6px var(--success);
+  flex-shrink: 0;
+  animation: pulse-dot 2s ease infinite;
+}
+@keyframes pulse-dot {
+  0%,100% { opacity: 1; }
+  50% { opacity: .5; }
+}
+.online-text { font-size: 8px; color: var(--success); }
+body.sb-collapsed .brand { justify-content: center; padding-bottom: 10px; }
+body.sb-collapsed .brand-logo { content: url('/assets/favicon.svg'); height: 36px; width: 36px; }
+body.sb-collapsed .brand-online { display: none; }
+.sb-toggle {
+  width: 28px; height: 28px; border-radius: 8px;
+  background: rgba(255,255,255,.06); color: #BCB6D2;
+  display: grid; place-items: center;
+}
+.sb-toggle:hover { background: rgba(255,255,255,.12); color: white; }
+
+.nav-section {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 1.4px;
+  color: #6E6880; padding: 14px 12px 6px; font-weight: 700;
+}
+.nav-divider { height: 1px; background: #2A2532; margin: 12px 4px; }
+
+.nav { display: flex; flex-direction: column; gap: 2px; }
+.nav-item {
+  position: relative;
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px; border-radius: 10px;
+  color: #BFB9D2; font-weight: 500; font-size: 14px;
+  cursor: pointer; transition: background .15s var(--ease), color .15s var(--ease);
+}
+.nav-item i { width: 18px; height: 18px; flex-shrink: 0; }
+.nav-item:hover { background: rgba(255,255,255,.06); color: #fff; }
+.nav-item.ghost { color: #8C86A0; }
+.nav-item .nav-badge {
+  margin-left: auto;
+  background: var(--snes-royal); color: white;
+  padding: 2px 7px; border-radius: 999px;
+  font-size: 10px; font-style: normal; font-weight: 700;
+}
+.nav-item[aria-current="page"] {
+  background: linear-gradient(90deg, var(--snes-royal), var(--snes-royal-deep));
+  color: white;
+  box-shadow: inset 3px 0 0 var(--xp-gold);
+}
+.nav-item[aria-current="page"] .nav-badge { background: var(--xp-gold); color: #1F1B25; }
+
+.sb-xp {
+  margin-top: auto;
+  background: rgba(255,255,255,.04);
+  border: 1px solid #2A2532;
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+.sb-xp-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.sb-xp-head .pixel { font-size: 10px; color: var(--xp-gold); }
+.sb-xp-num { font-size: 11px; color: #B7B1CC; font-variant-numeric: tabular-nums; }
+
+.xpbar {
+  position: relative;
+  height: 10px;
+  background: #2A2432;
+  border: 2px solid #1F1B25;
+  border-radius: 0;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px #3A3346;
+}
+.xpbar-fill {
+  height: 100%;
+  background: repeating-linear-gradient(90deg, var(--xp-gold) 0 6px, var(--xp-gold-deep) 6px 12px);
+  width: 0%;
+  transition: width .8s var(--ease);
+}
+
+/* ============================================================
+   Topbar (legacy stubs mantidos para icon-btn / user-chip)
+   ============================================================ */
+.tb-right { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+.icon-btn {
+  width: 40px; height: 40px; border-radius: 12px;
+  display: grid; place-items: center;
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--text-body);
+  transition: transform .15s var(--ease), box-shadow .15s var(--ease);
+  position: relative;
+}
+.icon-btn i { width: 18px; height: 18px; }
+.icon-btn:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); color: var(--snes-royal); }
+.icon-btn.has-dot .dot {
+  position: absolute; top: 9px; right: 10px;
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--danger); border: 2px solid var(--surface);
+}
+
+.user-chip {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 10px 6px 6px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 999px;
+  position: relative;
+  cursor: pointer;
+  transition: box-shadow .15s var(--ease);
+}
+.user-chip:hover { box-shadow: var(--shadow-md); }
+.user-chip i { width: 14px; height: 14px; color: var(--text-mut); }
+
+.avatar {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--snes-royal-light), var(--snes-royal-deep));
+  color: white; font-weight: 700; font-size: 13px;
+  display: grid; place-items: center;
+  box-shadow: inset 0 -2px 0 rgba(0,0,0,.18);
+}
+.user-meta { display: flex; flex-direction: column; line-height: 1.15; }
+.user-name { font-weight: 700; color: var(--text); font-size: 13px; }
+.user-sub { display: flex; align-items: center; gap: 8px; }
+.level-tag {
+  font-size: 9px;
+  color: var(--snes-obsidian);
+  background: var(--xp-gold);
+  padding: 2px 6px; border-radius: 4px;
+  box-shadow: 2px 2px 0 var(--snes-obsidian);
+}
+.user-role { font-size: 11px; color: var(--text-mut); }
+
+.user-menu {
+  position: absolute; right: 0; top: calc(100% + 8px);
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; box-shadow: var(--shadow-lg);
+  min-width: 220px; padding: 6px;
+  display: none;
+}
+.user-menu.open { display: block; }
+.user-menu a {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 10px; border-radius: 8px; font-size: 13px; color: var(--text-body);
+}
+.user-menu a:hover { background: var(--surface-2); color: var(--text); }
+.user-menu a.danger { color: var(--danger); }
+.user-menu a i { width: 16px; height: 16px; }
+.user-menu-sep { height: 1px; background: var(--border); margin: 4px 6px; }
+
+/* ============================================================
+   Primitives
+   ============================================================ */
+h1, h2, h3, h4 { color: var(--text); margin: 0; }
+h1 { font-size: 26px; font-weight: 700; }
+h2 { font-size: 20px; font-weight: 700; }
+h3 { font-size: 16px; font-weight: 700; }
+.section-title { display: flex; align-items: center; justify-content: space-between; margin: 22px 0 14px; }
+.section-title small { color: var(--text-mut); font-weight: 500; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 14px; border-radius: 10px;
+  font-weight: 600; font-size: 13px;
+  background: var(--surface); border: 1px solid var(--border); color: var(--text);
+  transition: all .15s var(--ease);
+}
+.btn i { width: 16px; height: 16px; }
+.btn:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+.btn-primary {
+  background: linear-gradient(135deg, var(--snes-royal-light), var(--snes-royal));
+  color: white; border-color: transparent;
+  box-shadow: 0 6px 18px rgba(91,79,179,.35);
+}
+.btn-primary:hover { box-shadow: 0 10px 24px rgba(91,79,179,.45); }
+.btn-ghost { background: transparent; border-color: var(--border); }
+.btn-sm { padding: 6px 10px; font-size: 12px; }
+
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 9px; border-radius: 999px;
+  background: var(--surface-2); color: var(--text-body);
+  font-size: 11px; font-weight: 600;
+}
+.chip i { width: 12px; height: 12px; }
+.chip-success { background: #DCFCE7; color: #166534; }
+.chip-warning { background: #FEF3C7; color: #92400E; }
+.chip-info    { background: #DBEAFE; color: #1E40AF; }
+.chip-danger  { background: #FEE2E2; color: #991B1B; }
+.chip-royal   { background: #E8E4F8; color: var(--snes-royal-deep); }
+
+/* ============================================================
+   Dashboard
+   ============================================================ */
+.hero {
+  position: relative; overflow: hidden;
+  background: linear-gradient(135deg, var(--snes-royal-deep), var(--snes-royal) 55%, var(--snes-royal-light));
+  color: white;
+  border-radius: var(--radius-lg);
+  padding: 28px 28px;
+  display: flex; gap: 28px; align-items: center;
+  box-shadow: var(--shadow-md);
+}
+.hero::before {
+  content: ""; position: absolute; inset: 0;
+  background-image:
+    radial-gradient(circle at 88% 18%, rgba(255,255,255,.22) 0 12px, transparent 13px),
+    radial-gradient(circle at 92% 78%, rgba(255,255,255,.14) 0 8px, transparent 9px);
+  pointer-events: none;
+}
+.hero h1 { color: white; font-size: 28px; }
+.hero .hi { font-weight: 700; opacity: .85; }
+.hero .lead { opacity: .85; margin-top: 6px; max-width: 540px; }
+.hero .hero-stats { display: flex; gap: 28px; margin-top: 14px; }
+.hero-stat { display: flex; flex-direction: column; }
+.hero-stat .v { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.hero-stat .l { font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px; opacity: .75; }
+.hero-art { margin-left: auto; flex-shrink: 0; }
+.hero-art .pad {
+  width: 140px; height: 140px; border-radius: 18px;
+  background: rgba(0,0,0,.18);
+  display: grid; place-items: center;
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,.15);
+}
+.hero-art i { width: 64px; height: 64px; color: var(--xp-gold); }
+
+.kpi-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px;
+  margin-top: 22px;
+}
+.kpi {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 18px;
+  display: flex; flex-direction: column; gap: 10px;
+  position: relative; overflow: hidden;
+}
+.kpi .ic {
+  width: 40px; height: 40px; border-radius: 10px;
+  background: var(--surface-2); color: var(--snes-royal);
+  display: grid; place-items: center;
+}
+.kpi .ic i { width: 20px; height: 20px; }
+.kpi .label { font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--text-mut); font-weight: 700; }
+.kpi .value { font-size: 28px; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; }
+.kpi .delta { font-size: 12px; color: var(--success); font-weight: 600; }
+.kpi.solid {
+  background: linear-gradient(135deg, var(--snes-royal-light), var(--snes-royal));
+  color: white; border-color: transparent;
+}
+.kpi.solid .label, .kpi.solid .value { color: white; }
+.kpi.solid .ic { background: rgba(255,255,255,.18); color: var(--xp-gold); }
+.kpi.solid .delta { color: #C6FFD9; }
+
+.dash-grid {
+  display: grid; grid-template-columns: 2fr 1fr; gap: 22px; margin-top: 22px;
+}
+.panel { padding: 18px; }
+.panel h3 { margin-bottom: 6px; }
+.panel .muted { color: var(--text-mut); font-size: 12px; }
+
+/* Quest */
+.quest {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px; border-radius: 12px;
+  background: var(--surface-2); margin-bottom: 8px;
+}
+.quest:last-child { margin-bottom: 0; }
+.quest .qcheck {
+  width: 22px; height: 22px; border-radius: 6px;
+  border: 2px solid var(--snes-mauve);
+  display: grid; place-items: center; flex-shrink: 0;
+  background: var(--surface);
+}
+.quest.done .qcheck { background: var(--success); border-color: var(--success); color: white; }
+.quest.done .qcheck i { width: 14px; height: 14px; }
+.quest .qtitle { font-weight: 600; color: var(--text); font-size: 13px; }
+.quest .qprog { font-size: 11px; color: var(--text-mut); }
+.quest .qxp {
+  margin-left: auto; font-family: 'Press Start 2P', monospace; font-size: 10px;
+  color: var(--snes-obsidian); background: var(--xp-gold);
+  padding: 4px 8px; border-radius: 4px;
+  box-shadow: 2px 2px 0 var(--snes-obsidian);
+}
+.quest.done .qxp { opacity: .55; }
+
+/* Recommended jobs strip */
+.rec-jobs { display: flex; flex-direction: column; gap: 10px; }
+
+/* ============================================================
+   Job Card
+   ============================================================ */
+.jobs-toolbar {
+  display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+  margin: 6px 0 16px;
+}
+.toolbar-filters { display: flex; gap: 8px; flex-wrap: wrap; }
+.filter-pill {
+  padding: 8px 12px; border-radius: 999px;
+  background: var(--surface); border: 1px solid var(--border);
+  font-size: 12px; font-weight: 600; color: var(--text-body);
+}
+.filter-pill.active { background: var(--snes-royal); color: white; border-color: transparent; }
+
+.jobs-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+
+.job-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 18px;
+  display: flex; flex-direction: column; gap: 12px;
+  transition: transform .15s var(--ease), box-shadow .15s var(--ease);
+  position: relative;
+}
+.job-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); border-color: #D8D2EC; }
+.job-head { display: flex; align-items: center; gap: 12px; }
+.job-logo {
+  width: 48px; height: 48px; border-radius: 12px;
+  display: grid; place-items: center;
+  color: white; font-weight: 800; font-size: 14px;
+  box-shadow: inset 0 -3px 0 rgba(0,0,0,.18);
+}
+.job-title { font-weight: 700; color: var(--text); font-size: 15px; line-height: 1.25; }
+.job-company { font-size: 12px; color: var(--text-mut); }
+.job-fav { margin-left: auto; color: var(--text-mut); }
+.job-fav.saved { color: var(--snes-royal); }
+.job-meta {
+  display: flex; flex-wrap: wrap; gap: 14px;
+  color: var(--text-body); font-size: 12px;
+}
+.job-meta span { display: inline-flex; align-items: center; gap: 6px; }
+.job-meta i { width: 14px; height: 14px; color: var(--text-mut); }
+.job-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.job-foot { display: flex; align-items: center; gap: 12px; padding-top: 12px; border-top: 1px dashed var(--border); }
+.match {
+  --pct: 0;
+  width: 56px; height: 56px; border-radius: 50%;
+  background:
+    conic-gradient(var(--match-color) calc(var(--pct) * 1%), #E7E3F2 0);
+  display: grid; place-items: center;
+  position: relative;
+}
+.match::after {
+  content: ""; position: absolute; inset: 5px;
+  background: var(--surface); border-radius: 50%;
+}
+.match .num {
+  position: relative; z-index: 1; font-weight: 800; font-size: 13px; color: var(--text);
+}
+.match.match-high { --match-color: var(--success); }
+.match.match-mid  { --match-color: var(--warning); }
+.match.match-low  { --match-color: var(--danger); }
+.match-label {
+  font-size: 10px; color: var(--text-mut); text-transform: uppercase; letter-spacing: 1.2px; font-weight: 700;
+}
+
+/* Pipeline */
+.pipeline {
+  display: flex; align-items: center; gap: 0; padding: 10px 6px 0;
+  overflow-x: auto;
+}
+.pipeline-step {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  flex: 1; min-width: 110px;
+  position: relative;
+}
+.pipeline-step::after {
+  content: ""; position: absolute; top: 13px; left: 50%; right: -50%;
+  height: 3px; background: var(--border); z-index: 0;
+}
+.pipeline-step:last-child::after { display: none; }
+.pipeline-step .dot {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--surface); border: 3px solid var(--border);
+  display: grid; place-items: center;
+  position: relative; z-index: 1; color: var(--text-mut);
+}
+.pipeline-step .dot i { width: 14px; height: 14px; }
+.pipeline-step .l { font-size: 11px; color: var(--text-mut); font-weight: 600; text-align: center; }
+.pipeline-step.done .dot   { background: var(--success); border-color: var(--success); color: white; }
+.pipeline-step.done::after { background: var(--success); }
+.pipeline-step.current .dot { background: var(--snes-royal); border-color: var(--snes-royal); color: white; box-shadow: 0 0 0 5px rgba(91,79,179,.18); }
+.pipeline-step.current .l   { color: var(--snes-royal); font-weight: 800; }
+
+/* ============================================================
+   Courses
+   ============================================================ */
+.courses-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+.course-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); overflow: hidden;
+  display: flex; flex-direction: column;
+  transition: transform .15s var(--ease), box-shadow .15s var(--ease);
+}
+.course-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+.course-cover {
+  position: relative;
+  height: 110px;
+  background: linear-gradient(135deg, var(--c1, var(--snes-royal-light)), var(--c2, var(--snes-royal-deep)));
+  display: grid; place-items: center;
+  color: white;
+}
+.course-cover::after {
+  content: "";
+  position: absolute; inset: 0;
+  background-image:
+    repeating-linear-gradient(45deg, rgba(255,255,255,.06) 0 2px, transparent 2px 8px),
+    radial-gradient(circle at 85% 20%, rgba(255,255,255,.18) 0 8px, transparent 9px);
+  pointer-events: none;
+}
+.course-cover i { width: 44px; height: 44px; z-index: 1; }
+.tier {
+  position: absolute; top: 10px; left: 10px; z-index: 2;
+  font-family: 'Press Start 2P', monospace; font-size: 9px;
+  padding: 4px 7px; border-radius: 0;
+  box-shadow: 2px 2px 0 rgba(0,0,0,.4);
+  color: #1F1B25;
+}
+.tier-bronze   { background: #D08C5A; }
+.tier-prata    { background: #D0D5DD; }
+.tier-ouro     { background: var(--xp-gold); }
+.tier-diamante { background: #A0F0FF; }
+.course-body { padding: 14px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+.course-body .meta { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text-mut); }
+.course-body .title { font-weight: 700; color: var(--text); font-size: 14px; line-height: 1.35; }
+.course-body .skills { display: flex; flex-wrap: wrap; gap: 4px; }
+.course-body .skills .chip { background: var(--surface-2); font-size: 10px; padding: 3px 7px; }
+
+.pxbar {
+  height: 12px;
+  background: #1F1B25;
+  padding: 2px;
+  display: flex; gap: 2px;
+}
+.pxbar .chunk { flex: 1; background: #2A2532; }
+.pxbar .chunk.on { background: linear-gradient(180deg, var(--xp-gold), var(--xp-gold-deep)); }
+.course-foot { display: flex; justify-content: space-between; align-items: center; padding-top: 8px; border-top: 1px solid var(--border); }
+.xp-tag {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: 'Press Start 2P', monospace; font-size: 9px;
+  background: var(--xp-gold); color: var(--snes-obsidian);
+  padding: 4px 8px; border-radius: 0;
+  box-shadow: 2px 2px 0 var(--snes-obsidian);
+}
+
+/* ============================================================
+   Certifications
+   ============================================================ */
+.cert-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 18px; }
+.cert-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 18px;
+  display: flex; gap: 14px; align-items: flex-start;
+  position: relative; overflow: hidden;
+}
+.cert-shield {
+  width: 64px; height: 76px; flex-shrink: 0;
+  position: relative;
+  background: var(--c, var(--snes-royal));
+  clip-path: polygon(50% 0, 100% 18%, 100% 70%, 50% 100%, 0 70%, 0 18%);
+  display: grid; place-items: center; color: white;
+}
+.cert-shield i { width: 26px; height: 26px; }
+.cert-card.locked .cert-shield { filter: grayscale(1) brightness(.85); }
+.cert-info { flex: 1; min-width: 0; }
+.cert-name { font-weight: 700; color: var(--text); font-size: 15px; }
+.cert-iss { font-size: 12px; color: var(--text-mut); margin-top: 2px; }
+.cert-foot { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+
+/* ============================================================
+   Achievements
+   ============================================================ */
+.ach-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 16px; }
+.ach-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 16px;
+  text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  transition: transform .15s var(--ease), box-shadow .15s var(--ease);
+}
+.ach-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.ach-badge {
+  width: 86px; height: 96px;
+  background: linear-gradient(180deg, var(--snes-royal-light), var(--snes-royal-deep));
+  clip-path: polygon(50% 0, 100% 18%, 100% 70%, 50% 100%, 0 70%, 0 18%);
+  display: grid; place-items: center;
+  color: var(--xp-gold);
+  position: relative;
+  box-shadow: var(--shadow-pixel);
+}
+.ach-badge i { width: 36px; height: 36px; }
+.ach-card[data-rarity="bronze"]   .ach-badge { background: linear-gradient(180deg, #E0A06A, #8E5A2C); }
+.ach-card[data-rarity="prata"]    .ach-badge { background: linear-gradient(180deg, #F1F1F5, #9CA3AF); color: #1F1B25; }
+.ach-card[data-rarity="ouro"]     .ach-badge { background: linear-gradient(180deg, #FDE68A, #B45309); color: #1F1B25; }
+.ach-card[data-rarity="diamante"] .ach-badge { background: linear-gradient(180deg, #BAE6FD, #2563EB); }
+.ach-card.locked .ach-badge { filter: grayscale(1) brightness(.7); }
+.ach-card.locked { opacity: .85; }
+.ach-name { font-weight: 700; color: var(--text); font-size: 13px; }
+.ach-desc { font-size: 11px; color: var(--text-mut); }
+.ach-xp {
+  font-family: 'Press Start 2P', monospace; font-size: 9px;
+  background: var(--xp-gold); color: var(--snes-obsidian);
+  padding: 4px 8px; box-shadow: 2px 2px 0 var(--snes-obsidian);
+}
+
+/* ============================================================
+   Leaderboard
+   ============================================================ */
+.podium { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; align-items: end; margin-bottom: 20px; }
+.podium-item {
+  text-align: center;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 16px 12px;
+}
+.podium-item .avatar { margin: 0 auto 8px; width: 56px; height: 56px; }
+.podium-item .pname { font-weight: 700; color: var(--text); font-size: 13px; }
+.podium-item .pxp { font-family: 'Press Start 2P', monospace; font-size: 10px; color: var(--snes-royal); margin-top: 4px; }
+.podium-item .crown { font-family: 'Press Start 2P', monospace; font-size: 9px; padding: 4px 6px; border-radius: 0; box-shadow: 2px 2px 0 var(--snes-obsidian); color: var(--snes-obsidian); }
+.podium-1 .crown { background: var(--xp-gold); }
+.podium-2 .crown { background: #D0D5DD; }
+.podium-3 .crown { background: #D08C5A; }
+.podium-1 { order: 2; transform: translateY(-10px); border-color: var(--xp-gold); }
+.podium-2 { order: 1; }
+.podium-3 { order: 3; }
+
+.lb-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+.lb-table th, .lb-table td { text-align: left; padding: 12px 14px; }
+.lb-table thead th { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-mut); }
+.lb-table tbody tr { background: var(--surface); }
+.lb-table tbody tr td { border-top: 1px solid var(--border); }
+.lb-table tbody tr.me { background: linear-gradient(90deg, #F1EEFE, var(--surface)); }
+.lb-table tbody tr.me td { font-weight: 700; color: var(--snes-royal-deep); }
+
+/* ============================================================
+   Profile
+   ============================================================ */
+.profile-grid { display: grid; grid-template-columns: 320px 1fr; gap: 22px; }
+.profile-side { padding: 22px; text-align: center; }
+.profile-side .avatar { width: 96px; height: 96px; font-size: 28px; margin: 0 auto 12px; }
+.profile-side h2 { margin-bottom: 4px; }
+.profile-side .muted { color: var(--text-mut); }
+.profile-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 18px; }
+.profile-stats .b {
+  background: var(--surface-2); border-radius: 12px; padding: 10px;
+}
+.profile-stats .b .v { font-size: 18px; font-weight: 800; color: var(--text); }
+.profile-stats .b .l { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-mut); font-weight: 700; }
+
+.profile-main { display: flex; flex-direction: column; gap: 18px; }
+.profile-section { padding: 22px; }
+.timeline { display: flex; flex-direction: column; gap: 14px; }
+.tl {
+  display: grid; grid-template-columns: 32px 1fr; gap: 12px;
+  padding-bottom: 14px; border-bottom: 1px dashed var(--border);
+}
+.tl:last-child { border-bottom: 0; }
+.tl .tld { width: 32px; height: 32px; border-radius: 10px; background: var(--surface-2); color: var(--snes-royal); display: grid; place-items: center; }
+.tl .tld i { width: 16px; height: 16px; }
+.tl .ttitle { font-weight: 700; color: var(--text); font-size: 13px; }
+.tl .tdate { font-size: 11px; color: var(--text-mut); }
+
+/* ============================================================
+   Toast
+   ============================================================ */
+#toast-root {
+  position: fixed; bottom: 22px; right: 22px;
+  display: flex; flex-direction: column; gap: 10px;
+  z-index: 100;
+}
+.toast {
+  background: var(--snes-obsidian); color: white;
+  padding: 14px 16px;
+  border: 3px solid var(--xp-gold);
+  border-radius: 0;
+  box-shadow: var(--shadow-pixel);
+  display: flex; align-items: center; gap: 12px;
+  min-width: 260px;
+  transform: translateX(120%); transition: transform .35s var(--ease);
+}
+.toast.in { transform: translateX(0); }
+.toast .pixel { font-size: 10px; color: var(--xp-gold); }
+.toast .msg { font-size: 13px; }
+
+/* ============================================================
+   Responsive
+   ============================================================ */
+@media (max-width: 1180px) {
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .dash-grid { grid-template-columns: 1fr; }
+  .courses-grid { grid-template-columns: repeat(2, 1fr); }
+  .cert-grid { grid-template-columns: repeat(2, 1fr); }
+  .jobs-grid { grid-template-columns: 1fr; }
+  .profile-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 1180px) {
+  body { padding-right: 0; }
+  #right-panel { display: none; }
+}
+@media (max-width: 720px) {
+  body, body.sb-collapsed { padding-left: 0; padding-right: 0; }
+  #sidebar { left: -260px; }
+  #right-panel { display: none; }
+  body.sb-open #sidebar { left: 0; }
+  .mobile-only { display: grid !important; }
+  .user-meta { display: none; }
+  .kpi-grid { grid-template-columns: 1fr; }
+  .courses-grid, .cert-grid { grid-template-columns: 1fr; }
+  .hero { flex-direction: column; align-items: flex-start; }
+  .hero-art { display: none; }
+  #view { padding: 18px; }
+  .mission-fields { grid-template-columns: 1fr; }
+  .market-grid { grid-template-columns: repeat(2, 1fr); }
+  .jobs-grid-v2 { grid-template-columns: 1fr; }
+}
+.mobile-only { display: none; }
+
+/* ============================================================
+   HUD Topbar
+   ============================================================ */
+.tb-left { display: flex; align-items: center; gap: 12px; }
+.tb-right { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+
+.hud-level-badge {
+  display: flex; align-items: stretch;
+  border: 3px solid var(--snes-obsidian);
+  border-radius: 0;
+  box-shadow: 3px 3px 0 var(--snes-obsidian);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.hud-lv-label {
+  font-size: 8px;
+  background: var(--snes-royal);
+  color: white;
+  padding: 4px 6px;
+  display: flex; align-items: center;
+}
+.hud-lv-num {
+  font-size: 18px;
+  background: var(--surface-2);
+  color: var(--snes-obsidian);
+  padding: 2px 10px;
+  display: flex; align-items: center;
+  line-height: 1;
+}
+
+.hud-xp-block {
+  display: flex; flex-direction: column; gap: 3px;
+  min-width: 160px;
+}
+.hud-xp-top {
+  display: flex; justify-content: space-between; align-items: center;
+}
+.hud-exp-txt { font-size: 8px; color: var(--snes-royal); }
+.hud-pts-txt { font-size: 8px; color: var(--text-mut); }
+.hud-xpbar-outer {
+  height: 12px;
+  background: var(--snes-obsidian);
+  border: 2px solid var(--snes-obsidian);
+  padding: 1px;
+}
+.hud-xpbar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--snes-royal-light), var(--snes-royal));
+  width: 0%;
+  transition: width .8s var(--ease);
+}
+
+.hud-coins {
+  display: flex; gap: 6px; align-items: center;
+}
+.coin {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: radial-gradient(circle at 38% 35%, #FFE082, #D4A017);
+  border: 2px solid #9C7200;
+  box-shadow: 0 2px 4px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.4);
+  display: grid; place-items: center;
+  flex-shrink: 0;
+}
+.coin-inner { font-size: 10px; color: #7A5200; }
+
+/* ============================================================
+   Right Panel — SELECT PLAYER
+   ============================================================ */
+#right-panel {
+  position: fixed;
+  top: 0; right: 0;
+  width: var(--rp-w);
+  height: 100vh;
+  background: var(--surface);
+  border-left: 3px solid var(--snes-obsidian);
+  display: flex; flex-direction: column;
+  z-index: 25;
+  overflow-y: auto;
+}
+
+.rp-header {
+  background: var(--snes-obsidian);
+  padding: 14px 16px;
+  text-align: center;
+  border-bottom: 3px solid var(--xp-gold);
+}
+.rp-title {
+  font-size: 13px;
+  color: var(--xp-gold);
+  letter-spacing: 2px;
+  text-shadow: 2px 2px 0 rgba(0,0,0,.5);
+}
+
+.rp-tabs {
+  display: flex;
+  border-bottom: 3px solid var(--snes-obsidian);
+}
+.rp-tab {
+  flex: 1; padding: 9px 4px;
+  font-size: 9px; font-weight: 700; font-family: 'Press Start 2P', monospace;
+  background: var(--surface-2); color: var(--text-mut);
+  border: none; border-right: 1px solid var(--border);
+  cursor: pointer;
+  transition: background .15s var(--ease), color .15s var(--ease);
+}
+.rp-tab:last-child { border-right: none; }
+.rp-tab.active {
+  background: var(--surface);
+  color: var(--snes-royal);
+  border-bottom: 3px solid var(--snes-royal);
+  margin-bottom: -3px;
+}
+.rp-tab:hover:not(.active) { background: var(--surface); color: var(--text); }
+
+.rp-body { padding: 12px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+
+.rp-filter-input {
+  width: 100%; padding: 8px 10px;
+  border: 2px solid var(--border); border-radius: 6px;
+  font: inherit; font-size: 12px; color: var(--text);
+  background: var(--surface-2);
+  outline: none;
+  transition: border-color .15s var(--ease);
+}
+.rp-filter-input:focus { border-color: var(--snes-royal-light); }
+
+.rp-voucher-btn {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; padding: 7px 10px;
+  border: 2px solid var(--border); border-radius: 6px;
+  background: var(--surface); font-size: 12px; font-weight: 600;
+  color: var(--text-body); cursor: pointer;
+  transition: border-color .15s var(--ease), background .15s var(--ease);
+}
+.rp-voucher-btn:hover { border-color: var(--xp-gold); background: #FFFDF0; }
+.rp-voucher-btn.active { border-color: var(--xp-gold); background: #FFFDF0; }
+.rp-coin-sm { font-size: 14px; }
+.rp-count {
+  margin-left: auto;
+  font-size: 11px; font-weight: 700;
+  color: var(--snes-royal);
+  background: var(--surface-2); padding: 2px 6px; border-radius: 4px;
+}
+
+.rp-empty {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  text-align: center; padding: 24px 16px;
+  color: var(--text-mut); font-size: 12px; line-height: 1.6;
+  border: 2px dashed var(--border); border-radius: 8px;
+  margin-top: 8px;
+}
+
+.rp-list { display: flex; flex-direction: column; gap: 6px; }
+.rp-cert-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 10px;
+  border: 1px solid var(--border); border-radius: 8px;
+  background: var(--surface);
+  transition: border-color .15s var(--ease);
+}
+.rp-cert-item:hover { border-color: var(--snes-royal-light); }
+.rp-cert-dot {
+  width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+}
+.rp-cert-name { font-size: 11px; font-weight: 700; color: var(--text); line-height: 1.3; }
+.rp-cert-issuer { font-size: 10px; color: var(--text-mut); }
+.rp-cert-xp {
+  margin-left: auto; flex-shrink: 0;
+  font-family: 'Press Start 2P', monospace; font-size: 8px;
+  background: var(--xp-gold); color: var(--snes-obsidian);
+  padding: 3px 5px; box-shadow: 1px 1px 0 var(--snes-obsidian);
+}
+
+/* Quest panel */
+.rp-quest-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 2px 2px 8px;
+  border-bottom: 1px solid var(--border);
+}
+.rp-quest-day { font-size: 9px; color: var(--snes-royal); }
+.rp-xp-total { font-size: 11px; font-weight: 700; color: var(--xp-gold-deep); }
+
+.rp-quest-item {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--border); border-radius: 8px;
+  background: var(--surface); cursor: pointer;
+  transition: border-color .15s var(--ease), background .15s var(--ease);
+}
+.rp-quest-item:hover:not(.done) { border-color: var(--snes-royal-light); background: #F7F5FF; }
+.rp-quest-item.done { opacity: .6; cursor: default; }
+
+.rp-quest-check {
+  width: 20px; height: 20px; border-radius: 5px;
+  border: 2px solid var(--border);
+  background: var(--surface-2);
+  display: grid; place-items: center;
+  font-size: 11px; font-weight: 900; color: white;
+  flex-shrink: 0; margin-top: 1px;
+  transition: background .15s, border-color .15s;
+}
+.rp-quest-check.checked { background: var(--success); border-color: var(--success); }
+
+.rp-quest-body { flex: 1; min-width: 0; }
+.rp-quest-title { font-size: 11px; font-weight: 700; color: var(--text); margin-bottom: 6px; line-height: 1.3; }
+.rp-quest-prog-wrap { display: flex; align-items: center; gap: 6px; }
+.rp-quest-bar-outer {
+  flex: 1; height: 6px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 0; overflow: hidden;
+}
+.rp-quest-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--snes-royal-light), var(--snes-royal));
+  transition: width .4s var(--ease);
+}
+.rp-quest-item.done .rp-quest-bar-fill { background: var(--success); }
+.rp-quest-count { font-size: 10px; color: var(--text-mut); flex-shrink: 0; }
+
+.rp-quest-xp {
+  font-family: 'Press Start 2P', monospace; font-size: 9px;
+  background: var(--xp-gold); color: var(--snes-obsidian);
+  padding: 4px 5px; box-shadow: 1px 1px 0 var(--snes-obsidian);
+  text-align: center; line-height: 1.4; flex-shrink: 0;
+}
+.rp-quest-xp span { font-size: 7px; }
+
+.rp-course-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 10px;
+  border: 1px solid var(--border); border-radius: 8px;
+  background: var(--surface);
+  transition: border-color .15s var(--ease);
+}
+.rp-course-item:hover { border-color: var(--snes-royal-light); }
+.rp-course-icon {
+  width: 32px; height: 32px; border-radius: 8px;
+  display: grid; place-items: center; flex-shrink: 0;
+  color: white; font-size: 12px;
+}
+.rp-course-name { font-size: 11px; font-weight: 700; color: var(--text); line-height: 1.3; }
+.rp-course-meta { font-size: 10px; color: var(--text-mut); }
+
+/* ============================================================
+   NOVA MISSÃO — Página de busca de vagas
+   ============================================================ */
+.mission-wrap {
+  display: flex; flex-direction: column; gap: 16px;
+}
+
+.mission-box {
+  background: var(--surface);
+  border: 3px solid var(--snes-obsidian);
+  border-radius: 0;
+  box-shadow: 5px 5px 0 var(--snes-obsidian);
+  padding: 20px 22px 22px;
+}
+
+.mission-title {
+  display: flex; align-items: center; gap: 8px;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 11px; color: var(--snes-royal);
+  margin-bottom: 18px;
+  letter-spacing: 1px;
+}
+.mission-title-arrow { color: var(--snes-royal); font-size: 13px; }
+
+.mission-fields {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+  margin-bottom: 14px;
+}
+
+.mission-field-group { display: flex; flex-direction: column; gap: 5px; }
+.mission-field-label {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 1.2px; color: var(--text-mut);
+}
+.mission-field-input {
+  width: 100%; padding: 10px 12px;
+  border: 2px solid var(--border); border-radius: 0;
+  font: inherit; font-size: 14px; color: var(--text);
+  background: var(--surface);
+  outline: none;
+  transition: border-color .15s var(--ease);
+  box-shadow: inset 2px 2px 0 rgba(0,0,0,.04);
+}
+.mission-field-input:focus {
+  border-color: var(--snes-royal-light);
+  box-shadow: inset 2px 2px 0 rgba(0,0,0,.04), 0 0 0 3px rgba(122,111,224,.15);
+}
+
+/* Row 2: skills + graduation side by side */
+.mission-row2 {
+  display: grid;
+  grid-template-columns: 1fr 260px;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+@media (max-width: 900px) { .mission-row2 { grid-template-columns: 1fr; } }
+
+.mission-field-hint {
+  float: right; font-weight: 400; text-transform: none;
+  letter-spacing: 0; color: var(--text-mut); font-size: 9px;
+}
+
+.mission-skills-wrap {
+  display: flex; flex-direction: column; gap: 5px;
+}
+.mission-skills-row {
+  display: flex; gap: 0;
+  border: 2px solid var(--border);
+  border-radius: 0;
+  background: var(--surface);
+  transition: border-color .15s var(--ease);
+  height: 45px;
+  overflow: hidden;
+}
+.mission-skills-row:focus-within { border-color: var(--snes-royal-light); }
+.mission-skills-tags {
+  display: flex; flex-wrap: nowrap; gap: 6px; align-items: center;
+  flex: 1; padding: 0 10px;
+  overflow-x: auto; overflow-y: hidden;
+  scrollbar-width: none;
+  height: 100%;
+}
+.mission-skills-tags::-webkit-scrollbar { display: none; }
+.mission-skill-tag {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 8px;
+  background: #FFF3E0; color: #D65100;
+  border: 1px solid #FFB74D;
+  border-radius: 0; font-size: 11px; font-weight: 700;
+  text-transform: uppercase;
+}
+.mission-skill-tag button {
+  background: transparent; border: none; color: #D65100;
+  cursor: pointer; padding: 0; font-size: 13px; line-height: 1;
+  display: flex; align-items: center;
+}
+.mission-skills-input {
+  border: none; outline: none; background: transparent;
+  font: inherit; font-size: 13px; color: var(--text);
+  min-width: 120px; padding: 8px 0;
+}
+.mission-skills-input::placeholder { color: var(--text-mut); }
+.mission-skills-add {
+  width: 40px; flex-shrink: 0;
+  background: var(--surface-2); border-left: 2px solid var(--border);
+  font-size: 20px; font-weight: 700; color: var(--snes-royal);
+  cursor: pointer; transition: background .15s var(--ease);
+  display: flex; align-items: center; justify-content: center;
+}
+.mission-skills-add:hover { background: var(--snes-royal); color: white; }
+
+.mission-footer {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+}
+.mission-mode-label {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 1px; color: var(--text-mut);
+  flex-shrink: 0;
+}
+.mission-modes { display: flex; gap: 6px; flex-wrap: wrap; }
+.mode-btn {
+  padding: 8px 14px; border-radius: 0;
+  border: 2px solid var(--border);
+  background: var(--surface); color: var(--text-body);
+  font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: all .15s var(--ease);
+}
+.mode-btn:hover { border-color: var(--snes-royal-light); color: var(--snes-royal); }
+.mode-btn.active {
+  background: var(--snes-royal); color: white;
+  border-color: var(--snes-royal-deep);
+  box-shadow: 3px 3px 0 var(--snes-royal-deep);
+}
+.mission-actions { margin-left: auto; display: flex; gap: 10px; }
+.btn-clear {
+  padding: 10px 18px; border-radius: 0;
+  border: 2px solid var(--border); background: var(--surface);
+  font-size: 13px; font-weight: 600; color: var(--text-body);
+  cursor: pointer;
+  transition: all .15s var(--ease);
+}
+.btn-clear:hover { border-color: var(--snes-royal-light); color: var(--snes-royal); }
+.btn-search {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 20px; border-radius: 0;
+  background: var(--snes-royal);
+  border: 2px solid var(--snes-royal-deep);
+  color: white; font-size: 13px; font-weight: 700;
+  cursor: pointer;
+  box-shadow: 4px 4px 0 var(--snes-royal-deep);
+  transition: all .15s var(--ease);
+}
+.btn-search:hover {
+  background: var(--snes-royal-deep);
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0 var(--snes-obsidian);
+}
+.btn-search-arrow { font-size: 16px; }
+
+/* ============================================================
+   Painel de mercado (MERCADO)
+   ============================================================ */
+.market-box {
+  background: var(--surface);
+  border: 3px solid var(--snes-obsidian);
+  border-radius: 0;
+  box-shadow: 5px 5px 0 var(--snes-obsidian);
+  padding: 16px 22px;
+}
+.market-title {
+  display: flex; align-items: center; gap: 6px;
+  font-family: 'Press Start 2P', monospace; font-size: 10px;
+  color: var(--snes-royal); margin-bottom: 14px;
+  letter-spacing: 1px;
+}
+.market-title-dot { color: var(--success); font-size: 10px; }
+.market-query { color: var(--text-mut); }
+.market-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 0;
+  border: 1px solid var(--border);
+}
+.market-stat {
+  padding: 12px 14px;
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 4px;
+}
+.market-stat:last-child { border-right: none; }
+.market-stat-label {
+  font-size: 9px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 1px; color: var(--text-mut);
+}
+.market-stat-value {
+  font-size: 20px; font-weight: 800; color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.market-stat-value.green { color: #16A34A; }
+.market-stat-value.orange { color: var(--warning); }
+.market-stat-sub { font-size: 10px; color: var(--text-mut); }
+.market-trend-up { color: #16A34A; }
+
+/* ============================================================
+   Contagem de vagas
+   ============================================================ */
+.jobs-count {
+  font-size: 13px; color: var(--text-mut);
+  padding: 6px 0 2px;
+}
+.jobs-count strong { color: var(--text); }
+
+/* ============================================================
+   Job Cards V2 (estilo mockup)
+   ============================================================ */
+.jobs-grid-v2 {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+  margin-top: 6px;
+}
+.job-card-v2 {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  display: flex; flex-direction: column; gap: 10px;
+  transition: transform .15s var(--ease), box-shadow .15s var(--ease), border-color .15s var(--ease);
+}
+.job-card-v2:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: #C8C2E8;
+}
+.jcv2-head { display: flex; align-items: flex-start; gap: 12px; }
+.jcv2-logo {
+  width: 44px; height: 44px; border-radius: 8px;
+  display: grid; place-items: center;
+  color: white; font-weight: 800; font-size: 15px;
+  flex-shrink: 0;
+  box-shadow: inset 0 -2px 0 rgba(0,0,0,.2);
+}
+.jcv2-title { font-weight: 700; color: var(--text); font-size: 14px; line-height: 1.25; }
+.jcv2-company { font-size: 12px; color: var(--text-mut); margin-top: 2px; }
+.jcv2-tags { display: flex; flex-wrap: wrap; gap: 5px; }
+.jcv2-tag {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px;
+  padding: 3px 7px; border-radius: 0;
+  background: var(--surface-2); color: var(--text-body);
+  border: 1px solid var(--border);
+}
+.jcv2-tag.hybrid  { background: #EFF6FF; color: #1D4ED8; border-color: #BFDBFE; }
+.jcv2-tag.remote  { background: #F0FDF4; color: #15803D; border-color: #BBF7D0; }
+.jcv2-tag.onsite  { background: #FEF9C3; color: #A16207; border-color: #FDE68A; }
+.jcv2-tag.clt     { background: #F3E8FF; color: #7E22CE; border-color: #DDD6FE; }
+.jcv2-salary {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 13px; font-weight: 700; color: var(--text);
+}
+.jcv2-salary-icon { font-size: 14px; }
+.jcv2-skills { display: flex; flex-wrap: wrap; gap: 5px; }
+.jcv2-skill {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  padding: 3px 7px; border-radius: 0;
+  background: transparent; color: #D65100;
+  border: 1px solid #FFB74D;
+}
+.jcv2-sep { height: 1px; background: var(--border); }
+.jcv2-foot { display: flex; align-items: center; justify-content: space-between; }
+.jcv2-link {
+  font-size: 13px; font-weight: 600;
+  color: var(--snes-royal); cursor: pointer; background: none; border: none;
+  transition: color .15s var(--ease);
+}
+.jcv2-link:hover { color: var(--snes-royal-deep); text-decoration: underline; }
+.jcv2-match {
+  font-size: 11px; font-weight: 700;
+  color: var(--text-mut);
+}
+.jcv2-match-pct { color: var(--success); font-size: 12px; }
+.jcv2-match-pct.mid { color: var(--warning); }
+.jcv2-match-pct.low { color: var(--danger); }
+
