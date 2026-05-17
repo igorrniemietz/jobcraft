@@ -12,7 +12,7 @@ const store = {
   applications: {},
   ui: {
     route: location.hash || '#/jobs',
-    jobSearch: { cargo: '', localidade: '', skills: [], mode: 'todos', region: 'todas', dateFilter: 'all', hideExpired: true, graduacao: '', contracts: [], levels: [], sizes: [], specialty: '' },
+    jobSearch: { cargo: '', localidade: '', skills: [], mode: 'todos', region: 'todas', dateFilter: 'all', hideExpired: true, graduacao: '', contracts: [], levels: [], sizes: [], specialty: '', areaFilter: '' },
     realJobsStatus: 'idle',
     rpTab: 'missoes',
     rpVoucher: false,
@@ -575,7 +575,7 @@ function renderJobsPage() {
   `).join('');
 
   const filterBtns = (filter, opts) => opts.map(([val, label]) => {
-    const isSingle = filter === 'mode' || filter === 'region' || filter === 'dateFilter' || filter === 'specialty';
+    const isSingle = filter === 'mode' || filter === 'region' || filter === 'dateFilter' || filter === 'specialty' || filter === 'areaFilter';
     const active   = isSingle ? s[filter] === val : s[filter + 's'].includes(val);
     return `<button class="mode-btn ${active ? 'active' : ''}" data-filter="${filter}" data-value="${val}">${label}</button>`;
   }).join('');
@@ -653,16 +653,33 @@ function renderJobsPage() {
               ${filterBtns('dateFilter', [['all','Todas'],['1d','Hoje'],['7d','7 dias'],['30d','30 dias']])}
             </div>
           </div>
-          <div class="inline-filter-row">
-            <span class="inline-filter-label">InfoSec:</span>
+          <div class="inline-filter-row filter-row-wide">
+            <span class="inline-filter-label">Área:</span>
+            <div class="inline-filter-opts">
+              ${filterBtns('areaFilter', [
+                ['',          'Todas'],
+                ['backend',   'Backend'],
+                ['frontend',  'Frontend'],
+                ['fullstack', 'Full Stack'],
+                ['mobile',    'Mobile'],
+                ['data',      'Data / IA'],
+                ['devops',    'DevOps / SRE'],
+                ['cloud',     'Cloud'],
+                ['arqtech',   'Arquitetura'],
+                ['qa',        'QA / Testes'],
+              ])}
+            </div>
+          </div>
+          <div class="inline-filter-row filter-row-wide">
+            <span class="inline-filter-label">Segurança:</span>
             <div class="inline-filter-opts">
               ${filterBtns('specialty', [
-                ['','Todas'],
-                ['soc','SOC/Blue Team'],
-                ['pentest','Pentest/Red Team'],
-                ['grc','GRC'],
-                ['appsec','AppSec'],
-                ['cloud','Cloud Security'],
+                ['',        'Todas'],
+                ['soc',     'SOC / Blue Team'],
+                ['pentest', 'Pentest / Red Team'],
+                ['grc',     'GRC'],
+                ['appsec',  'AppSec'],
+                ['cloudsec','Cloud Security'],
               ])}
             </div>
           </div>
@@ -781,9 +798,13 @@ function filterJobs() {
     const cargoMatch    = !s.cargo || text.includes(s.cargo.toLowerCase());
     const skillsMatch   = s.skills.length === 0 || s.skills.some(sk => text.includes(sk.toLowerCase()));
     const localMatch    = !s.localidade || j.location.toLowerCase().includes(s.localidade.toLowerCase());
-    const modeMap       = { todos: null, remoto: 'Remoto', híbrido: 'Híbrido', presencial: 'Presencial' };
-    const modeTarget    = modeMap[s.mode];
-    const modeMatch     = !modeTarget || j.location.toLowerCase().includes(modeTarget.toLowerCase());
+    const modeMap    = { todos: null, remoto: 'Remoto', híbrido: 'Híbrido' };
+    const modeTarget = modeMap[s.mode];
+    const loc        = j.location.toLowerCase();
+    const modeMatch  = s.mode === 'todos' ? true
+      : s.mode === 'presencial' ? (!loc.includes('remoto') && !loc.includes('híbrido'))
+      : modeTarget ? loc.includes(modeTarget.toLowerCase())
+      : true;
     const contractMatch = s.contracts.length === 0 || s.contracts.includes(j.contract);
     const levelMatch    = s.levels.length === 0    || s.levels.includes(j.level);
     const sizeMatch     = s.sizes.length === 0     || s.sizes.includes(j.companySize);
@@ -805,15 +826,27 @@ function filterJobs() {
     const expiredMatch = !s.hideExpired || !jobExpired;
 
     const SPEC_KW = {
-      soc:     ['soc','blue team','siem','splunk','incident','threat hunt','dfir','forense'],
-      pentest: ['pentest','penetration test','red team','oscp','kali','metasploit','burp','exploit','ctf'],
-      grc:     ['grc','compliance','iso 27001','lgpd','gdpr','auditoria','risco','governance','nist'],
-      appsec:  ['appsec','owasp','sast','dast','devsecops','secure cod','application security','segurança de aplicaç'],
-      cloud:   ['cloud security','aws security','azure security','gcp security','iam','zero trust','cspm','cwpp'],
+      // Desenvolvimento
+      backend:  ['backend','back-end','back end','api rest','node.js','nodejs','django','spring','golang','microsserviço','microservice','servidor','fastapi','laravel','ruby on rails'],
+      frontend: ['frontend','front-end','front end','react','vue','angular','next.js','nuxt','svelte','css','html','javascript','typescript','interface','ui developer','desenvolvedor web'],
+      fullstack:['fullstack','full stack','full-stack','front e back','back e front','stack completa','desenvolvedor full'],
+      mobile:   ['mobile','android','ios','react native','flutter','kotlin','swift','xcode','jetpack','app móvel','aplicativo'],
+      data:     ['data engineer','data science','data analyst','machine learning','deep learning','mlops','engenheiro de dados','cientista de dados','analista de dados','pipeline de dados','spark','dbt','airflow','inteligência artificial','llm','nlp','bigquery','databricks'],
+      devops:   ['devops','sre','platform engineer','site reliability','infraestrutura','kubernetes','k8s','docker','terraform','ansible','ci/cd','observabilidade','helm','gitops','argocd'],
+      cloud:    ['cloud','aws','azure','gcp','google cloud','nuvem','s3','ec2','lambda','cloud architect','serverless','multicloud'],
+      arqtech:  ['arquiteto','architect','tech lead','líder técnico','principal engineer','staff engineer','engineering manager','solution architect','sistema distribuído'],
+      qa:       ['qa','quality assurance','teste','tester','automação de teste','selenium','cypress','playwright','jest','pytest','bdd','tdd','controle de qualidade','sdet'],
+      // Segurança
+      soc:      ['soc','blue team','siem','splunk','incident response','threat hunt','dfir','forense','monitoramento de segurança'],
+      pentest:  ['pentest','penetration test','red team','oscp','kali','metasploit','burp suite','exploit','ctf','ethical hack','teste de invasão'],
+      grc:      ['grc','compliance','iso 27001','lgpd','gdpr','auditoria','risco','governance','nist','gestão de risco','política de segurança'],
+      appsec:   ['appsec','owasp','sast','dast','devsecops','secure coding','application security','segurança de aplicação','threat modeling','bug bounty'],
+      cloudsec: ['cloud security','aws security','azure security','gcp security','iam','zero trust','cspm','cwpp','postura de segurança'],
     };
-    const specMatch = !s.specialty || (SPEC_KW[s.specialty] || []).some(kw => text.includes(kw));
+    const specMatch = !s.specialty  || (SPEC_KW[s.specialty]  || []).some(kw => text.includes(kw));
+    const areaMatch = !s.areaFilter || (SPEC_KW[s.areaFilter] || []).some(kw => text.includes(kw));
 
-    return cargoMatch && skillsMatch && localMatch && modeMatch && contractMatch && levelMatch && sizeMatch && regionMatch && dateMatch && expiredMatch && specMatch;
+    return cargoMatch && skillsMatch && localMatch && modeMatch && contractMatch && levelMatch && sizeMatch && regionMatch && dateMatch && expiredMatch && specMatch && areaMatch;
   });
 }
 
@@ -903,8 +936,8 @@ function jobCardV2(j, dynMatch) {
       <div class="jcv2-sep"></div>
       <div class="jcv2-foot">
         ${j.externalUrl
-          ? `<a class="jcv2-link" href="${escapeHtml(j.externalUrl)}" target="_blank" rel="noopener noreferrer">Ver vaga →</a>`
-          : `<span class="jcv2-link jcv2-link-disabled">Indisponível</span>`}
+          ? `<a class="jcv2-cta" href="${escapeHtml(j.externalUrl)}" target="_blank" rel="noopener noreferrer">Ver vaga ↗</a>`
+          : `<span class="jcv2-cta jcv2-cta-disabled">Indisponível</span>`}
         <span class="jcv2-date ${dateAgeCls}">${escapeHtml(j.posted || 'recente')}</span>
         <button class="btn-save-job ${store.savedJobs[j.id] ? 'saved' : ''}"
           data-job-id="${escapeHtml(j.id)}"
@@ -1094,7 +1127,7 @@ function bindJobsPageEvents() {
     if (!btn) return;
     const filter = btn.dataset.filter;
     const value  = btn.dataset.value;
-    if (filter === 'mode' || filter === 'region' || filter === 'dateFilter' || filter === 'specialty') {
+    if (filter === 'mode' || filter === 'region' || filter === 'dateFilter' || filter === 'specialty' || filter === 'areaFilter') {
       s[filter] = value;
       $$(`[data-filter="${filter}"]`).forEach(b => b.classList.toggle('active', b.dataset.value === value));
     } else {
@@ -1112,7 +1145,7 @@ function bindJobsPageEvents() {
 
   $('#ms-clear')?.addEventListener('click', () => {
     s.cargo = ''; s.localidade = ''; s.skills = []; s.mode = 'todos'; s.region = 'todas';
-    s.dateFilter = 'all'; s.hideExpired = true; s.graduacao = ''; s.specialty = '';
+    s.dateFilter = 'all'; s.hideExpired = true; s.graduacao = ''; s.specialty = ''; s.areaFilter = '';
     s.contracts = []; s.levels = []; s.sizes = [];
     renderJobsPage();
   });
