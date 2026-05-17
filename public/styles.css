@@ -1355,11 +1355,28 @@ h3 { font-size: 16px; font-weight: 700; }
 .jcv2-link {
   font-size: 13px; font-weight: 600;
   color: var(--snes-royal); cursor: pointer; background: none; border: none;
-  text-decoration: none;
-  transition: color .15s var(--ease);
+  text-decoration: none; transition: color .15s var(--ease);
 }
 .jcv2-link:hover { color: var(--snes-royal-deep); text-decoration: underline; }
 .jcv2-link-disabled { color: var(--text-mut); cursor: default; font-size: 11px; }
+
+/* Botão Ver Vaga — CTA destacado */
+.jcv2-cta {
+  display: inline-flex; align-items: center;
+  font-size: 10px; font-weight: 800; letter-spacing: .5px; text-transform: uppercase;
+  color: #fff; background: var(--snes-royal);
+  padding: 4px 10px; border-radius: 3px;
+  text-decoration: none; border: none; cursor: pointer;
+  transition: background .15s, transform .1s;
+  flex-shrink: 0;
+}
+.jcv2-cta:hover { background: var(--snes-royal-deep); transform: translateY(-1px); }
+.jcv2-cta-disabled {
+  background: var(--border); color: var(--text-mut);
+  font-size: 10px; font-weight: 700; letter-spacing: .3px;
+  padding: 4px 10px; border-radius: 3px; cursor: default;
+  flex-shrink: 0;
+}
 .jcv2-match {
   font-size: 11px; font-weight: 700;
   color: var(--text-mut);
@@ -1398,7 +1415,8 @@ h3 { font-size: 16px; font-weight: 700; }
 
 /* Card expirado — dimming, link ainda clicável */
 .jcv2-expired { opacity: 0.42; }
-.jcv2-expired .jcv2-link { pointer-events: all; opacity: 1; }
+.jcv2-expired .jcv2-link,
+.jcv2-expired .jcv2-cta { pointer-events: all; opacity: 1; }
 
 /* Toggle "ocultar encerradas" — span full-width no grid */
 .filter-row-wide { grid-column: span 2; }
