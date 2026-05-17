@@ -5,7 +5,12 @@ const path = require('path');
 const DATA_DIR  = process.env.DATA_PATH || path.join(__dirname, '../data');
 const DATA_FILE = path.join(DATA_DIR, 'user-data.json');
 
-const _data = { saved: {} }; // jobId → savedAt timestamp
+const STAGES = ['applied', 'reviewing', 'interview', 'offer', 'rejected'];
+
+const _data = {
+  saved:        {},   // jobId → savedAt timestamp
+  applications: {},   // jobId → { stage, appliedAt, updatedAt }
+};
 
 function _load() {
   try {
@@ -49,6 +54,32 @@ function isSaved(jobId)  { return !!_data.saved[jobId]; }
 function savedIds()      { return Object.keys(_data.saved); }
 function savedList()     { return _data.saved; }
 
+/* ── Candidaturas ──────────────────────────────────────────────── */
+function applyToJob(jobId) {
+  const now = Date.now();
+  if (_data.applications[jobId]) return _data.applications[jobId]; // já existe
+  _data.applications[jobId] = { stage: 'applied', appliedAt: now, updatedAt: now };
+  _scheduleFlush();
+  return _data.applications[jobId];
+}
+
+function updateStage(jobId, stage) {
+  if (!STAGES.includes(stage)) return null;
+  if (!_data.applications[jobId]) return null;
+  _data.applications[jobId] = { ..._data.applications[jobId], stage, updatedAt: Date.now() };
+  _scheduleFlush();
+  return _data.applications[jobId];
+}
+
+function removeApplication(jobId) {
+  if (!_data.applications[jobId]) return false;
+  delete _data.applications[jobId];
+  _scheduleFlush();
+  return true;
+}
+
+function listApplications() { return _data.applications; }
+
 _load();
 
-module.exports = { toggleSaved, isSaved, savedIds, savedList };
+module.exports = { toggleSaved, isSaved, savedIds, savedList, applyToJob, updateStage, removeApplication, listApplications, STAGES };

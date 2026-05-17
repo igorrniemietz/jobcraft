@@ -37,6 +37,14 @@ function safeJoin(root, urlPath) {
   return target;
 }
 
+function readBody(req) {
+  return new Promise(resolve => {
+    let body = '';
+    req.on('data', c => body += c);
+    req.on('end', () => { try { resolve(JSON.parse(body)); } catch { resolve({}); } });
+  });
+}
+
 function send(res, status, body, headers = {}) {
   res.writeHead(status, { 'Cache-Control': 'no-cache', ...headers });
   res.end(body);
@@ -92,6 +100,33 @@ const server = http.createServer(async (req, res) => {
     const jobId = decodeURIComponent(saveMatch[1]);
     const nowSaved = userStore.toggleSaved(jobId);
     return sendJSON(res, { ok: true, id: jobId, saved: nowSaved, savedAt: nowSaved ? userStore.savedList()[jobId] : null });
+  }
+
+  /* GET /api/applications — listar candidaturas */
+  if (pathname === '/api/applications' && req.method === 'GET') {
+    return sendJSON(res, { ok: true, applications: userStore.listApplications() });
+  }
+
+  /* POST /api/applications/:id — candidatar */
+  /* PATCH /api/applications/:id — atualizar stage */
+  /* DELETE /api/applications/:id — remover */
+  const appMatch = pathname.match(/^\/api\/applications\/(.+)$/);
+  if (appMatch) {
+    const jobId = decodeURIComponent(appMatch[1]);
+    if (req.method === 'POST') {
+      const entry = userStore.applyToJob(jobId);
+      return sendJSON(res, { ok: true, id: jobId, ...entry });
+    }
+    if (req.method === 'PATCH') {
+      const { stage } = await readBody(req);
+      const entry = userStore.updateStage(jobId, stage);
+      if (!entry) return sendJSON(res, { ok: false, error: 'stage inválido ou candidatura não encontrada' });
+      return sendJSON(res, { ok: true, id: jobId, ...entry });
+    }
+    if (req.method === 'DELETE') {
+      userStore.removeApplication(jobId);
+      return sendJSON(res, { ok: true, id: jobId, removed: true });
+    }
   }
 
   /* static files */

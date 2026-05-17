@@ -8,7 +8,8 @@ const store = {
   achievements: [],
   leaderboard: [],
   quests: [],
-  savedJobs: {},   // jobId → savedAt timestamp (sincronizado com backend)
+  savedJobs:    {},   // jobId → savedAt timestamp (sincronizado com backend)
+  applications: {},   // jobId → { stage, appliedAt, updatedAt }
   ui: {
     route: location.hash || '#/jobs',
     jobSearch: { cargo: '', localidade: '', skills: [], mode: 'todos', region: 'todas', dateFilter: 'all', hideExpired: true, graduacao: '', contracts: [], levels: [], sizes: [] },
@@ -22,6 +23,7 @@ const store = {
 const ROUTES = {
   '#/dashboard':      { title: 'Dashboard',     render: renderDashboard },
   '#/jobs':           { title: 'Vagas',         render: renderJobsPage },
+  '#/kanban':         { title: 'Candidaturas',  render: renderKanban },
   '#/courses':        { title: 'Cursos',        render: renderCourses },
   '#/certifications': { title: 'Certificações', render: renderCerts },
   '#/achievements':   { title: 'Conquistas',    render: renderAchievements },
@@ -61,6 +63,7 @@ async function boot() {
   route();
   window.addEventListener('hashchange', route);
   loadSavedJobs();
+  loadApplications();
   loadRealJobs();
 }
 
@@ -82,6 +85,64 @@ async function loadRealJobs() {
     store.ui.realJobsStatus = 'error';
   }
   if (store.ui.route === '#/jobs') updateJobResults();
+}
+
+async function loadApplications() {
+  try {
+    const res = await fetch('/api/applications');
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.ok) {
+      store.applications = data.applications || {};
+      updateKanbanBadge();
+    }
+  } catch (e) { /* offline */ }
+}
+
+function updateKanbanBadge() {
+  const count = Object.keys(store.applications).length;
+  const badge = $('#kanban-nav-badge');
+  if (!badge) return;
+  badge.textContent = count;
+  badge.style.display = count > 0 ? '' : 'none';
+}
+
+async function applyToJob(jobId, btn) {
+  const already = store.applications[jobId];
+  if (already) { location.hash = '#/kanban'; return; }
+  store.applications[jobId] = { stage: 'applied', appliedAt: Date.now(), updatedAt: Date.now() };
+  updateKanbanBadge();
+  if (btn) { btn.textContent = 'Candidatado ✓'; btn.disabled = true; }
+  try {
+    const res  = await fetch(`/api/applications/${encodeURIComponent(jobId)}`, { method: 'POST' });
+    const data = await res.json();
+    if (data.ok) store.applications[jobId] = { stage: data.stage, appliedAt: data.appliedAt, updatedAt: data.updatedAt };
+  } catch (e) {
+    delete store.applications[jobId];
+    updateKanbanBadge();
+    if (btn) { btn.textContent = 'Candidatar'; btn.disabled = false; }
+  }
+}
+
+async function updateApplicationStage(jobId, stage) {
+  if (!store.applications[jobId]) return;
+  store.applications[jobId] = { ...store.applications[jobId], stage, updatedAt: Date.now() };
+  renderKanban();
+  try {
+    await fetch(`/api/applications/${encodeURIComponent(jobId)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stage }),
+    });
+  } catch (e) { /* silencioso */ }
+}
+
+async function removeApplication(jobId) {
+  delete store.applications[jobId];
+  updateKanbanBadge();
+  renderKanban();
+  try { await fetch(`/api/applications/${encodeURIComponent(jobId)}`, { method: 'DELETE' }); }
+  catch (e) { /* silencioso */ }
 }
 
 async function loadSavedJobs() {
@@ -754,12 +815,117 @@ function jobCardV2(j, dynMatch) {
           title="${store.savedJobs[j.id] ? 'Missão guardada' : 'Guardar missão'}">
           ${store.savedJobs[j.id] ? '⚔' : '◇'}
         </button>
+        ${store.applications[j.id]
+          ? `<button class="btn-apply-job applied" data-job-id="${escapeHtml(j.id)}" title="Ver no kanban">
+               ${STAGE_LABELS[store.applications[j.id].stage] || 'Candidatado'} ✓
+             </button>`
+          : `<button class="btn-apply-job" data-job-id="${escapeHtml(j.id)}" title="Candidatar-se">
+               Candidatar
+             </button>`}
         <span class="jcv2-match">
           Compatibilidade <span class="jcv2-match-pct ${matchCls}">${match}%</span>
         </span>
       </div>
     </article>
   `;
+}
+
+/* ============================================================
+   Kanban de Candidaturas
+   ============================================================ */
+const STAGES = ['applied','reviewing','interview','offer','rejected'];
+const STAGE_LABELS = {
+  applied:   'Candidatado',
+  reviewing: 'Em Análise',
+  interview: 'Entrevista',
+  offer:     'Oferta',
+  rejected:  'Rejeitado',
+};
+const STAGE_ICONS = {
+  applied:   '⚔',
+  reviewing: '🔍',
+  interview: '💬',
+  offer:     '🏆',
+  rejected:  '✕',
+};
+const STAGE_COLORS = {
+  applied:   '#3b82f6',
+  reviewing: '#f59e0b',
+  interview: '#8b5cf6',
+  offer:     '#22c55e',
+  rejected:  '#6b7280',
+};
+
+function renderKanban() {
+  const el = $('#view');
+  if (!el) return;
+
+  const apps = store.applications;
+  const total = Object.keys(apps).length;
+
+  const jobMap = {};
+  for (const j of store.jobs) jobMap[j.id] = j;
+
+  const colHTML = STAGES.map(stage => {
+    const cards = Object.entries(apps)
+      .filter(([, a]) => a.stage === stage)
+      .map(([jobId, app]) => {
+        const j = jobMap[jobId];
+        const title   = j ? escapeHtml(j.title)   : 'Vaga removida';
+        const company = j ? escapeHtml(j.company) : '—';
+        const logo    = j ? escapeHtml(j.logo)    : '?';
+        const color   = j ? j.color               : '#64748b';
+        const posted  = j ? escapeHtml(j.posted || 'recente') : '—';
+        const url     = j?.externalUrl ? `href="${escapeHtml(j.externalUrl)}" target="_blank" rel="noopener"` : '';
+        const idx     = STAGES.indexOf(stage);
+        const prevStage = idx > 0 ? STAGES[idx - 1] : null;
+        const nextStage = idx < STAGES.length - 1 ? STAGES[idx + 1] : null;
+
+        return `
+          <div class="kc" data-id="${escapeHtml(jobId)}">
+            <div class="kc-head">
+              <div class="kc-logo" style="background:${color}">${logo}</div>
+              <div class="kc-info">
+                ${j ? `<a class="kc-title" ${url}>${title}</a>` : `<span class="kc-title">${title}</span>`}
+                <span class="kc-company">${company}</span>
+              </div>
+            </div>
+            <div class="kc-meta">${posted}</div>
+            <div class="kc-actions">
+              ${prevStage ? `<button class="kc-btn kc-btn-prev" data-id="${escapeHtml(jobId)}" data-stage="${prevStage}" title="${STAGE_LABELS[prevStage]}">← ${STAGE_LABELS[prevStage]}</button>` : '<span></span>'}
+              ${nextStage ? `<button class="kc-btn kc-btn-next" data-id="${escapeHtml(jobId)}" data-stage="${nextStage}" title="${STAGE_LABELS[nextStage]}">${STAGE_LABELS[nextStage]} →</button>` : '<span></span>'}
+              <button class="kc-btn kc-btn-rm" data-id="${escapeHtml(jobId)}" title="Remover">✕</button>
+            </div>
+          </div>`;
+      }).join('');
+
+    const count = Object.values(apps).filter(a => a.stage === stage).length;
+    return `
+      <div class="kanban-col">
+        <div class="kanban-col-hdr" style="border-top-color:${STAGE_COLORS[stage]}">
+          <span>${STAGE_ICONS[stage]} ${STAGE_LABELS[stage]}</span>
+          <span class="kanban-col-count">${count}</span>
+        </div>
+        <div class="kanban-cards">${cards || '<p class="kc-empty">Nenhuma</p>'}</div>
+      </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="kanban-wrap">
+      <div class="kanban-hdr">
+        <span class="pixel kanban-title">⚔ CANDIDATURAS</span>
+        <span class="kanban-total">${total} vaga${total !== 1 ? 's' : ''} acompanhada${total !== 1 ? 's' : ''}</span>
+        ${total === 0 ? `<span class="kanban-hint">Candidate-se em vagas usando o botão <strong>Candidatar</strong> nos cards.</span>` : ''}
+      </div>
+      <div class="kanban-board">${colHTML}</div>
+    </div>`;
+
+  el.querySelectorAll('[data-stage]').forEach(btn => {
+    btn.addEventListener('click', () => updateApplicationStage(btn.dataset.id, btn.dataset.stage));
+  });
+  el.querySelectorAll('.kc-btn-rm').forEach(btn => {
+    btn.addEventListener('click', () => removeApplication(btn.dataset.id));
+  });
 }
 
 function bindJobsPageEvents() {
@@ -866,11 +1032,12 @@ function bindJobsPageEvents() {
   $('#ms-local')?.addEventListener('keydown', e => { if (e.key === 'Enter') renderJobsPage(); });
   $('#ms-graduacao')?.addEventListener('keydown', e => { if (e.key === 'Enter') renderJobsPage(); });
 
-  // Delegação de eventos para botões de salvar vaga
+  // Delegação de eventos para salvar e candidatar
   $('#jobs-results')?.addEventListener('click', e => {
-    const btn = e.target.closest('.btn-save-job');
-    if (!btn) return;
-    toggleSaveJob(btn.dataset.jobId, btn);
+    const saveBtn  = e.target.closest('.btn-save-job');
+    const applyBtn = e.target.closest('.btn-apply-job');
+    if (saveBtn)  toggleSaveJob(saveBtn.dataset.jobId, saveBtn);
+    if (applyBtn) applyToJob(applyBtn.dataset.jobId, applyBtn);
   });
 }
 

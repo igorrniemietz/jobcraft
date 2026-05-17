@@ -1421,6 +1421,81 @@ h3 { font-size: 16px; font-weight: 700; }
 .btn-save-job.saved        { background: #c9a227; border-color: #c9a227; color: #0f172a; }
 .btn-save-job.saved:hover  { background: #a8841e; border-color: #a8841e; }
 
+/* Botão candidatar */
+.btn-apply-job {
+  background: none; border: 1px solid var(--border);
+  color: var(--text-mut); font-size: 10px; font-weight: 700;
+  letter-spacing: .3px; text-transform: uppercase;
+  padding: 2px 7px; cursor: pointer; border-radius: 3px;
+  transition: all .15s; flex-shrink: 0;
+}
+.btn-apply-job:hover        { border-color: #22c55e; color: #22c55e; }
+.btn-apply-job.applied      { background: #22c55e22; border-color: #22c55e; color: #22c55e; cursor: pointer; }
+.btn-apply-job.applied:hover { background: #22c55e33; }
+
+/* ── Kanban de Candidaturas ──────────────────────────────────── */
+.kanban-wrap  { padding: 24px; max-width: 1400px; margin: 0 auto; }
+.kanban-hdr   { display: flex; align-items: baseline; gap: 14px; margin-bottom: 20px; flex-wrap: wrap; }
+.kanban-title { font-size: 13px; color: var(--text); }
+.kanban-total { font-size: 11px; color: var(--text-mut); }
+.kanban-hint  { font-size: 11px; color: var(--text-mut); font-style: italic; }
+
+.kanban-board {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+@media (max-width: 1100px) { .kanban-board { grid-template-columns: repeat(3,1fr); } }
+@media (max-width: 700px)  { .kanban-board { grid-template-columns: 1fr; } }
+
+.kanban-col { background: var(--bg2); border-radius: 6px; overflow: hidden; }
+.kanban-col-hdr {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 12px; border-top: 3px solid transparent;
+  font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px;
+  color: var(--text-mut);
+}
+.kanban-col-count {
+  background: var(--border); color: var(--text-mut);
+  font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 10px;
+}
+.kanban-cards { padding: 8px; display: flex; flex-direction: column; gap: 8px; min-height: 80px; }
+.kc-empty { font-size: 10px; color: var(--text-mut); text-align: center; padding: 12px 0; }
+
+/* Kanban card */
+.kc {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 5px; padding: 10px; display: flex; flex-direction: column; gap: 7px;
+  transition: border-color .15s;
+}
+.kc:hover { border-color: var(--snes-royal); }
+.kc-head  { display: flex; gap: 8px; align-items: flex-start; }
+.kc-logo  {
+  width: 30px; height: 30px; border-radius: 4px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 800; color: #fff;
+}
+.kc-info     { min-width: 0; flex: 1; }
+.kc-title    {
+  display: block; font-size: 11px; font-weight: 700;
+  color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  text-decoration: none;
+}
+.kc-title:hover { color: var(--snes-royal); text-decoration: underline; }
+.kc-company  { font-size: 10px; color: var(--text-mut); }
+.kc-meta     { font-size: 10px; color: var(--text-mut); }
+.kc-actions  { display: flex; gap: 4px; flex-wrap: wrap; }
+.kc-btn {
+  font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .3px;
+  padding: 2px 6px; border-radius: 3px; cursor: pointer; border: 1px solid var(--border);
+  background: none; color: var(--text-mut); transition: all .12s; white-space: nowrap;
+}
+.kc-btn-prev:hover { border-color: var(--snes-royal); color: var(--snes-royal); }
+.kc-btn-next:hover { border-color: #22c55e; color: #22c55e; }
+.kc-btn-rm   { margin-left: auto; }
+.kc-btn-rm:hover { border-color: var(--danger); color: var(--danger); }
+
 /* Badges de nível, contrato e empresa nos cards */
 .jcv2-badge {
   display: inline-flex; align-items: center;
