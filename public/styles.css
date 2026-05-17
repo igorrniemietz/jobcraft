@@ -1553,44 +1553,47 @@ h3 { font-size: 16px; font-weight: 700; }
 .real-jobs-banner.error   { border-color: #EF4444; color: #B91C1C; background: #FEF2F2; }
 .real-jobs-banner.empty   { border-color: #F59E0B; color: #92400E; background: #FFFBEB; }
 
-/* ── Filtros colapsáveis (Área / Segurança) ────────────────────── */
-.filter-collapsible {
+/* ── Filtros chip pill (Área / Segurança) ──────────────────────── */
+.filter-toggle-row {
   grid-column: span 2;
-  border: 1px solid var(--border);
-  border-radius: 5px;
-  overflow: hidden;
+  display: flex; gap: 8px; flex-wrap: wrap;
 }
-.filter-collapsible-summary {
-  display: flex; align-items: center; gap: 8px;
-  padding: 7px 12px; cursor: pointer;
-  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px;
-  color: var(--text-mut); user-select: none; list-style: none;
-  background: var(--bg2); transition: background .12s;
+.filter-toggle-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 11px; border-radius: 20px;
+  border: 1.5px dashed var(--border);
+  background: transparent; cursor: pointer;
+  font-size: 11px; font-weight: 600; color: var(--text-mut);
+  transition: border-color .15s, color .15s, background .15s;
+  user-select: none; white-space: nowrap;
 }
-.filter-collapsible-summary::-webkit-details-marker { display: none; }
-.filter-collapsible[open] .filter-collapsible-summary,
-.filter-collapsible-summary:hover { background: var(--surface); color: var(--text); }
-.fcol-label { flex: none; }
-.fcol-dot {
-  width: 6px; height: 6px; border-radius: 50%;
-  background: var(--snes-royal); flex-shrink: 0;
-  opacity: 0; transition: opacity .15s;
+.filter-toggle-btn:hover {
+  border-color: var(--snes-royal); color: var(--text);
 }
-.fcol-dot.visible { opacity: 1; }
-.fcol-hint {
-  font-size: 9px; font-weight: 500; color: var(--text-mut);
-  text-transform: lowercase; letter-spacing: 0;
+.filter-toggle-btn.open {
+  border-style: solid; border-color: var(--snes-royal);
+  color: var(--snes-royal);
 }
-.fcol-chevron {
-  margin-left: auto; font-size: 12px; color: var(--text-mut);
-  transition: transform .2s;
+.filter-toggle-btn.has-active {
+  border-style: solid; border-color: var(--snes-royal);
+  background: var(--snes-royal); color: #fff;
 }
-.filter-collapsible[open] .fcol-chevron { transform: rotate(180deg); }
-.fcol-body {
-  padding: 8px 12px 10px;
-  flex-wrap: wrap; gap: 5px;
-  border-top: 1px solid var(--border);
-  background: var(--surface);
+.ftb-icon { font-size: 13px; line-height: 1; }
+.ftb-label { line-height: 1; }
+.ftb-x {
+  font-size: 14px; line-height: 1; margin-left: 2px;
+  opacity: .8; cursor: pointer;
+}
+.ftb-x:hover { opacity: 1; }
+.filter-expand-panel {
+  grid-column: span 2;
+  display: flex; flex-wrap: wrap; gap: 5px;
+  padding: 6px 2px 2px;
+  animation: fade-in .15s ease;
+}
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: none; }
 }
 
 /* ── Activity Heatmap ──────────────────────────────────────────── */
