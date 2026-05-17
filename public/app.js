@@ -1131,10 +1131,11 @@ function bindJobsPageEvents() {
     const panelId = toggleBtn.dataset.panel;
     const panel   = $('#' + panelId);
     if (!panel) return;
-    const isOpen  = panel.style.display !== 'none';
-    $$('.filter-expand-panel').forEach(p => p.style.display = 'none');
-    $$('.filter-toggle-btn').forEach(b => b.classList.remove('open'));
-    if (!isOpen) {
+    const isOpen = panel.style.display !== 'none';
+    if (isOpen) {
+      panel.style.display = 'none';
+      toggleBtn.classList.remove('open');
+    } else {
       panel.style.display = 'flex';
       toggleBtn.classList.add('open');
     }
