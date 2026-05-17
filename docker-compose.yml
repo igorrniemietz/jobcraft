@@ -37,6 +37,7 @@ services:
       TRAMPOS_ENABLED:     "${TRAMPOS_ENABLED:-true}"
       GREENHOUSE_ENABLED:  "${GREENHOUSE_ENABLED:-true}"
       LEVER_ENABLED:       "${LEVER_ENABLED:-true}"
+      REMOTAR_ENABLED:     "${REMOTAR_ENABLED:-true}"
       SYNC_INTERVAL_MS: "${SYNC_INTERVAL_MS:-21600000}"
     labels:
       - "traefik.enable=true"

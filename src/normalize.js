@@ -328,4 +328,63 @@ function fromLever(raw, companyName) {
   };
 }
 
-module.exports = { fromGupy, fromRemotive, fromAdzuna, fromVagas, fromTrampos, fromGreenhouse, fromLever };
+/* ── Remotar ────────────────────────────────────────────────────── */
+function fromRemotar(raw) {
+  const company = raw.company?.name || 'Empresa';
+  const title   = raw.title || '';
+  const desc    = raw.description || '';
+
+  const tagNames = (raw.jobTags || []).map(t => t.tag?.name || '');
+  const contract = tagNames.some(n => /CLT/.test(n))        ? 'CLT'
+                 : tagNames.some(n => /Estágio/.test(n))    ? 'Estágio'
+                 : tagNames.some(n => /Freelancer/.test(n)) ? 'PJ'
+                 : 'PJ'; // remotar é majoritariamente PJ/remote
+
+  const level = tagNames.some(n => /Júnior/.test(n))  ? 'Júnior'
+              : tagNames.some(n => /Sênior/.test(n))   ? 'Sênior'
+              : tagNames.some(n => /Pleno/.test(n))    ? 'Pleno'
+              : extractLevel(title) || 'Pleno';
+
+  const isRemote = raw.type === 'remote' || tagNames.some(n => /100% Remoto/.test(n));
+  const isHybrid = raw.type === 'hybrid' || tagNames.some(n => /híbrida/.test(n));
+  const city     = [raw.city, raw.state].filter(Boolean).join(' · ');
+  const location = isRemote ? 'Remoto · BR'
+                 : isHybrid ? `Híbrido · ${raw.city || 'BR'}`
+                 : city || 'Brasil';
+
+  const salFrom = raw.jobSalary?.from;
+  const salTo   = raw.jobSalary?.to;
+  const salary  = salFrom && salFrom > 0
+    ? `R$ ${salFrom.toLocaleString('pt-BR')}${salTo && salTo > salFrom ? ` – ${salTo.toLocaleString('pt-BR')}` : ''}`
+    : null;
+
+  const externalUrl = raw.isExternalLink && raw.externalLink
+    ? raw.externalLink
+    : `https://remotar.com.br/job/${raw.id}`;
+
+  return {
+    id:          `rt-${raw.id}`,
+    source:      'remotar',
+    title,
+    company,
+    logo:        initials(company),
+    color:       colorFor(company),
+    location,
+    type:        `${contract} · ${level}`,
+    contract,
+    level,
+    companySize: null,
+    salary,
+    tags:        extractTags(title, stripHtml(desc)),
+    match:       0,
+    stage:       null,
+    posted:      relTime(raw.createdAt),
+    applicants:  0,
+    saved:       false,
+    applied:     false,
+    description: stripHtml(desc).slice(0, 500),
+    externalUrl,
+  };
+}
+
+module.exports = { fromGupy, fromRemotive, fromAdzuna, fromVagas, fromTrampos, fromGreenhouse, fromLever, fromRemotar };

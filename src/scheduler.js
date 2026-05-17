@@ -5,6 +5,7 @@ const { fetchTrampos }    = require('./collectors/trampos');
 const { fetchVagas }      = require('./collectors/vagas');
 const { fetchGreenhouse } = require('./collectors/greenhouse');
 const { fetchLever }      = require('./collectors/lever');
+const { fetchRemotar }    = require('./collectors/remotar');
 const store               = require('./jobStore');
 
 const INTERVAL_MS = parseInt(process.env.SYNC_INTERVAL_MS || String(6 * 60 * 60 * 1000)); // 6h
@@ -33,6 +34,7 @@ async function syncAll() {
     syncSource('vagas',      fetchVagas),
     syncSource('greenhouse', fetchGreenhouse),
     syncSource('lever',      fetchLever),
+    syncSource('remotar',    fetchRemotar),
     // syncSource('catho',   fetchCatho),   // bloqueado por Akamai TLS — Fase 4
   ]);
   console.log(`[sync] concluído — ${store.count()} vagas únicas no store`);

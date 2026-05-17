@@ -593,9 +593,10 @@ function filterJobs() {
     const contractMatch = s.contracts.length === 0 || s.contracts.includes(j.contract);
     const levelMatch    = s.levels.length === 0    || s.levels.includes(j.level);
     const sizeMatch     = s.sizes.length === 0     || s.sizes.includes(j.companySize);
+    const BR_SOURCES = ['gupy','adzuna','vagas','greenhouse','lever','remotar','trampos'];
     const regionMatch   = s.region === 'todas'
-      || (s.region === 'br'            && (j.source === 'gupy'     || j.source === 'adzuna'))
-      || (s.region === 'internacional' &&  j.source === 'remotive');
+      || (s.region === 'br'            && BR_SOURCES.includes(j.source))
+      || (s.region === 'internacional' && j.source === 'remotive');
     return cargoMatch && skillsMatch && localMatch && modeMatch && contractMatch && levelMatch && sizeMatch && regionMatch;
   });
 }
