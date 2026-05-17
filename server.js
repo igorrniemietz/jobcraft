@@ -102,6 +102,18 @@ const server = http.createServer(async (req, res) => {
     return sendJSON(res, { ok: true, id: jobId, saved: nowSaved, savedAt: nowSaved ? userStore.savedList()[jobId] : null });
   }
 
+  /* GET /api/profile — estado de gamificação */
+  if (pathname === '/api/profile' && req.method === 'GET') {
+    return sendJSON(res, { ok: true, profile: userStore.getProfile() });
+  }
+
+  /* POST /api/profile/xp — registrar ação e ganhar XP */
+  if (pathname === '/api/profile/xp' && req.method === 'POST') {
+    const { action, amount } = await readBody(req);
+    const result = userStore.addXP(action || 'misc', amount || 0);
+    return sendJSON(res, { ok: true, ...result });
+  }
+
   /* GET /api/applications — listar candidaturas */
   if (pathname === '/api/applications' && req.method === 'GET') {
     return sendJSON(res, { ok: true, applications: userStore.listApplications() });

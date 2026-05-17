@@ -8,12 +8,12 @@ const store = {
   achievements: [],
   leaderboard: [],
   quests: [],
-  savedJobs:    {},   // jobId → savedAt timestamp (sincronizado com backend)
-  applications: {},   // jobId → { stage, appliedAt, updatedAt }
+  savedJobs:    {},
+  applications: {},
   ui: {
     route: location.hash || '#/jobs',
-    jobSearch: { cargo: '', localidade: '', skills: [], mode: 'todos', region: 'todas', dateFilter: 'all', hideExpired: true, graduacao: '', contracts: [], levels: [], sizes: [] },
-    realJobsStatus: 'idle', // idle | loading | ok | error
+    jobSearch: { cargo: '', localidade: '', skills: [], mode: 'todos', region: 'todas', dateFilter: 'all', hideExpired: true, graduacao: '', contracts: [], levels: [], sizes: [], specialty: '' },
+    realJobsStatus: 'idle',
     rpTab: 'missoes',
     rpVoucher: false,
     rpLastQuery: '',
@@ -56,6 +56,7 @@ async function boot() {
   ]);
   Object.assign(store, { user, jobs: [], courses, certs, achievements, leaderboard, quests });
 
+  await loadProfile();
   paintUser();
   bindShell();
   bindRightPanel();
@@ -65,6 +66,23 @@ async function boot() {
   loadSavedJobs();
   loadApplications();
   loadRealJobs();
+}
+
+async function loadProfile() {
+  try {
+    const res = await fetch('/api/profile');
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.ok && data.profile) {
+      const p = data.profile;
+      if (p.xp       !== undefined) store.user.xp       = p.xp;
+      if (p.level    !== undefined) store.user.level    = p.level;
+      if (p.xpNext   !== undefined) store.user.xpNext   = p.xpNext;
+      if (p.coins    !== undefined) store.user.coins    = p.coins;
+      if (p.streak   !== undefined) store.user.streak   = p.streak;
+      store.user.activities = p.activities || [];
+    }
+  } catch (e) { /* use user.json defaults */ }
 }
 
 async function loadRealJobs() {
@@ -116,7 +134,11 @@ async function applyToJob(jobId, btn) {
   try {
     const res  = await fetch(`/api/applications/${encodeURIComponent(jobId)}`, { method: 'POST' });
     const data = await res.json();
-    if (data.ok) store.applications[jobId] = { stage: data.stage, appliedAt: data.appliedAt, updatedAt: data.updatedAt };
+    if (data.ok) {
+      store.applications[jobId] = { stage: data.stage, appliedAt: data.appliedAt, updatedAt: data.updatedAt };
+      addXP(50, 'apply');
+      toast('+50 XP — candidatura registrada!');
+    }
   } catch (e) {
     delete store.applications[jobId];
     updateKanbanBadge();
@@ -126,8 +148,16 @@ async function applyToJob(jobId, btn) {
 
 async function updateApplicationStage(jobId, stage) {
   if (!store.applications[jobId]) return;
+  const prev = store.applications[jobId].stage;
   store.applications[jobId] = { ...store.applications[jobId], stage, updatedAt: Date.now() };
   renderKanban();
+
+  const XP_BY_STAGE = { interview: 150, offer: 500 };
+  if (XP_BY_STAGE[stage] && prev !== stage) {
+    addXP(XP_BY_STAGE[stage], stage);
+    toast(`+${XP_BY_STAGE[stage]} XP — ${stage === 'interview' ? 'entrevista marcada' : 'oferta recebida'}! 🎉`);
+  }
+
   try {
     await fetch(`/api/applications/${encodeURIComponent(jobId)}`, {
       method: 'PATCH',
@@ -166,11 +196,15 @@ async function toggleSaveJob(jobId, btn) {
     const res  = await fetch(`/api/saved/${encodeURIComponent(jobId)}`, { method: 'POST' });
     const data = await res.json();
     if (!data.ok) throw new Error('falhou');
-    if (data.saved) store.savedJobs[jobId] = data.savedAt;
-    else delete store.savedJobs[jobId];
+    if (data.saved) {
+      store.savedJobs[jobId] = data.savedAt;
+      addXP(10, 'save');
+      toast('+10 XP — missão salva!');
+    } else {
+      delete store.savedJobs[jobId];
+    }
     if (btn) btn.classList.toggle('saved', !!store.savedJobs[jobId]);
   } catch (e) {
-    // rollback optimistic update
     if (wasSaved) store.savedJobs[jobId] = Date.now();
     else delete store.savedJobs[jobId];
     if (btn) btn.classList.toggle('saved', wasSaved);
@@ -282,7 +316,7 @@ function renderQuestsPanel() {
       quest.done = true;
       quest.progress = quest.goal;
       renderQuestsPanel();
-      addXP(xp);
+      addXP(xp, 'quest');
       toast(`+${xp} XP — quest concluída!`);
     }
   });
@@ -372,28 +406,53 @@ function route() {
 }
 
 /* ============== Dashboard ============== */
+function buildActivityHeatmap(activities) {
+  const counts = {};
+  for (const a of (activities || [])) {
+    const day = new Date(a.ts).toISOString().slice(0, 10);
+    counts[day] = (counts[day] || 0) + 1;
+  }
+  const cells = [];
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(Date.now() - i * 86400000);
+    const key = d.toISOString().slice(0, 10);
+    const n = counts[key] || 0;
+    const intensity = n === 0 ? 0 : n === 1 ? 1 : n <= 3 ? 2 : 3;
+    const label = d.toLocaleDateString('pt-BR', { day:'2-digit', month:'short' });
+    cells.push(`<span class="heatmap-cell lvl${intensity}" title="${label}: ${n} ação${n!==1?'ões':''}"></span>`);
+  }
+  return cells.join('');
+}
+
 function renderDashboard() {
   const u = store.user;
-  const applied = store.jobs.filter(j => j.applied).length;
+  const applied         = Object.keys(store.applications).length;
+  const inInterview     = Object.values(store.applications).filter(a => a.stage === 'interview').length;
   const inProgressCourses = store.courses.filter(c => c.progress > 0 && c.progress < 100).length;
-  const earnedCerts = store.certs.filter(c => c.status === 'earned').length;
+  const earnedCerts     = store.certs.filter(c => c.status === 'earned').length;
+  const savedCount      = Object.keys(store.savedJobs).length;
+
+  const topJobs = store.jobs.slice()
+    .map(j => ({ j, m: calcDynamicMatch(j, store.ui.jobSearch.skills) }))
+    .sort((a, b) => b.m - a.m)
+    .slice(0, 3);
 
   const view = $('#view');
   view.innerHTML = `
     <section class="hero">
       <div>
         <div class="hi">Bem-vindo de volta,</div>
-        <h1>${escapeHtml(u.name.split(' ')[0])} 🎮</h1>
+        <h1>${escapeHtml(u.name.split(' ')[0])} ⚔</h1>
         <p class="lead">Você está a <strong>${fmt(u.xpNext - u.xp)} XP</strong> do nível <strong>${u.level + 1}</strong>. Bora caçar vaga e fechar mais um módulo de OWASP?</p>
         <div class="hero-stats">
-          <div class="hero-stat"><span class="v">${u.streak} 🔥</span><span class="l">Streak</span></div>
+          <div class="hero-stat"><span class="v">${u.streak || 0} 🔥</span><span class="l">Streak</span></div>
           <div class="hero-stat"><span class="v">${fmt(u.xp)}</span><span class="l">XP</span></div>
-          <div class="hero-stat"><span class="v">${u.coins}</span><span class="l">Moedas</span></div>
+          <div class="hero-stat"><span class="v">${u.coins || 0}</span><span class="l">Moedas</span></div>
           <div class="hero-stat"><span class="v">LV ${u.level}</span><span class="l">Nível</span></div>
         </div>
       </div>
       <div class="hero-art">
-        <div class="pad pixel"><i data-lucide="gamepad-2"></i></div>
+        <div class="pad pixel"><i data-lucide="shield"></i></div>
       </div>
     </section>
 
@@ -402,25 +461,25 @@ function renderDashboard() {
         <div class="ic"><i data-lucide="zap"></i></div>
         <div class="label">XP Total</div>
         <div class="value">${fmt(u.xp)}</div>
-        <div class="delta">+250 essa semana</div>
+        <div class="delta">Nível ${u.level} — ${fmt(u.xpNext - u.xp)} para o próximo</div>
       </div>
       <div class="kpi">
         <div class="ic"><i data-lucide="briefcase"></i></div>
         <div class="label">Candidaturas</div>
         <div class="value">${applied}</div>
-        <div class="delta">+2 esta semana</div>
+        <div class="delta">${inInterview} em entrevista · <a href="#/kanban" style="color:var(--accent)">Ver kanban →</a></div>
       </div>
       <div class="kpi">
-        <div class="ic"><i data-lucide="graduation-cap"></i></div>
-        <div class="label">Cursos em andamento</div>
-        <div class="value">${inProgressCourses}</div>
-        <div class="delta">${store.courses.filter(c => c.progress === 100).length} concluídos</div>
+        <div class="ic"><i data-lucide="bookmark"></i></div>
+        <div class="label">Vagas salvas</div>
+        <div class="value">${savedCount}</div>
+        <div class="delta">${inProgressCourses} cursos em andamento</div>
       </div>
       <div class="kpi">
         <div class="ic"><i data-lucide="badge-check"></i></div>
         <div class="label">Certificações</div>
         <div class="value">${earnedCerts}</div>
-        <div class="delta">+1 este mês</div>
+        <div class="delta">${store.certs.filter(c => c.status === 'in_progress').length} em andamento</div>
       </div>
     </div>
 
@@ -431,18 +490,32 @@ function renderDashboard() {
           <a class="btn btn-ghost btn-sm" href="#/jobs"><i data-lucide="arrow-right"></i>Ver todas</a>
         </div>
         <div class="rec-jobs">
-          ${store.jobs.slice().sort((a,b) => b.match - a.match).slice(0,3).map(jobMini).join('')}
+          ${topJobs.map(({ j, m }) => jobMini(j, m)).join('') || '<p style="color:var(--text-mut);font-size:13px">Carregando vagas…</p>'}
         </div>
       </div>
       <div class="card panel">
         <div class="section-title" style="margin-top:0">
           <h3>Quests de hoje</h3>
-          <span class="chip chip-royal"><i data-lucide="target"></i>5</span>
+          <span class="chip chip-royal"><i data-lucide="target"></i>${store.quests.filter(q => !q.done).length} pendentes</span>
         </div>
         <div id="quests">
           ${store.quests.map(questRow).join('')}
         </div>
       </div>
+    </div>
+
+    <div class="card panel" style="margin-top:16px">
+      <div class="section-title" style="margin-top:0">
+        <h3>Atividade — últimos 30 dias</h3>
+        <span class="heatmap-legend">
+          <span class="heatmap-cell lvl0"></span>
+          <span class="heatmap-cell lvl1"></span>
+          <span class="heatmap-cell lvl2"></span>
+          <span class="heatmap-cell lvl3"></span>
+          <span style="font-size:11px;color:var(--text-mut)">Mais ativo</span>
+        </span>
+      </div>
+      <div class="heatmap-row">${buildActivityHeatmap(u.activities)}</div>
     </div>
 
     <div class="section-title"><h3>Continue de onde parou</h3><small>Cursos com progresso ativo</small></div>
@@ -456,7 +529,7 @@ function renderDashboard() {
     if (q && !q.classList.contains('done')) {
       q.classList.add('done');
       const xp = parseInt(q.dataset.xp, 10);
-      addXP(xp);
+      addXP(xp, 'quest');
       toast(`+${xp} XP — quest concluída!`);
     }
   }, { once: true });
@@ -475,16 +548,17 @@ function questRow(q) {
   `;
 }
 
-function jobMini(j) {
+function jobMini(j, dynMatch) {
+  const match = dynMatch !== undefined ? dynMatch : (j.match || 0);
   return `
     <div class="job-card" style="padding:14px">
       <div class="job-head">
-        <div class="job-logo" style="background:${j.color}">${j.logo}</div>
+        <div class="job-logo" style="background:${j.color}">${escapeHtml(j.logo)}</div>
         <div style="min-width:0">
           <div class="job-title">${escapeHtml(j.title)}</div>
-          <div class="job-company">${escapeHtml(j.company)} · ${escapeHtml(j.location)}</div>
+          <div class="job-company">${escapeHtml(j.company)} · ${escapeHtml(j.location || '')}</div>
         </div>
-        <div class="match ${matchClass(j.match)}" style="--pct:${j.match}"><span class="num">${j.match}%</span></div>
+        <div class="match ${matchClass(match)}" style="--pct:${match}"><span class="num">${match}%</span></div>
       </div>
     </div>
   `;
@@ -501,7 +575,7 @@ function renderJobsPage() {
   `).join('');
 
   const filterBtns = (filter, opts) => opts.map(([val, label]) => {
-    const isSingle = filter === 'mode' || filter === 'region' || filter === 'dateFilter';
+    const isSingle = filter === 'mode' || filter === 'region' || filter === 'dateFilter' || filter === 'specialty';
     const active   = isSingle ? s[filter] === val : s[filter + 's'].includes(val);
     return `<button class="mode-btn ${active ? 'active' : ''}" data-filter="${filter}" data-value="${val}">${label}</button>`;
   }).join('');
@@ -577,6 +651,19 @@ function renderJobsPage() {
             <span class="inline-filter-label">Publicação:</span>
             <div class="inline-filter-opts">
               ${filterBtns('dateFilter', [['all','Todas'],['1d','Hoje'],['7d','7 dias'],['30d','30 dias']])}
+            </div>
+          </div>
+          <div class="inline-filter-row">
+            <span class="inline-filter-label">InfoSec:</span>
+            <div class="inline-filter-opts">
+              ${filterBtns('specialty', [
+                ['','Todas'],
+                ['soc','SOC/Blue Team'],
+                ['pentest','Pentest/Red Team'],
+                ['grc','GRC'],
+                ['appsec','AppSec'],
+                ['cloud','Cloud Security'],
+              ])}
             </div>
           </div>
           <div class="inline-filter-row filter-row-wide">
@@ -717,7 +804,16 @@ function filterJobs() {
       || (j.postedAt && ageDays > ttlDays);
     const expiredMatch = !s.hideExpired || !jobExpired;
 
-    return cargoMatch && skillsMatch && localMatch && modeMatch && contractMatch && levelMatch && sizeMatch && regionMatch && dateMatch && expiredMatch;
+    const SPEC_KW = {
+      soc:     ['soc','blue team','siem','splunk','incident','threat hunt','dfir','forense'],
+      pentest: ['pentest','penetration test','red team','oscp','kali','metasploit','burp','exploit','ctf'],
+      grc:     ['grc','compliance','iso 27001','lgpd','gdpr','auditoria','risco','governance','nist'],
+      appsec:  ['appsec','owasp','sast','dast','devsecops','secure cod','application security','segurança de aplicaç'],
+      cloud:   ['cloud security','aws security','azure security','gcp security','iam','zero trust','cspm','cwpp'],
+    };
+    const specMatch = !s.specialty || (SPEC_KW[s.specialty] || []).some(kw => text.includes(kw));
+
+    return cargoMatch && skillsMatch && localMatch && modeMatch && contractMatch && levelMatch && sizeMatch && regionMatch && dateMatch && expiredMatch && specMatch;
   });
 }
 
@@ -998,7 +1094,7 @@ function bindJobsPageEvents() {
     if (!btn) return;
     const filter = btn.dataset.filter;
     const value  = btn.dataset.value;
-    if (filter === 'mode' || filter === 'region' || filter === 'dateFilter') {
+    if (filter === 'mode' || filter === 'region' || filter === 'dateFilter' || filter === 'specialty') {
       s[filter] = value;
       $$(`[data-filter="${filter}"]`).forEach(b => b.classList.toggle('active', b.dataset.value === value));
     } else {
@@ -1016,7 +1112,7 @@ function bindJobsPageEvents() {
 
   $('#ms-clear')?.addEventListener('click', () => {
     s.cargo = ''; s.localidade = ''; s.skills = []; s.mode = 'todos'; s.region = 'todas';
-    s.dateFilter = 'all'; s.hideExpired = true; s.graduacao = '';
+    s.dateFilter = 'all'; s.hideExpired = true; s.graduacao = ''; s.specialty = '';
     s.contracts = []; s.levels = []; s.sizes = [];
     renderJobsPage();
   });
@@ -1386,18 +1482,32 @@ function renderProfile() {
 }
 
 /* ============== XP / Toast ============== */
-function addXP(amount) {
+function addXP(amount, action = 'misc') {
   const u = store.user;
   u.xp += amount;
   let leveledUp = false;
+  const prevLevel = u.level;
   while (u.xp >= u.xpNext) {
     u.xp -= u.xpNext;
     u.level += 1;
     u.xpNext = Math.round(u.xpNext * 1.25);
+    u.coins  = (u.coins || 0) + 100;
     leveledUp = true;
   }
+  u.coins = (u.coins || 0) + Math.floor(amount / 10);
   paintUser();
-  if (leveledUp) toast(`LEVEL UP! Lv ${u.level - 1} → Lv ${u.level}`, true);
+  if (leveledUp) toast(`LEVEL UP! Lv ${prevLevel} → Lv ${u.level}`, true);
+
+  fetch('/api/profile/xp', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action, amount }),
+  }).then(r => r.json()).then(d => {
+    if (d.ok) {
+      store.user.streak = d.streak;
+      paintUser();
+    }
+  }).catch(() => {});
 }
 
 function toast(msg, levelUp = false) {
