@@ -37,6 +37,8 @@ async function syncAll() {
     syncSource('remotar',    fetchRemotar),
     // syncSource('catho',   fetchCatho),   // bloqueado por Akamai TLS — Fase 4
   ]);
+  const purged = store.purge();
+  if (purged > 0) console.log(`[sync] purge — ${purged} vagas expiradas removidas`);
   console.log(`[sync] concluído — ${store.count()} vagas únicas no store`);
 }
 

@@ -10,7 +10,7 @@ const store = {
   quests: [],
   ui: {
     route: location.hash || '#/jobs',
-    jobSearch: { cargo: '', localidade: '', skills: [], mode: 'todos', region: 'todas', graduacao: '', contracts: [], levels: [], sizes: [] },
+    jobSearch: { cargo: '', localidade: '', skills: [], mode: 'todos', region: 'todas', dateFilter: 'all', hideExpired: true, graduacao: '', contracts: [], levels: [], sizes: [] },
     realJobsStatus: 'idle', // idle | loading | ok | error
     rpTab: 'missoes',
     rpVoucher: false,
@@ -406,7 +406,7 @@ function renderJobsPage() {
   `).join('');
 
   const filterBtns = (filter, opts) => opts.map(([val, label]) => {
-    const isSingle = filter === 'mode' || filter === 'region';
+    const isSingle = filter === 'mode' || filter === 'region' || filter === 'dateFilter';
     const active   = isSingle ? s[filter] === val : s[filter + 's'].includes(val);
     return `<button class="mode-btn ${active ? 'active' : ''}" data-filter="${filter}" data-value="${val}">${label}</button>`;
   }).join('');
@@ -478,6 +478,18 @@ function renderJobsPage() {
               ${filterBtns('region', [['todas','Todas'],['br','Brasil 🇧🇷'],['internacional','Internacional 🌎']])}
             </div>
           </div>
+          <div class="inline-filter-row">
+            <span class="inline-filter-label">Publicação:</span>
+            <div class="inline-filter-opts">
+              ${filterBtns('dateFilter', [['all','Todas'],['1d','Hoje'],['7d','7 dias'],['30d','30 dias']])}
+            </div>
+          </div>
+          <div class="inline-filter-row filter-row-wide">
+            <label class="toggle-expired-label">
+              <input type="checkbox" id="ms-hide-expired" ${s.hideExpired ? 'checked' : ''}>
+              <span>Ocultar vagas encerradas</span>
+            </label>
+          </div>
         </div>
 
         <div class="mission-footer">
@@ -521,7 +533,7 @@ function updateJobResults() {
     : `${store.jobs.length} vagas disponíveis`;
 
   const filtered   = filterJobs();
-  const hasFilters = s.contracts.length || s.levels.length || s.sizes.length || s.mode !== 'todos';
+  const hasFilters = s.contracts.length || s.levels.length || s.sizes.length || s.mode !== 'todos' || s.dateFilter !== 'all';
   const hasText    = !!(s.cargo || s.skills.length || s.localidade || s.graduacao);
   const ranked     = filtered
     .map(j => ({ j, m: calcDynamicMatch(j, s.skills) }))
@@ -597,7 +609,20 @@ function filterJobs() {
     const regionMatch   = s.region === 'todas'
       || (s.region === 'br'            && BR_SOURCES.includes(j.source))
       || (s.region === 'internacional' && j.source === 'remotive');
-    return cargoMatch && skillsMatch && localMatch && modeMatch && contractMatch && levelMatch && sizeMatch && regionMatch;
+
+    const DATE_MS = { '1d': 86400000, '7d': 7*86400000, '30d': 30*86400000 };
+    const dateCutoff = DATE_MS[s.dateFilter];
+    const dateMatch  = !dateCutoff || (j.postedAt && (Date.now() - new Date(j.postedAt)) < dateCutoff);
+
+    const SOURCE_TTL = { remotar: 45, greenhouse: 30, lever: 30, vagas: 21, gupy: 30 };
+    const ttlDays    = SOURCE_TTL[j.source] || 30;
+    const ageDays    = j.postedAt ? (Date.now() - new Date(j.postedAt)) / 86400000 : 0;
+    const jobExpired = j.expiredBySource
+      || (j.expiresAt && new Date(j.expiresAt) < new Date())
+      || (j.postedAt && ageDays > ttlDays);
+    const expiredMatch = !s.hideExpired || !jobExpired;
+
+    return cargoMatch && skillsMatch && localMatch && modeMatch && contractMatch && levelMatch && sizeMatch && regionMatch && dateMatch && expiredMatch;
   });
 }
 
@@ -643,16 +668,29 @@ function jobCardV2(j, dynMatch) {
     : locType.toLowerCase().includes('híbrido') ? 'hybrid' : 'onsite';
   const matchCls = match >= 80 ? '' : match >= 60 ? 'mid' : 'low';
 
-  const levelCls = j.level === 'Júnior' ? 'junior' : j.level === 'Sênior' ? 'senior' : 'pleno';
+  const levelCls    = j.level === 'Júnior' ? 'junior' : j.level === 'Sênior' ? 'senior' : 'pleno';
   const contractCls = j.contract === 'PJ' ? 'pj' : j.contract === 'Estágio' ? 'estagio' : 'clt';
-  const sizeCls = j.companySize === 'Startup' ? 'startup' : j.companySize === 'Grande empresa' ? 'grande' : 'pme';
+  const sizeCls     = j.companySize === 'Startup' ? 'startup' : j.companySize === 'Grande empresa' ? 'grande' : 'pme';
+
+  const SOURCE_TTL = { remotar: 45, greenhouse: 30, lever: 30, vagas: 21, gupy: 30 };
+  const ttlDays    = SOURCE_TTL[j.source] || 30;
+  const ageDays    = j.postedAt ? (Date.now() - new Date(j.postedAt)) / 86400000 : null;
+  const isExpired  = j.expiredBySource
+    || (j.expiresAt && new Date(j.expiresAt) < new Date())
+    || (ageDays !== null && ageDays > ttlDays);
+  const isNew      = ageDays !== null && ageDays < 1;
+  const dateAgeCls = ageDays === null ? '' : ageDays < 1 ? 'fresh' : ageDays < 7 ? 'recent' : ageDays < 30 ? 'old' : 'stale';
 
   return `
-    <article class="job-card-v2" data-id="${j.id}">
+    <article class="job-card-v2 ${isExpired ? 'jcv2-expired' : ''}" data-id="${j.id}">
       <div class="jcv2-head">
         <div class="jcv2-logo" style="background:${j.color}">${escapeHtml(j.logo)}</div>
         <div style="min-width:0">
-          <div class="jcv2-title">${escapeHtml(j.title)}</div>
+          <div class="jcv2-title">
+            ${escapeHtml(j.title)}
+            ${isNew ? '<span class="badge-nova">NOVA</span>' : ''}
+            ${isExpired ? '<span class="badge-encerrada">ENCERRADA</span>' : ''}
+          </div>
           <div class="jcv2-company">${escapeHtml(j.company)}</div>
         </div>
       </div>
@@ -676,6 +714,7 @@ function jobCardV2(j, dynMatch) {
         ${j.externalUrl
           ? `<a class="jcv2-link" href="${escapeHtml(j.externalUrl)}" target="_blank" rel="noopener noreferrer">Ver vaga →</a>`
           : `<span class="jcv2-link jcv2-link-disabled">Indisponível</span>`}
+        <span class="jcv2-date ${dateAgeCls}">${escapeHtml(j.posted || 'recente')}</span>
         <span class="jcv2-match">
           Compatibilidade <span class="jcv2-match-pct ${matchCls}">${match}%</span>
         </span>
@@ -754,7 +793,7 @@ function bindJobsPageEvents() {
     if (!btn) return;
     const filter = btn.dataset.filter;
     const value  = btn.dataset.value;
-    if (filter === 'mode' || filter === 'region') {
+    if (filter === 'mode' || filter === 'region' || filter === 'dateFilter') {
       s[filter] = value;
       $$(`[data-filter="${filter}"]`).forEach(b => b.classList.toggle('active', b.dataset.value === value));
     } else {
@@ -771,9 +810,15 @@ function bindJobsPageEvents() {
   });
 
   $('#ms-clear')?.addEventListener('click', () => {
-    s.cargo = ''; s.localidade = ''; s.skills = []; s.mode = 'todos'; s.region = 'todas'; s.graduacao = '';
+    s.cargo = ''; s.localidade = ''; s.skills = []; s.mode = 'todos'; s.region = 'todas';
+    s.dateFilter = 'all'; s.hideExpired = true; s.graduacao = '';
     s.contracts = []; s.levels = []; s.sizes = [];
     renderJobsPage();
+  });
+
+  $('#ms-hide-expired')?.addEventListener('change', e => {
+    s.hideExpired = e.target.checked;
+    updateJobResults();
   });
 
   $('#ms-search')?.addEventListener('click', () => { renderJobsPage(); loadRealJobs(); });
