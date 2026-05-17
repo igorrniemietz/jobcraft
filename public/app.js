@@ -653,35 +653,45 @@ function renderJobsPage() {
               ${filterBtns('dateFilter', [['all','Todas'],['1d','Hoje'],['7d','7 dias'],['30d','30 dias']])}
             </div>
           </div>
-          <div class="inline-filter-row filter-row-wide">
-            <span class="inline-filter-label">Área:</span>
-            <div class="inline-filter-opts">
-              ${filterBtns('areaFilter', [
-                ['',          'Todas'],
-                ['backend',   'Backend'],
-                ['frontend',  'Frontend'],
-                ['fullstack', 'Full Stack'],
-                ['mobile',    'Mobile'],
-                ['data',      'Data / IA'],
-                ['devops',    'DevOps / SRE'],
-                ['cloud',     'Cloud'],
-                ['arqtech',   'Arquitetura'],
-                ['qa',        'QA / Testes'],
-              ])}
-            </div>
+          <div class="filter-toggle-row">
+            <button class="filter-toggle-btn ${s.areaFilter ? 'has-active' : ''}"
+                    id="ftb-area" data-panel="fpl-area" type="button">
+              <span class="ftb-icon">${s.areaFilter ? '●' : '+'}</span>
+              <span class="ftb-label">${s.areaFilter ? (AREA_BTN_LABELS[s.areaFilter] || 'Área') : 'Área'}</span>
+              ${s.areaFilter ? `<span class="ftb-x" data-clearfilter="areaFilter">×</span>` : ''}
+            </button>
+            <button class="filter-toggle-btn ${s.specialty ? 'has-active' : ''}"
+                    id="ftb-security" data-panel="fpl-security" type="button">
+              <span class="ftb-icon">${s.specialty ? '●' : '+'}</span>
+              <span class="ftb-label">${s.specialty ? (SPEC_BTN_LABELS[s.specialty] || 'Segurança') : 'Segurança'}</span>
+              ${s.specialty ? `<span class="ftb-x" data-clearfilter="specialty">×</span>` : ''}
+            </button>
           </div>
-          <div class="inline-filter-row filter-row-wide">
-            <span class="inline-filter-label">Segurança:</span>
-            <div class="inline-filter-opts">
-              ${filterBtns('specialty', [
-                ['',        'Todas'],
-                ['soc',     'SOC / Blue Team'],
-                ['pentest', 'Pentest / Red Team'],
-                ['grc',     'GRC'],
-                ['appsec',  'AppSec'],
-                ['cloudsec','Cloud Security'],
-              ])}
-            </div>
+          <div class="filter-expand-panel" id="fpl-area"
+               style="display:${s.areaFilter ? 'flex' : 'none'}">
+            ${filterBtns('areaFilter', [
+              ['',          'Todas'],
+              ['backend',   'Backend'],
+              ['frontend',  'Frontend'],
+              ['fullstack', 'Full Stack'],
+              ['mobile',    'Mobile'],
+              ['data',      'Data / IA'],
+              ['devops',    'DevOps / SRE'],
+              ['cloud',     'Cloud'],
+              ['arqtech',   'Arquitetura'],
+              ['qa',        'QA / Testes'],
+            ])}
+          </div>
+          <div class="filter-expand-panel" id="fpl-security"
+               style="display:${s.specialty ? 'flex' : 'none'}">
+            ${filterBtns('specialty', [
+              ['',        'Todas'],
+              ['soc',     'SOC / Blue Team'],
+              ['pentest', 'Pentest / Red Team'],
+              ['grc',     'GRC'],
+              ['appsec',  'AppSec'],
+              ['cloudsec','Cloud Security'],
+            ])}
           </div>
           <div class="inline-filter-row filter-row-wide">
             <label class="toggle-expired-label">
@@ -962,6 +972,16 @@ function jobCardV2(j, dynMatch) {
 /* ============================================================
    Kanban de Candidaturas
    ============================================================ */
+/* Labels curtos para os chips de filtro quando activos */
+const AREA_BTN_LABELS = {
+  backend:'Backend', frontend:'Frontend', fullstack:'Full Stack',
+  mobile:'Mobile', data:'Data / IA', devops:'DevOps / SRE',
+  cloud:'Cloud', arqtech:'Arquitetura', qa:'QA / Testes',
+};
+const SPEC_BTN_LABELS = {
+  soc:'SOC / Blue', pentest:'Pentest', grc:'GRC', appsec:'AppSec', cloudsec:'Cloud Sec',
+};
+
 const STAGES = ['applied','reviewing','interview','offer','rejected'];
 const STAGE_LABELS = {
   applied:   'Candidatado',
@@ -1057,8 +1077,68 @@ function renderKanban() {
   });
 }
 
+function _refreshFilterToggle(filterName, value) {
+  const isArea = filterName === 'areaFilter';
+  const btnId  = isArea ? 'ftb-area' : 'ftb-security';
+  const btn    = $('#' + btnId);
+  if (!btn) return;
+  const icon   = btn.querySelector('.ftb-icon');
+  const label  = btn.querySelector('.ftb-label');
+  const xBtn   = btn.querySelector('.ftb-x');
+  const labels = isArea ? AREA_BTN_LABELS : SPEC_BTN_LABELS;
+  const defaultLabel = isArea ? 'Área' : 'Segurança';
+
+  if (value) {
+    btn.classList.add('has-active');
+    if (icon)  icon.textContent = '●';
+    if (label) label.textContent = labels[value] || defaultLabel;
+    if (!xBtn) {
+      const x = document.createElement('span');
+      x.className = 'ftb-x';
+      x.dataset.clearfilter = filterName;
+      x.textContent = '×';
+      btn.appendChild(x);
+    }
+  } else {
+    btn.classList.remove('has-active');
+    if (icon)  icon.textContent = '+';
+    if (label) label.textContent = defaultLabel;
+    xBtn?.remove();
+  }
+}
+
 function bindJobsPageEvents() {
   const s = store.ui.jobSearch;
+
+  // Chip pill toggle buttons (Área / Segurança)
+  $('.filter-toggle-row')?.addEventListener('click', e => {
+    const clearBtn = e.target.closest('.ftb-x');
+    if (clearBtn) {
+      const filter = clearBtn.dataset.clearfilter;
+      s[filter] = '';
+      _refreshFilterToggle(filter, '');
+      const toggleBtn = clearBtn.closest('.filter-toggle-btn');
+      if (toggleBtn) {
+        const panel = $('#' + toggleBtn.dataset.panel);
+        if (panel) panel.style.display = 'none';
+        toggleBtn.classList.remove('open');
+      }
+      updateJobResults();
+      return;
+    }
+    const toggleBtn = e.target.closest('.filter-toggle-btn');
+    if (!toggleBtn) return;
+    const panelId = toggleBtn.dataset.panel;
+    const panel   = $('#' + panelId);
+    if (!panel) return;
+    const isOpen  = panel.style.display !== 'none';
+    $$('.filter-expand-panel').forEach(p => p.style.display = 'none');
+    $$('.filter-toggle-btn').forEach(b => b.classList.remove('open'));
+    if (!isOpen) {
+      panel.style.display = 'flex';
+      toggleBtn.classList.add('open');
+    }
+  });
 
   $('#ms-cargo')?.addEventListener('input', e => { s.cargo = e.target.value; updateJobResults(); });
   $('#ms-local')?.addEventListener('input', e => { s.localidade = e.target.value; updateJobResults(); });
@@ -1130,6 +1210,16 @@ function bindJobsPageEvents() {
     if (filter === 'mode' || filter === 'region' || filter === 'dateFilter' || filter === 'specialty' || filter === 'areaFilter') {
       s[filter] = value;
       $$(`[data-filter="${filter}"]`).forEach(b => b.classList.toggle('active', b.dataset.value === value));
+      if (filter === 'areaFilter' || filter === 'specialty') {
+        _refreshFilterToggle(filter, value);
+        if (value) {
+          const panelId = filter === 'areaFilter' ? 'fpl-area' : 'fpl-security';
+          const panel   = $('#' + panelId);
+          const btn     = $(`[data-panel="${panelId}"]`);
+          if (panel) panel.style.display = 'none';
+          if (btn)   btn.classList.remove('open');
+        }
+      }
     } else {
       const key = filter + 's';
       if (s[key].includes(value)) {

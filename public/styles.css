@@ -1360,21 +1360,33 @@ h3 { font-size: 16px; font-weight: 700; }
 .jcv2-link:hover { color: var(--snes-royal-deep); text-decoration: underline; }
 .jcv2-link-disabled { color: var(--text-mut); cursor: default; font-size: 11px; }
 
-/* Botão Ver Vaga — CTA destacado */
+/* Botão Ver Vaga — CTA com borda pulsante */
+@keyframes pulse-cta {
+  0%   { box-shadow: 0 0 0 0   rgba(91,79,179,.70), 0 2px 6px rgba(91,79,179,.25); }
+  55%  { box-shadow: 0 0 0 5px rgba(91,79,179,.00), 0 2px 6px rgba(91,79,179,.25); }
+  100% { box-shadow: 0 0 0 0   rgba(91,79,179,.00), 0 2px 6px rgba(91,79,179,.25); }
+}
 .jcv2-cta {
   display: inline-flex; align-items: center;
   font-size: 10px; font-weight: 800; letter-spacing: .5px; text-transform: uppercase;
   color: #fff; background: var(--snes-royal);
-  padding: 4px 10px; border-radius: 3px;
+  padding: 4px 10px; border-radius: 4px;
   text-decoration: none; border: none; cursor: pointer;
+  animation: pulse-cta 2.4s ease-out infinite;
   transition: background .15s, transform .1s;
   flex-shrink: 0;
 }
-.jcv2-cta:hover { background: var(--snes-royal-deep); transform: translateY(-1px); }
+.jcv2-cta:hover {
+  background: var(--snes-royal-deep);
+  transform: translateY(-1px);
+  animation: none;
+  box-shadow: 0 4px 14px rgba(91,79,179,.45);
+}
 .jcv2-cta-disabled {
+  display: inline-flex; align-items: center;
   background: var(--border); color: var(--text-mut);
   font-size: 10px; font-weight: 700; letter-spacing: .3px;
-  padding: 4px 10px; border-radius: 3px; cursor: default;
+  padding: 4px 10px; border-radius: 4px; cursor: default;
   flex-shrink: 0;
 }
 .jcv2-match {
@@ -1540,6 +1552,49 @@ h3 { font-size: 16px; font-weight: 700; }
 .real-jobs-banner.loading { border-color: var(--snes-royal); color: var(--snes-royal); background: rgba(108,99,255,.06); }
 .real-jobs-banner.error   { border-color: #EF4444; color: #B91C1C; background: #FEF2F2; }
 .real-jobs-banner.empty   { border-color: #F59E0B; color: #92400E; background: #FFFBEB; }
+
+/* ── Filtros chip pill (Área / Segurança) ──────────────────────── */
+.filter-toggle-row {
+  grid-column: span 2;
+  display: flex; gap: 8px; flex-wrap: wrap;
+}
+.filter-toggle-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 11px; border-radius: 20px;
+  border: 1.5px dashed var(--border);
+  background: transparent; cursor: pointer;
+  font-size: 11px; font-weight: 600; color: var(--text-mut);
+  transition: border-color .15s, color .15s, background .15s;
+  user-select: none; white-space: nowrap;
+}
+.filter-toggle-btn:hover {
+  border-color: var(--snes-royal); color: var(--text);
+}
+.filter-toggle-btn.open {
+  border-style: solid; border-color: var(--snes-royal);
+  color: var(--snes-royal);
+}
+.filter-toggle-btn.has-active {
+  border-style: solid; border-color: var(--snes-royal);
+  background: var(--snes-royal); color: #fff;
+}
+.ftb-icon { font-size: 13px; line-height: 1; }
+.ftb-label { line-height: 1; }
+.ftb-x {
+  font-size: 14px; line-height: 1; margin-left: 2px;
+  opacity: .8; cursor: pointer;
+}
+.ftb-x:hover { opacity: 1; }
+.filter-expand-panel {
+  grid-column: span 2;
+  display: flex; flex-wrap: wrap; gap: 5px;
+  padding: 6px 2px 2px;
+  animation: fade-in .15s ease;
+}
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: none; }
+}
 
 /* ── Activity Heatmap ──────────────────────────────────────────── */
 .heatmap-row {
