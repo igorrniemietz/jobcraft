@@ -1523,3 +1523,21 @@ h3 { font-size: 16px; font-weight: 700; }
 .real-jobs-banner.error   { border-color: #EF4444; color: #B91C1C; background: #FEF2F2; }
 .real-jobs-banner.empty   { border-color: #F59E0B; color: #92400E; background: #FFFBEB; }
 
+/* ── Activity Heatmap ──────────────────────────────────────────── */
+.heatmap-row {
+  display: flex; flex-wrap: wrap; gap: 4px; padding-top: 8px;
+}
+.heatmap-cell {
+  width: 14px; height: 14px; border-radius: 2px;
+  display: inline-block;
+}
+.heatmap-cell.lvl0 { background: var(--bg2); border: 1px solid var(--border); }
+.heatmap-cell.lvl1 { background: #4ade8060; border: 1px solid #4ade8090; }
+.heatmap-cell.lvl2 { background: #22c55e99; border: 1px solid #22c55ebb; }
+.heatmap-cell.lvl3 { background: #16a34a;   border: 1px solid #15803d; }
+.heatmap-legend {
+  display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-mut);
+}
+
+/* ── InfoSec specialty filter — no extra CSS needed (reuses .mode-btn) ── */
+
