@@ -2,12 +2,16 @@
 const { getJSON, sleep } = require('../http');
 const { fromGreenhouse } = require('../normalize');
 
-// Empresas BR tech confirmadas no Greenhouse (validadas ao vivo 2026-05-16)
+// Empresas BR tech confirmadas no Greenhouse (validadas ao vivo 2026-05-17)
 const COMPANIES = [
-  { slug: 'nubank',       name: 'Nubank'       },
-  { slug: 'quintoandar',  name: 'QuintoAndar'  },
-  { slug: 'rdstation',    name: 'RD Station'   },
-  { slug: 'stone',        name: 'Stone'        },
+  { slug: 'nubank',          name: 'Nubank'           },
+  { slug: 'quintoandar',     name: 'QuintoAndar'      },
+  { slug: 'rdstation',       name: 'RD Station'       },
+  { slug: 'stone',           name: 'Stone'            },
+  { slug: 'ebanx',           name: 'EBANX'            },
+  { slug: 'gympass',         name: 'Gympass'          },
+  { slug: 'vtex',            name: 'VTEX'             },
+  { slug: 'wildlifestudios', name: 'Wildlife Studios' },
 ];
 
 // Filtra vagas em localização BR

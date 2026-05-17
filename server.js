@@ -5,6 +5,7 @@ const fs        = require('fs');
 const path      = require('path');
 const url       = require('url');
 const store     = require('./src/jobStore');
+const userStore = require('./src/userStore');
 const scheduler = require('./src/scheduler');
 
 const PORT = process.env.PORT || 8080;
@@ -34,6 +35,14 @@ function safeJoin(root, urlPath) {
   const target  = path.normalize(path.join(root, decoded));
   if (!target.startsWith(root)) return null;
   return target;
+}
+
+function readBody(req) {
+  return new Promise(resolve => {
+    let body = '';
+    req.on('data', c => body += c);
+    req.on('end', () => { try { resolve(JSON.parse(body)); } catch { resolve({}); } });
+  });
 }
 
 function send(res, status, body, headers = {}) {
@@ -78,6 +87,46 @@ const server = http.createServer(async (req, res) => {
   if (pathname === '/api/jobs/sync' && req.method === 'POST') {
     scheduler.syncAll().catch(console.error);
     return sendJSON(res, { ok: true, message: 'sync iniciado em background' });
+  }
+
+  /* GET /api/saved — IDs das vagas salvas */
+  if (pathname === '/api/saved' && req.method === 'GET') {
+    return sendJSON(res, { ok: true, saved: userStore.savedList() });
+  }
+
+  /* POST /api/saved/:id — toggle salvar/remover */
+  const saveMatch = pathname.match(/^\/api\/saved\/(.+)$/);
+  if (saveMatch && req.method === 'POST') {
+    const jobId = decodeURIComponent(saveMatch[1]);
+    const nowSaved = userStore.toggleSaved(jobId);
+    return sendJSON(res, { ok: true, id: jobId, saved: nowSaved, savedAt: nowSaved ? userStore.savedList()[jobId] : null });
+  }
+
+  /* GET /api/applications — listar candidaturas */
+  if (pathname === '/api/applications' && req.method === 'GET') {
+    return sendJSON(res, { ok: true, applications: userStore.listApplications() });
+  }
+
+  /* POST /api/applications/:id — candidatar */
+  /* PATCH /api/applications/:id — atualizar stage */
+  /* DELETE /api/applications/:id — remover */
+  const appMatch = pathname.match(/^\/api\/applications\/(.+)$/);
+  if (appMatch) {
+    const jobId = decodeURIComponent(appMatch[1]);
+    if (req.method === 'POST') {
+      const entry = userStore.applyToJob(jobId);
+      return sendJSON(res, { ok: true, id: jobId, ...entry });
+    }
+    if (req.method === 'PATCH') {
+      const { stage } = await readBody(req);
+      const entry = userStore.updateStage(jobId, stage);
+      if (!entry) return sendJSON(res, { ok: false, error: 'stage inválido ou candidatura não encontrada' });
+      return sendJSON(res, { ok: true, id: jobId, ...entry });
+    }
+    if (req.method === 'DELETE') {
+      userStore.removeApplication(jobId);
+      return sendJSON(res, { ok: true, id: jobId, removed: true });
+    }
   }
 
   /* static files */
