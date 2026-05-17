@@ -2,9 +2,11 @@
 const { getJSON, sleep } = require('../http');
 const { fromLever } = require('../normalize');
 
-// Empresas BR tech confirmadas no Lever (validadas ao vivo 2026-05-16)
+// Empresas BR tech confirmadas no Lever (validadas ao vivo 2026-05-17)
 const COMPANIES = [
   { slug: 'cloudwalk', name: 'CloudWalk' },
+  { slug: 'neon',      name: 'Neon'      },
+  { slug: 'ciandt',    name: 'CI&T'      },
 ];
 
 const BR_LOC = /brazil|brasil|são paulo|rio de janeiro|belo horizonte|brasília|florianópolis|remote|remoto/i;

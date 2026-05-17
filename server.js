@@ -5,6 +5,7 @@ const fs        = require('fs');
 const path      = require('path');
 const url       = require('url');
 const store     = require('./src/jobStore');
+const userStore = require('./src/userStore');
 const scheduler = require('./src/scheduler');
 
 const PORT = process.env.PORT || 8080;
@@ -78,6 +79,19 @@ const server = http.createServer(async (req, res) => {
   if (pathname === '/api/jobs/sync' && req.method === 'POST') {
     scheduler.syncAll().catch(console.error);
     return sendJSON(res, { ok: true, message: 'sync iniciado em background' });
+  }
+
+  /* GET /api/saved — IDs das vagas salvas */
+  if (pathname === '/api/saved' && req.method === 'GET') {
+    return sendJSON(res, { ok: true, saved: userStore.savedList() });
+  }
+
+  /* POST /api/saved/:id — toggle salvar/remover */
+  const saveMatch = pathname.match(/^\/api\/saved\/(.+)$/);
+  if (saveMatch && req.method === 'POST') {
+    const jobId = decodeURIComponent(saveMatch[1]);
+    const nowSaved = userStore.toggleSaved(jobId);
+    return sendJSON(res, { ok: true, id: jobId, saved: nowSaved, savedAt: nowSaved ? userStore.savedList()[jobId] : null });
   }
 
   /* static files */

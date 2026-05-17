@@ -1409,6 +1409,18 @@ h3 { font-size: 16px; font-weight: 700; }
 }
 .toggle-expired-label input[type="checkbox"] { accent-color: var(--snes-royal); cursor: pointer; }
 
+/* Botão salvar vaga */
+.btn-save-job {
+  background: none; border: 1px solid var(--border);
+  color: var(--text-mut); font-size: 14px; line-height: 1;
+  padding: 2px 7px; cursor: pointer; border-radius: 3px;
+  transition: all .15s;
+  flex-shrink: 0;
+}
+.btn-save-job:hover        { border-color: #c9a227; color: #c9a227; }
+.btn-save-job.saved        { background: #c9a227; border-color: #c9a227; color: #0f172a; }
+.btn-save-job.saved:hover  { background: #a8841e; border-color: #a8841e; }
+
 /* Badges de nível, contrato e empresa nos cards */
 .jcv2-badge {
   display: inline-flex; align-items: center;

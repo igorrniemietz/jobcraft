@@ -39,6 +39,9 @@ services:
       LEVER_ENABLED:       "${LEVER_ENABLED:-true}"
       REMOTAR_ENABLED:     "${REMOTAR_ENABLED:-true}"
       SYNC_INTERVAL_MS: "${SYNC_INTERVAL_MS:-21600000}"
+      DATA_PATH:        "/app/data"
+    volumes:
+      - ./data:/app/data
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.jobcraft.rule=Host(`localhost`)"

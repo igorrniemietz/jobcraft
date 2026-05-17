@@ -8,6 +8,7 @@ const store = {
   achievements: [],
   leaderboard: [],
   quests: [],
+  savedJobs: {},   // jobId → savedAt timestamp (sincronizado com backend)
   ui: {
     route: location.hash || '#/jobs',
     jobSearch: { cargo: '', localidade: '', skills: [], mode: 'todos', region: 'todas', dateFilter: 'all', hideExpired: true, graduacao: '', contracts: [], levels: [], sizes: [] },
@@ -59,6 +60,7 @@ async function boot() {
   if (!ROUTES[location.hash]) location.hash = '#/jobs';
   route();
   window.addEventListener('hashchange', route);
+  loadSavedJobs();
   loadRealJobs();
 }
 
@@ -80,6 +82,38 @@ async function loadRealJobs() {
     store.ui.realJobsStatus = 'error';
   }
   if (store.ui.route === '#/jobs') updateJobResults();
+}
+
+async function loadSavedJobs() {
+  try {
+    const res = await fetch('/api/saved');
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.ok) store.savedJobs = data.saved || {};
+  } catch (e) { /* offline — silencioso */ }
+}
+
+async function toggleSaveJob(jobId, btn) {
+  const wasSaved = !!store.savedJobs[jobId];
+  store.savedJobs[jobId] = wasSaved ? undefined : Date.now();
+  if (!store.savedJobs[jobId]) delete store.savedJobs[jobId];
+  if (btn) {
+    btn.classList.toggle('saved', !wasSaved);
+    btn.title = wasSaved ? 'Guardar missão' : 'Missão guardada';
+  }
+  try {
+    const res  = await fetch(`/api/saved/${encodeURIComponent(jobId)}`, { method: 'POST' });
+    const data = await res.json();
+    if (!data.ok) throw new Error('falhou');
+    if (data.saved) store.savedJobs[jobId] = data.savedAt;
+    else delete store.savedJobs[jobId];
+    if (btn) btn.classList.toggle('saved', !!store.savedJobs[jobId]);
+  } catch (e) {
+    // rollback optimistic update
+    if (wasSaved) store.savedJobs[jobId] = Date.now();
+    else delete store.savedJobs[jobId];
+    if (btn) btn.classList.toggle('saved', wasSaved);
+  }
 }
 
 function paintUser() {
@@ -715,6 +749,11 @@ function jobCardV2(j, dynMatch) {
           ? `<a class="jcv2-link" href="${escapeHtml(j.externalUrl)}" target="_blank" rel="noopener noreferrer">Ver vaga →</a>`
           : `<span class="jcv2-link jcv2-link-disabled">Indisponível</span>`}
         <span class="jcv2-date ${dateAgeCls}">${escapeHtml(j.posted || 'recente')}</span>
+        <button class="btn-save-job ${store.savedJobs[j.id] ? 'saved' : ''}"
+          data-job-id="${escapeHtml(j.id)}"
+          title="${store.savedJobs[j.id] ? 'Missão guardada' : 'Guardar missão'}">
+          ${store.savedJobs[j.id] ? '⚔' : '◇'}
+        </button>
         <span class="jcv2-match">
           Compatibilidade <span class="jcv2-match-pct ${matchCls}">${match}%</span>
         </span>
@@ -826,6 +865,13 @@ function bindJobsPageEvents() {
   $('#ms-cargo')?.addEventListener('keydown', e => { if (e.key === 'Enter') renderJobsPage(); });
   $('#ms-local')?.addEventListener('keydown', e => { if (e.key === 'Enter') renderJobsPage(); });
   $('#ms-graduacao')?.addEventListener('keydown', e => { if (e.key === 'Enter') renderJobsPage(); });
+
+  // Delegação de eventos para botões de salvar vaga
+  $('#jobs-results')?.addEventListener('click', e => {
+    const btn = e.target.closest('.btn-save-job');
+    if (!btn) return;
+    toggleSaveJob(btn.dataset.jobId, btn);
+  });
 }
 
 /* ============== Jobs (legacy, manter para compatibilidade) ============== */
