@@ -1360,21 +1360,33 @@ h3 { font-size: 16px; font-weight: 700; }
 .jcv2-link:hover { color: var(--snes-royal-deep); text-decoration: underline; }
 .jcv2-link-disabled { color: var(--text-mut); cursor: default; font-size: 11px; }
 
-/* Botão Ver Vaga — CTA destacado */
+/* Botão Ver Vaga — CTA com borda pulsante */
+@keyframes pulse-cta {
+  0%   { box-shadow: 0 0 0 0   rgba(91,79,179,.70), 0 2px 6px rgba(91,79,179,.25); }
+  55%  { box-shadow: 0 0 0 5px rgba(91,79,179,.00), 0 2px 6px rgba(91,79,179,.25); }
+  100% { box-shadow: 0 0 0 0   rgba(91,79,179,.00), 0 2px 6px rgba(91,79,179,.25); }
+}
 .jcv2-cta {
   display: inline-flex; align-items: center;
   font-size: 10px; font-weight: 800; letter-spacing: .5px; text-transform: uppercase;
   color: #fff; background: var(--snes-royal);
-  padding: 4px 10px; border-radius: 3px;
+  padding: 4px 10px; border-radius: 4px;
   text-decoration: none; border: none; cursor: pointer;
+  animation: pulse-cta 2.4s ease-out infinite;
   transition: background .15s, transform .1s;
   flex-shrink: 0;
 }
-.jcv2-cta:hover { background: var(--snes-royal-deep); transform: translateY(-1px); }
+.jcv2-cta:hover {
+  background: var(--snes-royal-deep);
+  transform: translateY(-1px);
+  animation: none;
+  box-shadow: 0 4px 14px rgba(91,79,179,.45);
+}
 .jcv2-cta-disabled {
+  display: inline-flex; align-items: center;
   background: var(--border); color: var(--text-mut);
   font-size: 10px; font-weight: 700; letter-spacing: .3px;
-  padding: 4px 10px; border-radius: 3px; cursor: default;
+  padding: 4px 10px; border-radius: 4px; cursor: default;
   flex-shrink: 0;
 }
 .jcv2-match {
@@ -1540,6 +1552,46 @@ h3 { font-size: 16px; font-weight: 700; }
 .real-jobs-banner.loading { border-color: var(--snes-royal); color: var(--snes-royal); background: rgba(108,99,255,.06); }
 .real-jobs-banner.error   { border-color: #EF4444; color: #B91C1C; background: #FEF2F2; }
 .real-jobs-banner.empty   { border-color: #F59E0B; color: #92400E; background: #FFFBEB; }
+
+/* ── Filtros colapsáveis (Área / Segurança) ────────────────────── */
+.filter-collapsible {
+  grid-column: span 2;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  overflow: hidden;
+}
+.filter-collapsible-summary {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 12px; cursor: pointer;
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px;
+  color: var(--text-mut); user-select: none; list-style: none;
+  background: var(--bg2); transition: background .12s;
+}
+.filter-collapsible-summary::-webkit-details-marker { display: none; }
+.filter-collapsible[open] .filter-collapsible-summary,
+.filter-collapsible-summary:hover { background: var(--surface); color: var(--text); }
+.fcol-label { flex: none; }
+.fcol-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--snes-royal); flex-shrink: 0;
+  opacity: 0; transition: opacity .15s;
+}
+.fcol-dot.visible { opacity: 1; }
+.fcol-hint {
+  font-size: 9px; font-weight: 500; color: var(--text-mut);
+  text-transform: lowercase; letter-spacing: 0;
+}
+.fcol-chevron {
+  margin-left: auto; font-size: 12px; color: var(--text-mut);
+  transition: transform .2s;
+}
+.filter-collapsible[open] .fcol-chevron { transform: rotate(180deg); }
+.fcol-body {
+  padding: 8px 12px 10px;
+  flex-wrap: wrap; gap: 5px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
 
 /* ── Activity Heatmap ──────────────────────────────────────────── */
 .heatmap-row {

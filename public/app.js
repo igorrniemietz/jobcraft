@@ -653,9 +653,14 @@ function renderJobsPage() {
               ${filterBtns('dateFilter', [['all','Todas'],['1d','Hoje'],['7d','7 dias'],['30d','30 dias']])}
             </div>
           </div>
-          <div class="inline-filter-row filter-row-wide">
-            <span class="inline-filter-label">Área:</span>
-            <div class="inline-filter-opts">
+          <details class="filter-collapsible" data-group="area" ${s.areaFilter ? 'open' : ''}>
+            <summary class="filter-collapsible-summary">
+              <span class="fcol-label">Área</span>
+              <span class="fcol-dot ${s.areaFilter ? 'visible' : ''}"></span>
+              <span class="fcol-hint">${s.areaFilter ? 'ativo' : 'expandir'}</span>
+              <span class="fcol-chevron">▾</span>
+            </summary>
+            <div class="inline-filter-opts fcol-body">
               ${filterBtns('areaFilter', [
                 ['',          'Todas'],
                 ['backend',   'Backend'],
@@ -669,10 +674,15 @@ function renderJobsPage() {
                 ['qa',        'QA / Testes'],
               ])}
             </div>
-          </div>
-          <div class="inline-filter-row filter-row-wide">
-            <span class="inline-filter-label">Segurança:</span>
-            <div class="inline-filter-opts">
+          </details>
+          <details class="filter-collapsible" data-group="security" ${s.specialty ? 'open' : ''}>
+            <summary class="filter-collapsible-summary">
+              <span class="fcol-label">Segurança</span>
+              <span class="fcol-dot ${s.specialty ? 'visible' : ''}"></span>
+              <span class="fcol-hint">${s.specialty ? 'ativo' : 'expandir'}</span>
+              <span class="fcol-chevron">▾</span>
+            </summary>
+            <div class="inline-filter-opts fcol-body">
               ${filterBtns('specialty', [
                 ['',        'Todas'],
                 ['soc',     'SOC / Blue Team'],
@@ -682,7 +692,7 @@ function renderJobsPage() {
                 ['cloudsec','Cloud Security'],
               ])}
             </div>
-          </div>
+          </details>
           <div class="inline-filter-row filter-row-wide">
             <label class="toggle-expired-label">
               <input type="checkbox" id="ms-hide-expired" ${s.hideExpired ? 'checked' : ''}>
@@ -1130,6 +1140,17 @@ function bindJobsPageEvents() {
     if (filter === 'mode' || filter === 'region' || filter === 'dateFilter' || filter === 'specialty' || filter === 'areaFilter') {
       s[filter] = value;
       $$(`[data-filter="${filter}"]`).forEach(b => b.classList.toggle('active', b.dataset.value === value));
+      // Atualiza dot e hint no cabeçalho colapsável
+      if (filter === 'areaFilter' || filter === 'specialty') {
+        const group = filter === 'areaFilter' ? 'area' : 'security';
+        const details = $(`[data-group="${group}"]`);
+        if (details) {
+          const dot  = details.querySelector('.fcol-dot');
+          const hint = details.querySelector('.fcol-hint');
+          if (dot)  dot.classList.toggle('visible', !!value);
+          if (hint) hint.textContent = value ? 'ativo' : 'expandir';
+        }
+      }
     } else {
       const key = filter + 's';
       if (s[key].includes(value)) {
