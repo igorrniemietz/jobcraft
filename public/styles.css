@@ -162,6 +162,15 @@ body.sb-collapsed .brand-online { display: none; }
 }
 .nav-divider { height: 1px; background: #2A2532; margin: 12px 4px; }
 
+.sb-bottom {
+  margin-top: auto;
+  padding: 10px 4px;
+  border-top: 1px solid #2A2532;
+}
+.nav-item-docs { color: var(--text-mut); opacity: .75; }
+.nav-item-docs:hover { opacity: 1; }
+body.sb-collapsed .sb-bottom span { display: none; }
+
 .nav { display: flex; flex-direction: column; gap: 2px; }
 .nav-item {
   position: relative;
@@ -827,7 +836,7 @@ h3 { font-size: 16px; font-weight: 700; }
    HUD Topbar
    ============================================================ */
 .tb-left  { display: flex; align-items: center; gap: 12px; justify-self: start; }
-.tb-center { display: flex; align-items: center; justify-self: center; }
+.tb-center { display: flex; align-items: center; gap: 16px; justify-self: center; }
 .tb-right { display: flex; align-items: center; gap: 10px; justify-self: end; }
 
 .hud-level-badge {
