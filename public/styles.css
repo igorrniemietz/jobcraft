@@ -707,6 +707,90 @@ h3 { font-size: 16px; font-weight: 700; }
 .toast .msg { font-size: 13px; }
 
 /* ============================================================
+   Documentação
+   ============================================================ */
+.docs-wrap {
+  max-width: 860px;
+  margin: 0 auto;
+  display: flex; flex-direction: column; gap: 28px;
+}
+.docs-hero {
+  display: flex; align-items: center; gap: 20px;
+  padding: 28px 32px;
+  background: linear-gradient(135deg, var(--surface) 0%, color-mix(in srgb, var(--snes-royal) 12%, var(--surface)) 100%);
+  border: 2px solid var(--snes-royal);
+  border-radius: 12px;
+  box-shadow: 0 4px 24px rgba(91,79,179,.18);
+}
+.docs-hero-icon {
+  width: 56px; height: 56px; border-radius: 14px; flex-shrink: 0;
+  background: var(--snes-royal);
+  display: grid; place-items: center;
+  font-size: 28px; color: #fff;
+  box-shadow: 0 4px 12px rgba(91,79,179,.4);
+}
+.docs-title { font-size: 18px; color: var(--snes-royal); margin: 0 0 6px; }
+.docs-subtitle { font-size: 13px; color: var(--text-mut); margin: 0; line-height: 1.5; }
+
+.docs-toc {
+  display: flex; align-items: flex-start; gap: 14px; flex-wrap: wrap;
+  padding: 14px 18px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+}
+.docs-toc-label { font-size: 9px; color: var(--snes-royal); letter-spacing: .5px; padding-top: 2px; flex-shrink: 0; }
+.docs-toc-links { display: flex; flex-wrap: wrap; gap: 6px; }
+.docs-toc-link {
+  font-size: 11px; font-weight: 600; color: var(--text-mut);
+  text-decoration: none; padding: 3px 9px; border-radius: 20px;
+  border: 1px solid var(--border); background: var(--bg2);
+  transition: border-color .15s, color .15s, background .15s;
+}
+.docs-toc-link:hover {
+  border-color: var(--snes-royal); color: var(--snes-royal); background: var(--surface);
+}
+
+.docs-section {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; overflow: hidden;
+}
+.docs-section-header {
+  display: flex; align-items: center; gap: 14px;
+  padding: 16px 20px;
+  border-left: 4px solid var(--snes-royal);
+  background: var(--bg2);
+}
+.docs-section-icon {
+  width: 36px; height: 36px; border-radius: 9px; flex-shrink: 0;
+  display: grid; place-items: center; font-size: 18px;
+}
+.docs-section-title {
+  font-size: 15px; font-weight: 700; color: var(--text); margin: 0;
+}
+.docs-items {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0;
+}
+.docs-item {
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+}
+.docs-item:nth-child(even) { border-right: none; }
+.docs-item-label {
+  font-size: 12px; font-weight: 700; color: var(--text); margin-bottom: 4px;
+}
+.docs-item-desc {
+  font-size: 12px; color: var(--text-mut); line-height: 1.55;
+}
+.docs-footer {
+  text-align: center; padding: 12px 0 4px;
+  font-size: 12px; display: flex; gap: 8px; justify-content: center; align-items: center;
+}
+@media (max-width: 700px) {
+  .docs-items { grid-template-columns: 1fr; }
+  .docs-item { border-right: none; }
+}
+
+/* ============================================================
    Responsive
    ============================================================ */
 @media (max-width: 1180px) {
