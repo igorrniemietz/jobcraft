@@ -5,13 +5,14 @@ const PALETTE = ['#6C63FF','#E91E63','#00BCD4','#FF5722','#4CAF50','#FF9800','#2
 const TECH_RE = /\b(python|javascript|typescript|java(?:script)?|golang?|rust|kotlin|swift|c\+\+|c#|\.net|php|ruby|scala|react|vue|angular|next\.?js|svelte|node\.?js|express|fastapi|django|flask|spring|aws|gcp|azure|kubernetes|k8s|docker|terraform|ansible|linux|git|ci\/cd|devops|devsecops|appsec|pentest|soc\b|siem|iam|owasp|burp|metasploit|kali|oscp|red.?team|blue.?team|splunk|elastic|kafka|spark|postgresql|postgres|mysql|mongodb|redis|sql|flutter|react.?native)\b/gi;
 
 /* ── encoding fix ───────────────────────────────────────────────── */
-// Repairs UTF-8 strings that were incorrectly decoded as Latin-1 at the source.
-// Pattern: Ã (0xC3) or Â (0xC2) followed by another char → classic UTF-8 → latin1 mojibake.
 function fixEncoding(str) {
   if (!str || typeof str !== 'string') return str;
   if (str.indexOf('Ã') === -1 && str.indexOf('Â') === -1) return str;
   try { return Buffer.from(str, 'latin1').toString('utf8'); } catch { return str; }
 }
+
+// Applies fixEncoding + decodeEntities in one call — use for all title/company fields
+function clean(str) { return decodeEntities(fixEncoding(String(str || ''))); }
 
 // Strips only the first URL when multiple are concatenated (Remotar external links bug)
 function firstUrl(raw) {
@@ -37,11 +38,23 @@ function initials(name) {
   return String(name).split(/\s+/).map(p => p[0]).slice(0, 2).join('').toUpperCase() || '??';
 }
 
+const HTML_ENTITIES = { amp:'&', lt:'<', gt:'>', quot:'"', apos:"'", nbsp:' ', hellip:'…', mdash:'—', ndash:'–', laquo:'«', raquo:'»', acute:'´', cedil:'ç' };
+
+function decodeEntities(str) {
+  if (!str || typeof str !== 'string') return str;
+  if (!str.includes('&')) return str;
+  return str
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+    .replace(/&#([0-9]+);/g,      (_, d) => String.fromCodePoint(parseInt(d, 10)))
+    .replace(/&([a-z]+);/gi,      (_, n) => HTML_ENTITIES[n.toLowerCase()] ?? _);
+}
+
 function stripHtml(html) {
-  return String(html || '')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-    .replace(/\s+/g, ' ').trim();
+  return decodeEntities(
+    String(html || '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ').trim()
+  );
 }
 
 function relTime(iso) {
@@ -79,9 +92,10 @@ function cleanGupyCompany(raw) {
 }
 
 function fromGupy(raw) {
-  const company  = cleanGupyCompany(raw);
+  const company  = clean(cleanGupyCompany(raw));
+  const title    = clean(raw.name || '');
   const contract = GUPY_CONTRACT[(raw.type || '').toLowerCase()] || 'CLT';
-  const level    = extractLevel(raw.name || '') || 'Pleno';
+  const level    = extractLevel(title) || 'Pleno';
   const remote   = raw.isRemoteWork || raw.workplaceType === 'remote';
   const hybrid   = raw.workplaceType === 'hybrid';
   const city     = [raw.city, raw.state].filter(Boolean).join(' · ');
@@ -90,7 +104,7 @@ function fromGupy(raw) {
   return {
     id:              `gy-${raw.id}`,
     source:          'gupy',
-    title:           raw.name || '',
+    title,
     company,
     logo:            initials(company),
     color:           colorFor(company),
@@ -100,7 +114,7 @@ function fromGupy(raw) {
     level,
     companySize:     null,
     salary:          null,
-    tags:            extractTags(raw.name || '', raw.description || ''),
+    tags:            extractTags(title, raw.description || ''),
     match:           0,
     stage:           null,
     posted:          relTime(raw.publishedDate),
@@ -117,13 +131,14 @@ function fromGupy(raw) {
 
 /* ── Remotive ───────────────────────────────────────────────────── */
 function fromRemotive(raw) {
-  const company = raw.company_name || 'Empresa';
-  const level   = extractLevel(raw.title || '') || 'Pleno';
+  const company = clean(raw.company_name || 'Empresa');
+  const title   = clean(raw.title || '');
+  const level   = extractLevel(title) || 'Pleno';
 
   return {
     id:              `rm-${raw.id}`,
     source:          'remotive',
-    title:           raw.title || '',
+    title,
     company,
     logo:            initials(company),
     color:           colorFor(company),
@@ -152,15 +167,16 @@ function fromRemotive(raw) {
 const ADZUNA_CONTRACT = { permanent: 'CLT', contract: 'PJ', part_time: 'PJ' };
 
 function fromAdzuna(raw) {
-  const company  = raw.company?.display_name || 'Empresa';
+  const company  = clean(raw.company?.display_name || 'Empresa');
+  const title    = clean(raw.title || '');
   const contract = ADZUNA_CONTRACT[raw.contract_type] || 'CLT';
-  const level    = extractLevel(raw.title || '') || 'Pleno';
+  const level    = extractLevel(title) || 'Pleno';
   const city     = raw.location?.area?.[2] || raw.location?.display_name || 'Brasil';
 
   return {
     id:              `az-${raw.id}`,
     source:          'adzuna',
-    title:           raw.title || '',
+    title,
     company,
     logo:            initials(company),
     color:           colorFor(company),
@@ -194,9 +210,9 @@ function parseBrDate(str) {
 
 function fromVagas(raw) {
   // Strip agency numeric prefixes: "11223 - Título da vaga"
-  const cleanTitle = fixEncoding(raw.title || '').replace(/^\d{4,6}\s*[-–]\s*/, '').trim();
-  const company    = fixEncoding(raw.company || 'Empresa');
-  const level      = raw.level ? fixEncoding(raw.level.trim()) : (extractLevel(cleanTitle) || null);
+  const cleanTitle = clean(raw.title || '').replace(/^\d{4,6}\s*[-–]\s*/, '').trim();
+  const company    = clean(raw.company || 'Empresa');
+  const level      = raw.level ? clean(raw.level.trim()) : (extractLevel(cleanTitle) || null);
 
   const locRaw   = fixEncoding(raw.location || '');
   const remote   = /remot/i.test(locRaw);
@@ -234,8 +250,8 @@ function fromVagas(raw) {
 
 /* ── Trampos ────────────────────────────────────────────────────── */
 function fromTrampos(raw) {
-  const company = raw.company?.name || raw.empresa || raw.companyName || 'Empresa';
-  const title   = raw.title    || raw.titulo   || raw.nome || '';
+  const company = clean(raw.company?.name || raw.empresa || raw.companyName || 'Empresa');
+  const title   = clean(raw.title    || raw.titulo   || raw.nome || '');
   const desc    = raw.description || raw.descricao || raw.body || '';
 
   const contractRaw = (raw.contractType || raw.tipo || '').toLowerCase();
@@ -279,9 +295,9 @@ function fromTrampos(raw) {
 
 /* ── Greenhouse ─────────────────────────────────────────────────── */
 function fromGreenhouse(raw, companyName) {
-  const company = companyName || raw.company_name || 'Empresa';
-  const title   = fixEncoding(raw.title || '');
-  const loc     = fixEncoding(raw.location?.name || '');
+  const company = clean(companyName || raw.company_name || 'Empresa');
+  const title   = clean(raw.title || '');
+  const loc     = clean(raw.location?.name || '');
 
   const remote  = /remote|remoto/i.test(loc);
   const locClean = remote ? 'Remoto · BR'
@@ -321,13 +337,13 @@ function fromGreenhouse(raw, companyName) {
 
 /* ── Lever ──────────────────────────────────────────────────────── */
 function fromLever(raw, companyName) {
-  const company = companyName || raw.company || 'Empresa';
+  const company = clean(companyName || raw.company || 'Empresa');
 
   // Strip internal job codes: [Job-29384], [Job 29384], [Job=29384] etc.
-  let title = fixEncoding(raw.text || '');
+  let title = clean(raw.text || '');
   title = title.replace(/^\[Job[-=\s]*\d+\]\s*/i, '').replace(/\s{2,}/g, ' ').trim();
 
-  const loc      = fixEncoding(raw.categories?.location || '');
+  const loc      = clean(raw.categories?.location || '');
   const remote   = /remote|remoto/i.test(loc);
   const location = remote ? 'Remoto · BR' : loc || 'Brasil';
   const level    = extractLevel(title) || 'Pleno';
@@ -368,11 +384,11 @@ function fromLever(raw, companyName) {
 
 /* ── Remotar ────────────────────────────────────────────────────── */
 function fromRemotar(raw) {
-  const company = fixEncoding(raw.company?.name || 'Empresa');
-  const title   = fixEncoding(raw.title || '');
-  const desc    = fixEncoding(raw.description || '');
+  const company  = clean(raw.company?.name || 'Empresa');
+  const title    = clean(raw.title || '');
+  const desc     = fixEncoding(raw.description || '');
 
-  const tagNames = (raw.jobTags || []).map(t => fixEncoding(t.tag?.name || ''));
+  const tagNames = (raw.jobTags || []).map(t => clean(t.tag?.name || ''));
 
   const contract = tagNames.some(n => /CLT/.test(n))        ? 'CLT'
                  : tagNames.some(n => /Est[aá]gio/.test(n)) ? 'Estágio'
@@ -386,9 +402,9 @@ function fromRemotar(raw) {
 
   const isRemote = raw.type === 'remote' || tagNames.some(n => /100%\s*Remoto/i.test(n));
   const isHybrid = raw.type === 'hybrid' || tagNames.some(n => /h[íi]brida?/i.test(n));
-  const city     = [fixEncoding(raw.city), fixEncoding(raw.state)].filter(Boolean).join(' · ');
+  const city     = [clean(raw.city), clean(raw.state)].filter(Boolean).join(' · ');
   const location = isRemote ? 'Remoto · BR'
-                 : isHybrid ? `Híbrido · ${fixEncoding(raw.city) || 'BR'}`
+                 : isHybrid ? `Híbrido · ${clean(raw.city) || 'BR'}`
                  : city || 'Brasil';
 
   const salFrom = raw.jobSalary?.from;

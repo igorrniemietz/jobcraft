@@ -596,7 +596,7 @@ function renderJobsPage() {
           <div class="mission-field-group">
             <label class="mission-field-label">Localidade</label>
             <input id="ms-local" class="mission-field-input" type="text"
-              placeholder="ex: São Paulo, Remoto..." value="${escapeHtml(s.localidade)}" />
+              placeholder="ex: São Paulo" value="${escapeHtml(s.localidade)}" />
           </div>
         </div>
 
@@ -657,7 +657,7 @@ function renderJobsPage() {
             <button class="filter-toggle-btn ${s.areaFilter ? 'has-active' : ''}"
                     id="ftb-area" data-panel="fpl-area" type="button">
               <span class="ftb-icon">${s.areaFilter ? '●' : '+'}</span>
-              <span class="ftb-label">${s.areaFilter ? (AREA_BTN_LABELS[s.areaFilter] || 'Área') : 'Área'}</span>
+              <span class="ftb-label">${s.areaFilter ? (AREA_BTN_LABELS[s.areaFilter] || 'TI') : 'TI'}</span>
               ${s.areaFilter ? `<span class="ftb-x" data-clearfilter="areaFilter">×</span>` : ''}
             </button>
             <button class="filter-toggle-btn ${s.specialty ? 'has-active' : ''}"
@@ -1086,7 +1086,7 @@ function _refreshFilterToggle(filterName, value) {
   const label  = btn.querySelector('.ftb-label');
   const xBtn   = btn.querySelector('.ftb-x');
   const labels = isArea ? AREA_BTN_LABELS : SPEC_BTN_LABELS;
-  const defaultLabel = isArea ? 'Área' : 'Segurança';
+  const defaultLabel = isArea ? 'TI' : 'Segurança';
 
   if (value) {
     btn.classList.add('has-active');
