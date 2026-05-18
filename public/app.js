@@ -29,6 +29,7 @@ const ROUTES = {
   '#/achievements':   { title: 'Conquistas',    render: renderAchievements },
   '#/leaderboard':    { title: 'Ranking',       render: renderLeaderboard },
   '#/profile':        { title: 'Perfil',        render: renderProfile },
+  '#/docs':           { title: 'Documentação',  render: renderDocs },
 };
 
 /* ============== utils ============== */
@@ -1664,6 +1665,186 @@ function shade(hex, pct) {
   g = Math.max(0, Math.min(255, g));
   b = Math.max(0, Math.min(255, b));
   return '#' + ((1<<24)|(r<<16)|(g<<8)|b).toString(16).slice(1);
+}
+
+/* ============================================================
+   Docs
+   ============================================================ */
+function renderDocs() {
+  const sections = [
+    {
+      icon: 'layout-dashboard',
+      title: 'Dashboard',
+      color: '#6C63FF',
+      items: [
+        { label: 'Visão geral', desc: 'Apresenta seus KPIs: vagas salvas, candidaturas ativas, nível atual e XP acumulado.' },
+        { label: 'Quests de hoje', desc: 'Missões diárias com XP como recompensa. Clique em uma quest concluída para receber os pontos.' },
+        { label: 'Heatmap de atividade', desc: 'Grade de 30 dias mostrando sua frequência de uso. Quanto mais ações por dia, mais escura a célula.' },
+        { label: 'Cursos em progresso', desc: 'Atalho para os 3 cursos com progresso ativo — para você não perder o ritmo.' },
+      ],
+    },
+    {
+      icon: 'briefcase',
+      title: 'Vagas',
+      color: '#00BCD4',
+      items: [
+        { label: 'Busca por cargo', desc: 'Digite o título desejado (ex: Analista de Segurança) e pressione Enter ou clique em Buscar.' },
+        { label: 'Localidade', desc: 'Filtre por cidade (ex: São Paulo) ou deixe vazio para ver todas as regiões.' },
+        { label: 'Regime de trabalho', desc: 'Todos · Remoto · Híbrido · Presencial. O filtro Presencial mostra vagas sem indicação remota ou híbrida.' },
+        { label: 'Filtro TI', desc: 'Chip expansível com subcategorias: Backend, Frontend, Full Stack, Mobile, Data/IA, DevOps, Cloud, Arquitetura e QA.' },
+        { label: 'Filtro Segurança', desc: 'Chip expansível com especialidades InfoSec: SOC/Blue Team, Pentest/Red Team, GRC, AppSec e Cloud Security.' },
+        { label: 'Skills', desc: 'Adicione palavras-chave (ex: PYTHON, AWS) para filtrar vagas que mencionem aquelas tecnologias na descrição.' },
+        { label: 'Ocultar encerradas', desc: 'Toggle que esconde vagas com data de publicação além do TTL da fonte (Remotar 45 d, Greenhouse/Lever 30 d, Vagas.com 21 d).' },
+        { label: 'Salvar vaga', desc: 'Clique no ícone de marcador (+10 XP). Vagas salvas ficam disponíveis no Kanban.' },
+        { label: 'Candidatar', desc: 'Clique em Candidatar (+50 XP) para registrar a candidatura e mover a vaga para o Kanban.' },
+        { label: 'Ver Vaga', desc: 'Abre o link original da vaga em uma nova aba.' },
+      ],
+    },
+    {
+      icon: 'kanban-square',
+      title: 'Candidaturas (Kanban)',
+      color: '#FF5722',
+      items: [
+        { label: 'Colunas do pipeline', desc: 'Aplicado → Triagem → Entrevista RH → Entrevista Técnica → Proposta → Oferta / Rejeitado.' },
+        { label: 'Mover entre colunas', desc: 'Use o menu de ações em cada card para avançar o estágio. Entrevista concede +150 XP, Oferta +500 XP.' },
+        { label: 'Remover candidatura', desc: 'Clique no "×" para excluir do pipeline. A vaga volta a aparecer em Vagas disponível para nova candidatura.' },
+        { label: 'Badge no menu', desc: 'O número ao lado de "Candidaturas" no menu lateral é atualizado em tempo real com o total de cards ativos.' },
+      ],
+    },
+    {
+      icon: 'graduation-cap',
+      title: 'Cursos',
+      color: '#4CAF50',
+      items: [
+        { label: 'Catálogo', desc: 'Lista de cursos curados para profissionais de TI e InfoSec. Inclui plataforma, duração estimada e nível.' },
+        { label: 'Progresso', desc: 'Barra de progresso individual por curso — atualizada manualmente pelo painel lateral direito.' },
+        { label: 'Painel lateral', desc: 'Na aba CURSOS do painel direito, veja sugestões contextuais baseadas na vaga que você está visualizando.' },
+      ],
+    },
+    {
+      icon: 'badge-check',
+      title: 'Certificações',
+      color: '#FF9800',
+      items: [
+        { label: 'Lista de certs', desc: 'Certificações relevantes para o mercado de TI/InfoSec com status: pendente, em andamento ou conquistada.' },
+        { label: 'Filtro de voucher', desc: 'O botão "Só com voucher" filtra certificações que incluem voucher de exame gratuito ou subsidiado.' },
+        { label: 'Sugestões contextuais', desc: 'O painel direito sugere certificações relacionadas à vaga pesquisada (ex: buscar "AWS" traz AWS Solutions Architect).' },
+      ],
+    },
+    {
+      icon: 'award',
+      title: 'Conquistas',
+      color: '#9C27B0',
+      items: [
+        { label: 'Conquistas desbloqueadas', desc: 'Exibidas em destaque com badge dourado. Cada conquista tem critério e data de obtenção.' },
+        { label: 'Conquistas bloqueadas', desc: 'Mostradas em cinza com a condição necessária para desbloquear — use como metas.' },
+        { label: 'Como ganhar', desc: 'Salvar vagas, candidatar, avançar estágios, manter streak, completar quests e atingir novos níveis.' },
+      ],
+    },
+    {
+      icon: 'trophy',
+      title: 'Ranking',
+      color: '#F7931A',
+      items: [
+        { label: 'Top 3', desc: 'Os três primeiros colocados aparecem em destaque com pódio visual (ouro, prata, bronze).' },
+        { label: 'Sua posição', desc: 'Sua linha fica destacada na tabela para fácil identificação.' },
+        { label: 'Pontuação', desc: 'Baseada em XP total acumulado. XP é ganho via ações: salvar, candidatar, entrevistas, ofertas e quests.' },
+      ],
+    },
+    {
+      icon: 'zap',
+      title: 'Sistema de XP e Nível',
+      color: '#5B4FB3',
+      items: [
+        { label: 'Salvar vaga', desc: '+10 XP por vaga salva.' },
+        { label: 'Candidatar', desc: '+50 XP ao registrar candidatura.' },
+        { label: 'Entrevista', desc: '+150 XP ao avançar para estágio de entrevista.' },
+        { label: 'Oferta recebida', desc: '+500 XP ao registrar uma proposta/oferta.' },
+        { label: 'Quest diária', desc: 'XP variável conforme a quest (30–100 XP cada).' },
+        { label: 'Nível seguinte', desc: 'Cada nível exige 25% mais XP que o anterior. A barra no topo mostra seu progresso atual.' },
+        { label: 'Streak', desc: 'Use o app por dias consecutivos para manter sua sequência. O streak é exibido no seu perfil.' },
+        { label: 'Coins (pts)', desc: 'Ganho proporcional ao XP obtido. Exibido no topbar. Futuro: moeda de troca por vouchers e benefícios.' },
+      ],
+    },
+    {
+      icon: 'target',
+      title: 'Quests Diárias',
+      color: '#EA1D2C',
+      items: [
+        { label: 'Missões diárias', desc: 'Aparecem no painel direito (aba MISSÕES) e no Dashboard. São tarefas simples com XP como recompensa.' },
+        { label: 'Como completar', desc: 'Clique na quest quando concluir a ação correspondente. O XP é creditado imediatamente.' },
+        { label: 'Barra de progresso', desc: 'Cada quest tem meta (ex: 1/1 aplicações) que reflete seu progresso real na plataforma.' },
+        { label: 'Reset diário', desc: 'As quests renovam todo dia — volte diariamente para manter o streak e acumular XP.' },
+      ],
+    },
+    {
+      icon: 'user',
+      title: 'Perfil',
+      color: '#2196F3',
+      items: [
+        { label: 'Dados do perfil', desc: 'Nome, cargo atual, nível e total de XP. Reflete os dados do seu user.json.' },
+        { label: 'Certificações conquistadas', desc: 'Lista de certs com status "earned" no seu histórico.' },
+        { label: 'Estatísticas', desc: 'Total de candidaturas, vagas salvas e XP acumulado — tudo sincronizado em tempo real.' },
+      ],
+    },
+    {
+      icon: 'info',
+      title: 'Fontes de Vagas',
+      color: '#607D8B',
+      items: [
+        { label: 'Remotar', desc: 'Vagas 100% remotas para o Brasil. Atualização a cada 6h. TTL: 45 dias.' },
+        { label: 'Greenhouse', desc: 'Vagas de empresas tech como Nubank, QuintoAndar, RD Station e Stone. TTL: 30 dias.' },
+        { label: 'Lever', desc: 'Vagas de startups como CloudWalk, Neon e outras fintechs. TTL: 30 dias.' },
+        { label: 'Vagas.com', desc: 'Maior job board BR. Inclui vagas CLT, PJ e estágio. TTL: 21 dias.' },
+        { label: 'Deduplicação', desc: 'O sistema detecta e mescla duplicatas pela URL normalizada e por chave composta (título+empresa+cidade), evitando que a mesma vaga apareça múltiplas vezes.' },
+      ],
+    },
+  ];
+
+  $('#view').innerHTML = `
+    <div class="docs-wrap">
+      <div class="docs-hero">
+        <div class="docs-hero-icon"><i data-lucide="book-open"></i></div>
+        <div>
+          <h1 class="docs-title pixel">DOCUMENTAÇÃO</h1>
+          <p class="docs-subtitle">Guia completo do Jobcraft — plataforma gamificada de carreira em Tech &amp; InfoSec</p>
+        </div>
+      </div>
+
+      <div class="docs-toc">
+        <span class="docs-toc-label pixel">ÍNDICE</span>
+        <div class="docs-toc-links">
+          ${sections.map(s => `<a class="docs-toc-link" href="#doc-${s.icon}">${s.title}</a>`).join('')}
+        </div>
+      </div>
+
+      ${sections.map(s => `
+        <section class="docs-section" id="doc-${s.icon}">
+          <div class="docs-section-header" style="border-left-color:${s.color}">
+            <div class="docs-section-icon" style="background:${s.color}20;color:${s.color}">
+              <i data-lucide="${s.icon}"></i>
+            </div>
+            <h2 class="docs-section-title">${escapeHtml(s.title)}</h2>
+          </div>
+          <div class="docs-items">
+            ${s.items.map(item => `
+              <div class="docs-item">
+                <div class="docs-item-label">${escapeHtml(item.label)}</div>
+                <div class="docs-item-desc">${escapeHtml(item.desc)}</div>
+              </div>
+            `).join('')}
+          </div>
+        </section>
+      `).join('')}
+
+      <div class="docs-footer">
+        <span class="pixel" style="color:var(--snes-royal)">JOBCRAFT</span>
+        <span style="color:var(--text-mut)">— Plataforma de carreira gamificada para Tech &amp; InfoSec · versão 2.0</span>
+      </div>
+    </div>
+  `;
+
+  if (window.lucide) lucide.createIcons();
 }
 
 /* ============== go ============== */
