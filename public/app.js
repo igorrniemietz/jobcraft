@@ -256,6 +256,21 @@ function bindShell() {
 function bindRightPanel() {
   renderQuestsPanel();
 
+  // Quest click — bound ONCE here so renderQuestsPanel() can safely replace innerHTML
+  $('#rp-quests-list')?.addEventListener('click', e => {
+    const item = e.target.closest('.rp-quest-item');
+    if (!item || item.classList.contains('done')) return;
+    const id  = item.dataset.id;
+    const xp  = parseInt(item.dataset.xp, 10);
+    const quest = store.quests.find(q => q.id === id);
+    if (!quest || quest.done) return;
+    quest.done     = true;
+    quest.progress = quest.goal;
+    renderQuestsPanel();
+    addXP(xp, 'quest');
+    toast(`+${xp} XP — quest concluída!`);
+  });
+
   $$('.rp-tab').forEach(btn => {
     btn.addEventListener('click', () => {
       $$('.rp-tab').forEach(t => t.classList.remove('active'));
@@ -305,21 +320,7 @@ function renderQuestsPanel() {
       </div>
     `;
   }).join('');
-
-  list.addEventListener('click', e => {
-    const item = e.target.closest('.rp-quest-item');
-    if (!item || item.classList.contains('done')) return;
-    const id = item.dataset.id;
-    const xp = parseInt(item.dataset.xp, 10);
-    const quest = store.quests.find(q => q.id === id);
-    if (quest) {
-      quest.done = true;
-      quest.progress = quest.goal;
-      renderQuestsPanel();
-      addXP(xp, 'quest');
-      toast(`+${xp} XP — quest concluída!`);
-    }
-  });
+  // NOTE: click listener lives in bindRightPanel() — not here — to avoid accumulation on re-render
 }
 
 function renderRightPanel(searchQuery = '') {
@@ -525,14 +526,19 @@ function renderDashboard() {
   `;
 
   view.addEventListener('click', e => {
-    const q = e.target.closest('.quest');
-    if (q && !q.classList.contains('done')) {
-      q.classList.add('done');
-      const xp = parseInt(q.dataset.xp, 10);
-      addXP(xp, 'quest');
-      toast(`+${xp} XP — quest concluída!`);
-    }
-  }, { once: true });
+    const qEl = e.target.closest('.quest');
+    if (!qEl || qEl.classList.contains('done')) return;
+    const id  = qEl.dataset.id;
+    const xp  = parseInt(qEl.dataset.xp, 10);
+    const quest = store.quests.find(q => q.id === id);
+    if (!quest || quest.done) return;
+    quest.done     = true;
+    quest.progress = quest.goal;
+    qEl.classList.add('done');
+    renderQuestsPanel();
+    addXP(xp, 'quest');
+    toast(`+${xp} XP — quest concluída!`);
+  });
 }
 
 function questRow(q) {
