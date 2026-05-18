@@ -219,16 +219,13 @@ function paintUser() {
   $('#user-role').textContent = u.role;
   $('#user-avatar').textContent = initials(u.name);
   $('#user-level').textContent = u.level;
-  $('#sb-level').textContent = u.level;
-  $('#sb-xp-num').textContent = `${fmt(u.xp)} / ${fmt(u.xpNext)} XP`;
-
   $('#hud-level-num').textContent = u.level;
   $('#hud-xp-label').textContent = `${fmt(u.xp)}/${fmt(u.xpNext)}`;
   $('#hud-pts').textContent = `${fmt(u.coins)} pts`;
 
   requestAnimationFrame(() => {
-    $('#sb-xp-fill').style.width = `${pct}%`;
     $('#hud-xp-fill').style.width = `${pct}%`;
+    $('#hud-xp-glow').style.width = `${pct}%`;
   });
 }
 
