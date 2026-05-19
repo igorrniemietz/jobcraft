@@ -261,6 +261,16 @@ function bindShell() {
     if (action === 'logout')   { logout(); }
     $('#user-menu').classList.remove('open');
   });
+
+  $$('.nav-item.ghost[data-action]').forEach(el => {
+    el.addEventListener('click', e => {
+      e.preventDefault();
+      const action = el.dataset.action;
+      if (action === 'mensagens')     openMensagensModal();
+      if (action === 'configuracoes') openConfiguracoesModal();
+      if (action === 'ajuda')         location.hash = '#/docs';
+    });
+  });
 }
 
 function bindRightPanel() {
@@ -1899,6 +1909,69 @@ function openUploadCertModal() {
       addXP(100, 'cert');
       toast('+100 XP — certificação adicionada!');
       renderCerts();
+    },
+  });
+}
+
+function openMensagensModal() {
+  const notifs = [
+    { icon: 'briefcase', text: 'Nubank visualizou seu perfil', sub: 'há 2 horas', color: '#8250df' },
+    { icon: 'zap',       text: 'Você ganhou +50 XP pela candidatura', sub: 'há 3 horas', color: '#FACC15' },
+    { icon: 'trophy',    text: 'Nova conquista desbloqueável disponível', sub: 'hoje', color: '#F59E0B' },
+    { icon: 'bell',      text: '3 novas vagas compatíveis com seu perfil', sub: 'ontem', color: '#5B4FB3' },
+  ];
+  openModal('Mensagens & Notificações', `
+    <div style="display:flex;flex-direction:column;gap:2px">
+      ${notifs.map(n => `
+        <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
+          <div style="width:36px;height:36px;border-radius:50%;background:${n.color}22;color:${n.color};display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <i data-lucide="${n.icon}" style="width:16px;height:16px"></i>
+          </div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;color:var(--text);font-weight:500">${escapeHtml(n.text)}</div>
+            <div style="font-size:11px;color:var(--text-mut)">${escapeHtml(n.sub)}</div>
+          </div>
+        </div>`).join('')}
+      <p style="text-align:center;color:var(--text-mut);font-size:12px;margin:12px 0 0">Sistema de mensagens em breve.</p>
+    </div>
+  `, { showCancel: false });
+}
+
+function openConfiguracoesModal() {
+  const isDark = document.body.classList.contains('dark-theme');
+  openModal('Configurações', `
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="font-weight:600;color:var(--text)">Tema escuro</div>
+          <div style="font-size:12px;color:var(--text-mut)">Alterna entre tema claro e escuro</div>
+        </div>
+        <label class="jc-toggle">
+          <input type="checkbox" id="cfg-dark" ${isDark ? 'checked' : ''}>
+          <span class="jc-toggle-track"></span>
+        </label>
+      </div>
+      <div style="border-top:1px solid var(--border);padding-top:16px">
+        <div style="font-weight:600;color:var(--text);margin-bottom:8px">Ocultar vagas encerradas</div>
+        <label class="jc-toggle">
+          <input type="checkbox" id="cfg-expired" ${store.ui.jobSearch.hideExpired ? 'checked' : ''}>
+          <span class="jc-toggle-track"></span>
+        </label>
+      </div>
+      <div style="border-top:1px solid var(--border);padding-top:16px">
+        <div style="font-weight:600;color:var(--text);margin-bottom:4px">Versão</div>
+        <div style="font-size:12px;color:var(--text-mut)">Jobcraft v2.0 · build ${new Date().toLocaleDateString('pt-BR')}</div>
+      </div>
+    </div>
+  `, {
+    confirmLabel: 'Salvar',
+    onConfirm: () => {
+      const wantDark    = $('#cfg-dark')?.checked;
+      const hideExpired = $('#cfg-expired')?.checked;
+      const nowDark = document.body.classList.contains('dark-theme');
+      if (wantDark !== nowDark) toggleDarkTheme();
+      store.ui.jobSearch.hideExpired = !!hideExpired;
+      toast('Configurações salvas!');
     },
   });
 }
