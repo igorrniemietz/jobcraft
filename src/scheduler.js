@@ -11,7 +11,6 @@ const store               = require('./jobStore');
 const courseStore              = require('./courseStore');
 const { collect: ytCollect }   = require('./collectors/youtube');
 const { collect: coCollect }   = require('./collectors/coursera');
-const { collect: devCollect }  = require('./collectors/devto');
 const { collect: fccCollect }  = require('./collectors/freecodecamp');
 
 const INTERVAL_MS = parseInt(process.env.SYNC_INTERVAL_MS || String(6 * 60 * 60 * 1000)); // 6h
@@ -54,7 +53,6 @@ async function syncCourses() {
   await Promise.allSettled([
     syncCourseSource('youtube',      ytCollect),
     syncCourseSource('coursera',     coCollect),
-    syncCourseSource('devto',        devCollect),
     syncCourseSource('freecodecamp', fccCollect),
   ]);
   console.log(`[courses] total: ${courseStore.count()} cursos únicos`);

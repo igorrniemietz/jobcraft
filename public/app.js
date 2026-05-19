@@ -18,6 +18,7 @@ const store = {
     rpVoucher: false,
     rpLastQuery: '',
     courseTrack: 'todos',
+    courseLang: 'pt',
   }
 };
 
@@ -1344,10 +1345,20 @@ function matchClass(m) {
 /* ============== Courses ============== */
 function renderCourses() {
   const activeTrack = store.ui.courseTrack || 'todos';
+  const activeLang  = store.ui.courseLang  || 'pt';
   const tracks      = [...new Set(store.courses.map(c => c.track))];
-  const all         = activeTrack === 'todos' ? store.courses : store.courses.filter(c => c.track === activeTrack);
+
+  let all = activeLang === 'todos' ? store.courses : store.courses.filter(c => (c.language || 'pt') === activeLang);
+  if (activeTrack !== 'todos') all = all.filter(c => c.track === activeTrack);
+
   const inProgress  = all.filter(c => c.progress > 0 && c.progress < 100);
   const catalog     = all.filter(c => c.progress === 0 || c.progress === 100);
+
+  const langBtns = [
+    { val: 'pt',    label: '🇧🇷 Português' },
+    { val: 'en',    label: '🇺🇸 English' },
+    { val: 'todos', label: 'Todos' },
+  ].map(l => `<button class="filter-pill ${activeLang === l.val ? 'active' : ''}" data-lang="${l.val}">${l.label}</button>`).join('');
 
   $('#view').innerHTML = `
     <div class="section-title" style="margin-top:0">
@@ -1362,8 +1373,11 @@ function renderCourses() {
     </div>
 
     <div class="jobs-toolbar">
-      <div class="toolbar-filters">
-        <button class="filter-pill ${activeTrack === 'todos' ? 'active' : ''}" data-track="todos">Todos</button>
+      <div class="toolbar-filters" style="gap:6px">
+        <span style="font-size:12px;color:var(--text-mut);margin-right:4px">Idioma:</span>
+        ${langBtns}
+        <span style="width:1px;background:var(--border);margin:0 6px;align-self:stretch"></span>
+        <button class="filter-pill ${activeTrack === 'todos' ? 'active' : ''}" data-track="todos">Trilha: Todas</button>
         ${tracks.map(t => `<button class="filter-pill ${activeTrack === t ? 'active' : ''}" data-track="${escapeHtml(t)}">${escapeHtml(t)}</button>`).join('')}
       </div>
     </div>
@@ -1378,16 +1392,20 @@ function renderCourses() {
       <div class="courses-grid">${catalog.map(courseCard).join('')}</div>
     ` : ''}
 
-    ${all.length === 0 ? `<div class="card panel" style="text-align:center;color:var(--text-mut);padding:40px">Nenhum curso encontrado para esta trilha.</div>` : ''}
+    ${all.length === 0 ? `<div class="card panel" style="text-align:center;color:var(--text-mut);padding:40px">Nenhum curso encontrado para este filtro.</div>` : ''}
   `;
 
   if (window.lucide) lucide.createIcons();
+
+  $$('[data-lang]', $('#view')).forEach(btn => {
+    btn.addEventListener('click', () => { store.ui.courseLang = btn.dataset.lang; renderCourses(); });
+  });
 
   $$('[data-track]', $('#view')).forEach(btn => {
     btn.addEventListener('click', () => { store.ui.courseTrack = btn.dataset.track; renderCourses(); });
   });
 
-  $('#btn-course-reset')?.addEventListener('click', () => { store.ui.courseTrack = 'todos'; renderCourses(); });
+  $('#btn-course-reset')?.addEventListener('click', () => { store.ui.courseTrack = 'todos'; store.ui.courseLang = 'pt'; renderCourses(); });
 
   $('#btn-course-recom')?.addEventListener('click', () => {
     const userTracks = (store.user.tracks || []).map(t => t.toLowerCase());
