@@ -8,10 +8,10 @@ const { fetchLever }      = require('./collectors/lever');
 const { fetchRemotar }    = require('./collectors/remotar');
 const store               = require('./jobStore');
 
-const courseStore              = require('./courseStore');
-const { collect: ytCollect }   = require('./collectors/youtube');
-const { collect: coCollect }   = require('./collectors/coursera');
-const { collect: fccCollect }  = require('./collectors/freecodecamp');
+const courseStore                  = require('./courseStore');
+const { collect: curatedCollect }  = require('./collectors/curated');
+const { collect: ytCollect }       = require('./collectors/youtube');
+const { collect: fccCollect }      = require('./collectors/freecodecamp');
 
 const INTERVAL_MS = parseInt(process.env.SYNC_INTERVAL_MS || String(6 * 60 * 60 * 1000)); // 6h
 
@@ -50,11 +50,14 @@ async function syncCourseSource(name, collectFn) {
 }
 
 async function syncCourses() {
-  await Promise.allSettled([
-    syncCourseSource('youtube',      ytCollect),
-    syncCourseSource('coursera',     coCollect),
+  const tasks = [
+    syncCourseSource('curated', curatedCollect),
     syncCourseSource('freecodecamp', fccCollect),
-  ]);
+  ];
+  if (process.env.YOUTUBE_API_KEY) {
+    tasks.push(syncCourseSource('youtube', ytCollect));
+  }
+  await Promise.allSettled(tasks);
   console.log(`[courses] total: ${courseStore.count()} cursos únicos`);
 }
 
