@@ -3,8 +3,13 @@ const { getJSON, sleep, jitter } = require('../http');
 const { detectTrack, trackMeta } = require('../normalizeCourses');
 
 const QUERIES = [
-  'cybersecurity','cloud security','ethical hacking',
-  'devops','python','web security','network security',
+  'segurança da informação',
+  'hacking ético',
+  'python programação',
+  'devops cloud',
+  'redes computadores',
+  'programação web',
+  'linux administração',
 ];
 
 function normalize(item) {
@@ -50,7 +55,7 @@ async function collect() {
         if (seen.has(item.id)) continue;
         seen.add(item.id);
         const c = normalize(item);
-        if (c) results.push(c);
+        if (c && c.language === 'pt') results.push(c);
       }
       await sleep(jitter(400));
     } catch (e) {

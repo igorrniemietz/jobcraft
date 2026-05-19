@@ -2,31 +2,35 @@
 const { getJSON, sleep, jitter } = require('../http');
 const { detectTrack, trackMeta } = require('../normalizeCourses');
 
+// Busca playlists (cursos completos) em PT-BR
 const QUERIES = [
-  'segurança da informação curso completo',
-  'pentest tutorial português',
-  'ethical hacking cybersecurity',
-  'devops kubernetes docker curso',
-  'cloud aws azure tutorial',
-  'owasp appsec devsecops',
-  'python programação curso gratuito',
-  'javascript typescript curso completo',
+  'curso segurança da informação completo',
+  'curso pentest hacking ético completo',
+  'curso python completo iniciante',
+  'curso javascript completo português',
+  'curso linux administração completo',
+  'curso docker kubernetes devops',
+  'curso aws cloud português completo',
+  'curso programação web completo gratuito',
+  'curso ethical hacking certificação',
+  'curso redes computadores completo',
 ];
 
 function normalize(item) {
-  const snip  = item.snippet || {};
-  const vidId = item.id?.videoId;
-  if (!vidId) return null;
+  const snip      = item.snippet || {};
+  const listId    = item.id?.playlistId;
+  if (!listId) return null;
   const title = snip.title || '';
-  const text  = `${title} ${snip.description || ''} ${(snip.tags || []).join(' ')}`;
+  if (title.length < 8) return null;
+  const text  = `${title} ${snip.description || ''}`;
   const track = detectTrack(text);
   const meta  = trackMeta(track);
   return {
-    externalId:  vidId,
+    externalId:  listId,
     source:      'youtube',
     title,
     description: (snip.description || '').slice(0, 200),
-    url:         `https://www.youtube.com/watch?v=${vidId}`,
+    url:         `https://www.youtube.com/playlist?list=${listId}`,
     thumbnail:   snip.thumbnails?.medium?.url || snip.thumbnails?.default?.url || '',
     provider:    snip.channelTitle || 'YouTube',
     track,
@@ -34,12 +38,12 @@ function normalize(item) {
     free:        true,
     certificate: false,
     language:    'pt',
-    hours:       1,
+    hours:       4,
     modules:     0,
     rating:      0,
     students:    0,
-    tags:        (snip.tags || []).slice(0, 6),
-    xp:          60,
+    tags:        [],
+    xp:          100,
     tier:        'bronze',
     ...meta,
     progress:    0,
@@ -58,12 +62,12 @@ async function collect() {
   const results = [];
   for (const q of QUERIES) {
     try {
-      const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=15&relevanceLanguage=pt&regionCode=BR&videoCategoryId=27&q=${encodeURIComponent(q)}&key=${apiKey}`;
+      const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=playlist&maxResults=10&relevanceLanguage=pt&regionCode=BR&q=${encodeURIComponent(q)}&key=${apiKey}`;
       const { body } = await getJSON(url);
       for (const item of (body.items || [])) {
-        const vid = item.id?.videoId;
-        if (!vid || seen.has(vid)) continue;
-        seen.add(vid);
+        const lid = item.id?.playlistId;
+        if (!lid || seen.has(lid)) continue;
+        seen.add(lid);
         const c = normalize(item);
         if (c) results.push(c);
       }
