@@ -17,6 +17,7 @@ const store = {
     rpTab: 'missoes',
     rpVoucher: false,
     rpLastQuery: '',
+    courseTrack: 'todos',
   }
 };
 
@@ -249,6 +250,17 @@ function bindShell() {
     $('#user-menu').classList.toggle('open');
   });
   document.addEventListener('click', () => $('#user-menu').classList.remove('open'));
+
+  $('#user-menu').addEventListener('click', e => {
+    e.stopPropagation();
+    const a = e.target.closest('[data-action]');
+    if (!a) return;
+    const action = a.dataset.action;
+    if (action === 'profile')  { location.hash = '#/profile'; }
+    if (action === 'theme')    { toggleDarkTheme(); }
+    if (action === 'logout')   { logout(); }
+    $('#user-menu').classList.remove('open');
+  });
 }
 
 function bindRightPanel() {
@@ -1313,36 +1325,86 @@ function matchClass(m) {
 
 /* ============== Courses ============== */
 function renderCourses() {
-  const tracks = [...new Set(store.courses.map(c => c.track))];
+  const activeTrack = store.ui.courseTrack || 'todos';
+  const tracks      = [...new Set(store.courses.map(c => c.track))];
+  const all         = activeTrack === 'todos' ? store.courses : store.courses.filter(c => c.track === activeTrack);
+  const inProgress  = all.filter(c => c.progress > 0 && c.progress < 100);
+  const catalog     = all.filter(c => c.progress === 0 || c.progress === 100);
+
   $('#view').innerHTML = `
     <div class="section-title" style="margin-top:0">
       <div>
         <h2>Cursos Gamificados</h2>
-        <small>${store.courses.length} cursos em Tech & Segurança · ganhe XP, suba de nível e desbloqueie badges</small>
+        <small>${store.courses.length} cursos em Tech &amp; Segurança · ganhe XP, suba de nível e desbloqueie badges</small>
       </div>
       <div style="display:flex;gap:8px">
-        <button class="btn btn-ghost"><i data-lucide="filter"></i>Filtrar</button>
-        <button class="btn btn-primary"><i data-lucide="sparkles"></i>Recomendado para mim</button>
+        <button class="btn btn-ghost" id="btn-course-reset"><i data-lucide="list"></i>Todos</button>
+        <button class="btn btn-primary" id="btn-course-recom"><i data-lucide="sparkles"></i>Recomendado para mim</button>
       </div>
     </div>
 
     <div class="jobs-toolbar">
       <div class="toolbar-filters">
-        <button class="filter-pill active">Todos</button>
-        ${tracks.map(t => `<button class="filter-pill">${escapeHtml(t)}</button>`).join('')}
+        <button class="filter-pill ${activeTrack === 'todos' ? 'active' : ''}" data-track="todos">Todos</button>
+        ${tracks.map(t => `<button class="filter-pill ${activeTrack === t ? 'active' : ''}" data-track="${escapeHtml(t)}">${escapeHtml(t)}</button>`).join('')}
       </div>
     </div>
 
-    <div class="section-title"><h3>Em andamento</h3><small>${store.courses.filter(c => c.progress > 0 && c.progress < 100).length} cursos</small></div>
-    <div class="courses-grid">
-      ${store.courses.filter(c => c.progress > 0 && c.progress < 100).map(courseCard).join('')}
-    </div>
+    ${inProgress.length > 0 ? `
+      <div class="section-title"><h3>Em andamento</h3><small>${inProgress.length} cursos</small></div>
+      <div class="courses-grid">${inProgress.map(courseCard).join('')}</div>
+    ` : ''}
 
-    <div class="section-title"><h3>Catálogo</h3><small>Tier Bronze, Prata, Ouro e Diamante</small></div>
-    <div class="courses-grid">
-      ${store.courses.filter(c => c.progress === 0 || c.progress === 100).map(courseCard).join('')}
-    </div>
+    ${catalog.length > 0 ? `
+      <div class="section-title"><h3>Catálogo</h3><small>Tier Bronze, Prata, Ouro e Diamante</small></div>
+      <div class="courses-grid">${catalog.map(courseCard).join('')}</div>
+    ` : ''}
+
+    ${all.length === 0 ? `<div class="card panel" style="text-align:center;color:var(--text-mut);padding:40px">Nenhum curso encontrado para esta trilha.</div>` : ''}
   `;
+
+  if (window.lucide) lucide.createIcons();
+
+  $$('[data-track]', $('#view')).forEach(btn => {
+    btn.addEventListener('click', () => { store.ui.courseTrack = btn.dataset.track; renderCourses(); });
+  });
+
+  $('#btn-course-reset')?.addEventListener('click', () => { store.ui.courseTrack = 'todos'; renderCourses(); });
+
+  $('#btn-course-recom')?.addEventListener('click', () => {
+    const userTracks = (store.user.tracks || []).map(t => t.toLowerCase());
+    const match = tracks.find(t => userTracks.some(u => t.toLowerCase().split(/\s+/).some(w => u.includes(w))));
+    store.ui.courseTrack = match || 'todos';
+    renderCourses();
+  });
+
+  $$('[data-course-id]', $('#view')).forEach(btn => {
+    btn.addEventListener('click', () => {
+      const course = store.courses.find(c => c.id === btn.dataset.courseId);
+      if (!course) return;
+      if (course.progress === 100) {
+        openModal(`Certificado — ${course.title}`, `
+          <div style="text-align:center;padding:16px 0">
+            <div style="font-size:44px;margin-bottom:12px">🏆</div>
+            <div style="font-weight:700;font-size:16px;margin-bottom:6px">${escapeHtml(course.title)}</div>
+            <div style="color:var(--text-mut);font-size:13px;margin-bottom:14px">${escapeHtml(course.provider)} · ${course.hours}h · ${course.modules} módulos</div>
+            <div style="display:flex;justify-content:center;gap:6px;flex-wrap:wrap;margin-bottom:14px">
+              ${course.skills.map(s => `<span class="chip">${escapeHtml(s)}</span>`).join('')}
+            </div>
+            <div style="color:var(--success);font-weight:600">✓ Curso concluído com sucesso!</div>
+          </div>
+        `, { showCancel: false });
+      } else {
+        const isStart = course.progress === 0;
+        course.progress = Math.min(100, course.progress + 10);
+        const xpGain = course.progress === 100 ? course.xp : Math.round(course.xp * 0.10);
+        addXP(xpGain, 'course');
+        const verb = course.progress === 100 ? 'concluído' : isStart ? 'iniciado' : 'avançado';
+        toast(`+${xpGain} XP — curso ${verb}!`);
+        renderCourses();
+      }
+    });
+  });
 }
 
 function courseCard(c) {
@@ -1372,7 +1434,7 @@ function courseCard(c) {
         </div>
         <div class="course-foot">
           <span class="xp-tag"><i data-lucide="zap" style="width:10px;height:10px"></i>+${c.xp} XP</span>
-          <button class="btn btn-primary btn-sm">${c.progress === 0 ? 'Começar' : c.progress === 100 ? 'Ver certificado' : 'Continuar'}</button>
+          <button class="btn btn-primary btn-sm" data-course-id="${c.id}">${c.progress === 0 ? 'Começar' : c.progress === 100 ? 'Ver certificado' : 'Continuar'}</button>
         </div>
       </div>
     </article>
@@ -1400,13 +1462,37 @@ function renderCerts() {
         <h2>Certificações</h2>
         <small>${earned.length} conquistadas · ${inProg.length} em andamento · ${avail.length} disponíveis</small>
       </div>
-      <button class="btn btn-primary"><i data-lucide="upload"></i>Enviar certificado externo</button>
+      <button class="btn btn-primary" data-action="upload-cert"><i data-lucide="upload"></i>Enviar certificado externo</button>
     </div>
 
     ${section('Conquistadas', earned.map(certCard).join('') || empty('Você ainda não possui certificações'))}
     ${section('Em andamento', inProg.map(certCard).join('') || empty('Nenhuma certificação em andamento'))}
     ${section('Disponíveis', avail.map(certCard).join(''))}
   `;
+
+  if (window.lucide) lucide.createIcons();
+
+  $('[data-action="upload-cert"]')?.addEventListener('click', openUploadCertModal);
+
+  $$('[data-action="study-trail"]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const cert = store.certs.find(c => c.id === btn.dataset.certId);
+      if (!cert) return;
+      openModal(`Trilha: ${cert.name}`, `
+        <div>
+          <p style="color:var(--text-body);margin:0 0 12px">Para obter <strong>${escapeHtml(cert.name)}</strong> — <strong>${escapeHtml(cert.issuer)}</strong>:</p>
+          <ol style="padding-left:20px;color:var(--text-body);line-height:2.2;margin:0 0 12px">
+            <li>Estude o material oficial de <strong>${escapeHtml(cert.issuer)}</strong></li>
+            <li>Pratique com laboratórios e simulados</li>
+            <li>Faça questões de provas anteriores</li>
+            <li>Agende o exame no portal oficial do fornecedor</li>
+            <li>Após aprovação, envie o certificado nesta página</li>
+          </ol>
+          <p style="color:var(--text-mut);font-size:12px;margin:0">+${cert.xp} XP ao concluir · categoria: ${escapeHtml(cert.category)}</p>
+        </div>
+      `, { showCancel: false });
+    });
+  });
 }
 function section(title, html) {
   return `<div class="section-title"><h3>${title}</h3></div><div class="cert-grid">${html}</div>`;
@@ -1436,7 +1522,7 @@ function certCard(c) {
           </div>` : ''}
         ${c.status === 'available' ? `<div class="cert-foot">
             <span class="chip"><i data-lucide="zap"></i>+${c.xp} XP ao concluir</span>
-            <button class="btn btn-ghost btn-sm" style="margin-left:auto">Trilha de estudos</button>
+            <button class="btn btn-ghost btn-sm" style="margin-left:auto" data-action="study-trail" data-cert-id="${c.id}">Trilha de estudos</button>
           </div>` : ''}
       </div>
     </article>
@@ -1539,12 +1625,30 @@ function renderProfile() {
   const earned = store.certs.filter(c => c.status === 'earned');
   const lastCourses = store.courses.slice().sort((a,b) => b.progress - a.progress).slice(0,4);
 
+  const profileSkills = [...new Set(
+    store.courses.filter(c => c.progress > 0).flatMap(c => c.skills)
+  )];
+  const skillsHtml = profileSkills.length > 0
+    ? profileSkills.map(s => `<span class="chip">${escapeHtml(s)}</span>`).join('')
+    : `<span style="color:var(--text-mut);font-size:13px">Comece cursos para construir suas skills.</span>`;
+
+  const recentActs = (store.user.activities || []).slice(-5).reverse();
+  const timelineHtml = recentActs.length > 0
+    ? recentActs.map(a => `
+      <div class="tl"><div class="tld"><i data-lucide="${activityIcon(a.type)}"></i></div>
+        <div>
+          <div class="ttitle">${escapeHtml(activityLabel(a.type))}</div>
+          <div class="tdate">${new Date(a.ts).toLocaleDateString('pt-BR', { day:'2-digit', month:'short', year:'numeric' })} · +${a.amount} XP</div>
+        </div>
+      </div>`).join('')
+    : `<p style="color:var(--text-mut);font-size:13px">Realize ações na plataforma para ver sua linha do tempo.</p>`;
+
   $('#view').innerHTML = `
     <div class="section-title" style="margin-top:0">
       <div><h2>Meu Perfil</h2><small>Como recrutadores veem você</small></div>
       <div style="display:flex;gap:8px">
-        <button class="btn btn-ghost"><i data-lucide="share-2"></i>Compartilhar</button>
-        <button class="btn btn-primary"><i data-lucide="pencil"></i>Editar perfil</button>
+        <button class="btn btn-ghost" data-action="share-profile"><i data-lucide="share-2"></i>Compartilhar</button>
+        <button class="btn btn-primary" data-action="edit-profile"><i data-lucide="pencil"></i>Editar perfil</button>
       </div>
     </div>
 
@@ -1563,7 +1667,7 @@ function renderProfile() {
         <div class="profile-stats">
           <div class="b"><div class="v">${earned.length}</div><div class="l">Certificações</div></div>
           <div class="b"><div class="v">${store.achievements.filter(a=>a.unlocked).length}</div><div class="l">Conquistas</div></div>
-          <div class="b"><div class="v">${store.jobs.filter(j=>j.applied).length}</div><div class="l">Candidaturas</div></div>
+          <div class="b"><div class="v">${Object.keys(store.applications).length}</div><div class="l">Candidaturas</div></div>
           <div class="b"><div class="v">${store.courses.filter(c=>c.progress===100).length}</div><div class="l">Cursos concl.</div></div>
         </div>
 
@@ -1576,26 +1680,12 @@ function renderProfile() {
       <div class="profile-main">
         <div class="card profile-section">
           <div class="section-title" style="margin-top:0"><h3>Skills em destaque</h3><small>Construídas a partir dos seus cursos</small></div>
-          <div style="display:flex;flex-wrap:wrap;gap:6px">
-            ${['OWASP Top 10','Threat Modeling','Burp Suite','AWS IAM','Kubernetes','JWT','TLS 1.3','React','TypeScript','Python','Bash','Splunk','Terraform','GitHub Actions']
-              .map(s => `<span class="chip">${s}</span>`).join('')}
-          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px">${skillsHtml}</div>
         </div>
 
         <div class="card profile-section">
           <div class="section-title" style="margin-top:0"><h3>Linha do tempo</h3><small>Atividades recentes</small></div>
-          <div class="timeline">
-            <div class="tl"><div class="tld"><i data-lucide="badge-check"></i></div>
-              <div><div class="ttitle">Conquistou CKS (Kubernetes Security)</div><div class="tdate">18 de fev de 2026 · +950 XP</div></div></div>
-            <div class="tl"><div class="tld"><i data-lucide="trophy"></i></div>
-              <div><div class="ttitle">Entrou no Top 10 semanal</div><div class="tdate">10 de fev de 2026 · +200 XP</div></div></div>
-            <div class="tl"><div class="tld"><i data-lucide="briefcase"></i></div>
-              <div><div class="ttitle">Candidatou-se a "Security Engineer Pleno" na Nubank</div><div class="tdate">28 de jan de 2026 · +50 XP</div></div></div>
-            <div class="tl"><div class="tld"><i data-lucide="graduation-cap"></i></div>
-              <div><div class="ttitle">Concluiu "Pentest Web Moderno"</div><div class="tdate">20 de jan de 2026 · +380 XP</div></div></div>
-            <div class="tl"><div class="tld"><i data-lucide="zap"></i></div>
-              <div><div class="ttitle">Subiu para o nível 12</div><div class="tdate">12 de jan de 2026</div></div></div>
-          </div>
+          <div class="timeline">${timelineHtml}</div>
         </div>
 
         <div class="card profile-section">
@@ -1607,6 +1697,70 @@ function renderProfile() {
       </div>
     </div>
   `;
+
+  if (window.lucide) lucide.createIcons();
+
+  $('[data-action="share-profile"]')?.addEventListener('click', () => {
+    navigator.clipboard.writeText(window.location.href)
+      .then(() => toast('Link copiado para a área de transferência!'))
+      .catch(() => toast('Link: ' + window.location.href));
+  });
+
+  $('[data-action="edit-profile"]')?.addEventListener('click', () => {
+    openModal('Editar Perfil', `
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div>
+          <label style="font-size:12px;color:var(--text-mut);display:block;margin-bottom:4px">Nome</label>
+          <input id="ep-name" class="mission-field-input" value="${escapeHtml(store.user.name)}" style="width:100%">
+        </div>
+        <div>
+          <label style="font-size:12px;color:var(--text-mut);display:block;margin-bottom:4px">Cargo</label>
+          <input id="ep-role" class="mission-field-input" value="${escapeHtml(store.user.role)}" style="width:100%">
+        </div>
+        <div>
+          <label style="font-size:12px;color:var(--text-mut);display:block;margin-bottom:4px">Trilhas (separadas por vírgula)</label>
+          <input id="ep-tracks" class="mission-field-input" value="${escapeHtml((store.user.tracks || []).join(', '))}" style="width:100%">
+        </div>
+      </div>
+    `, {
+      confirmLabel: 'Salvar',
+      onConfirm: () => {
+        const name   = $('#ep-name')?.value.trim();
+        const role   = $('#ep-role')?.value.trim();
+        const tracks = $('#ep-tracks')?.value.split(',').map(t => t.trim()).filter(Boolean);
+        if (name) store.user.name = name;
+        if (role) store.user.role = role;
+        if (tracks?.length) store.user.tracks = tracks;
+        paintUser();
+        renderProfile();
+        toast('Perfil atualizado!');
+      },
+    });
+  });
+
+  $$('[data-course-id]', $('#view')).forEach(btn => {
+    btn.addEventListener('click', () => {
+      const course = store.courses.find(c => c.id === btn.dataset.courseId);
+      if (!course) return;
+      if (course.progress === 100) {
+        openModal(`Certificado — ${course.title}`, `
+          <div style="text-align:center;padding:16px 0">
+            <div style="font-size:44px;margin-bottom:12px">🏆</div>
+            <div style="font-weight:700;font-size:16px;margin-bottom:6px">${escapeHtml(course.title)}</div>
+            <div style="color:var(--text-mut);font-size:13px;margin-bottom:14px">${escapeHtml(course.provider)} · ${course.hours}h</div>
+            <div style="color:var(--success);font-weight:600">✓ Curso concluído!</div>
+          </div>
+        `, { showCancel: false });
+      } else {
+        const isStart = course.progress === 0;
+        course.progress = Math.min(100, course.progress + 10);
+        const xpGain = course.progress === 100 ? course.xp : Math.round(course.xp * 0.10);
+        addXP(xpGain, 'course');
+        toast(`+${xpGain} XP — curso ${course.progress === 100 ? 'concluído' : isStart ? 'iniciado' : 'avançado'}!`);
+        renderProfile();
+      }
+    });
+  });
 }
 
 /* ============== XP / Toast ============== */
@@ -1625,6 +1779,7 @@ function addXP(amount, action = 'misc') {
   u.coins = (u.coins || 0) + Math.floor(amount / 10);
   paintUser();
   if (leveledUp) toast(`LEVEL UP! Lv ${prevLevel} → Lv ${u.level}`, true);
+  checkAchievements();
 
   fetch('/api/profile/xp', {
     method: 'POST',
@@ -1636,6 +1791,132 @@ function addXP(amount, action = 'misc') {
       paintUser();
     }
   }).catch(() => {});
+}
+
+function openModal(title, bodyHtml, opts = {}) {
+  const { onConfirm, confirmLabel = 'Confirmar', cancelLabel = 'Cancelar', showCancel = true } = opts;
+  const existing = $('#jc-modal');
+  if (existing) existing.remove();
+  const el = document.createElement('div');
+  el.id = 'jc-modal';
+  el.className = 'jc-modal-overlay';
+  const footHtml = onConfirm
+    ? `${showCancel ? `<button class="btn btn-ghost" data-modal-close>${escapeHtml(cancelLabel)}</button>` : ''}
+       <button class="btn btn-primary" data-modal-confirm>${escapeHtml(confirmLabel)}</button>`
+    : `<button class="btn btn-ghost" data-modal-close>Fechar</button>`;
+  el.innerHTML = `
+    <div class="jc-modal">
+      <div class="jc-modal-hdr">
+        <span class="jc-modal-title">${escapeHtml(title)}</span>
+        <button class="jc-modal-x" data-modal-close>×</button>
+      </div>
+      <div class="jc-modal-body">${bodyHtml}</div>
+      <div class="jc-modal-foot">${footHtml}</div>
+    </div>
+  `;
+  document.body.appendChild(el);
+  if (window.lucide) lucide.createIcons();
+  const close = () => el.remove();
+  el.addEventListener('click', e => { if (e.target === el) close(); });
+  el.querySelectorAll('[data-modal-close]').forEach(b => b.addEventListener('click', close));
+  el.querySelector('[data-modal-confirm]')?.addEventListener('click', () => { onConfirm(); close(); });
+  return el;
+}
+
+function activityLabel(type) {
+  const m = { apply: 'Candidatura registrada', save: 'Vaga salva', quest: 'Quest diária concluída', interview: 'Entrevista marcada', offer: 'Oferta recebida', course: 'Módulo de curso concluído', achievement: 'Conquista desbloqueada', misc: 'Ação registrada' };
+  return m[type] || type;
+}
+function activityIcon(type) {
+  const m = { apply: 'briefcase', save: 'bookmark', quest: 'target', interview: 'message-square', offer: 'trophy', course: 'graduation-cap', achievement: 'award', misc: 'zap' };
+  return m[type] || 'zap';
+}
+
+let _checkingAch = false;
+function checkAchievements() {
+  if (_checkingAch) return;
+  _checkingAch = true;
+  const u = store.user;
+  const applied      = Object.keys(store.applications).length;
+  const inInterview  = Object.values(store.applications).filter(a => a.stage === 'interview').length;
+  const completedIds = store.courses.filter(c => c.progress === 100).map(c => c.id);
+  const rules = [
+    { id: 'a-001', ok: () => applied >= 1 },
+    { id: 'a-002', ok: () => inInterview >= 1 },
+    { id: 'a-003', ok: () => completedIds.includes('c-001') },
+    { id: 'a-004', ok: () => completedIds.includes('c-003') },
+    { id: 'a-005', ok: () => (u.streak || 0) >= 7 },
+    { id: 'a-006', ok: () => (u.streak || 0) >= 30 },
+    { id: 'a-010', ok: () => u.level >= 30 },
+    { id: 'a-011', ok: () => store.courses.some(c => c.id === 'c-003' && c.progress > 0) },
+  ];
+  for (const r of rules) {
+    const ach = store.achievements.find(a => a.id === r.id);
+    if (!ach || ach.unlocked || !r.ok()) continue;
+    ach.unlocked = true;
+    addXP(ach.xp, 'achievement');
+    toast(`🏆 Conquista: "${ach.name}" — +${ach.xp} XP!`);
+  }
+  _checkingAch = false;
+}
+
+function openUploadCertModal() {
+  openModal('Enviar certificado externo', `
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div>
+        <label style="font-size:12px;color:var(--text-mut);display:block;margin-bottom:4px">Nome da certificação *</label>
+        <input id="uc-name" class="mission-field-input" placeholder="ex: AWS Solutions Architect" style="width:100%">
+      </div>
+      <div>
+        <label style="font-size:12px;color:var(--text-mut);display:block;margin-bottom:4px">Emissor *</label>
+        <input id="uc-issuer" class="mission-field-input" placeholder="ex: Amazon Web Services" style="width:100%">
+      </div>
+      <div>
+        <label style="font-size:12px;color:var(--text-mut);display:block;margin-bottom:4px">Data de obtenção</label>
+        <input id="uc-date" class="mission-field-input" type="date" style="width:100%">
+      </div>
+      <div>
+        <label style="font-size:12px;color:var(--text-mut);display:block;margin-bottom:4px">ID da credencial</label>
+        <input id="uc-id" class="mission-field-input" placeholder="ex: ABC-123-XYZ" style="width:100%">
+      </div>
+    </div>
+  `, {
+    confirmLabel: 'Adicionar',
+    onConfirm: () => {
+      const name   = $('#uc-name')?.value.trim();
+      const issuer = $('#uc-issuer')?.value.trim();
+      const date   = $('#uc-date')?.value;
+      const credId = $('#uc-id')?.value.trim();
+      if (!name || !issuer) { toast('Preencha nome e emissor'); return; }
+      store.certs.unshift({
+        id: 'ext-' + Date.now(), name, issuer,
+        credentialId: credId || '—',
+        status: 'earned',
+        earnedAt: date || new Date().toISOString().slice(0, 10),
+        xp: 100, category: 'Externo', color: '#4CAF50',
+        voucherIncluded: false, progress: 100,
+      });
+      addXP(100, 'cert');
+      toast('+100 XP — certificação adicionada!');
+      renderCerts();
+    },
+  });
+}
+
+function toggleDarkTheme() {
+  document.body.classList.toggle('dark-theme');
+  const isDark = document.body.classList.contains('dark-theme');
+  localStorage.setItem('jc-theme', isDark ? 'dark' : 'light');
+  const item = $('#user-menu [data-action="theme"]');
+  if (item) item.innerHTML = `<i data-lucide="${isDark ? 'sun' : 'moon'}"></i> ${isDark ? 'Tema claro' : 'Tema escuro'}`;
+  if (window.lucide) lucide.createIcons();
+}
+
+function logout() {
+  openModal('Sair do Jobcraft', `<p style="color:var(--text-body)">Tem certeza que deseja encerrar a sessão?</p>`, {
+    confirmLabel: 'Sair',
+    onConfirm: () => { localStorage.removeItem('jc-theme'); location.reload(); },
+  });
 }
 
 function toast(msg, levelUp = false) {
@@ -1848,6 +2129,8 @@ function renderDocs() {
 }
 
 /* ============== go ============== */
+if (localStorage.getItem('jc-theme') === 'dark') document.body.classList.add('dark-theme');
+
 boot().catch(err => {
   $('#view').innerHTML = `<div class="card panel" style="margin:40px auto;text-align:center"><h3>Erro ao carregar Jobcraft</h3><p>${escapeHtml(err.message)}</p></div>`;
   console.error(err);
