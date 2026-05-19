@@ -47,10 +47,18 @@ async function fetchJSON(path) {
 }
 
 /* ============== bootstrap ============== */
+async function loadCourses() {
+  try {
+    const res = await fetchJSON('/api/courses');
+    if (res.ok && Array.isArray(res.courses) && res.courses.length > 0) return res.courses;
+  } catch {}
+  return fetchJSON('/data/courses.json');
+}
+
 async function boot() {
   const [user, courses, certs, achievements, leaderboard, quests] = await Promise.all([
     fetchJSON('/data/user.json'),
-    fetchJSON('/data/courses.json'),
+    loadCourses(),
     fetchJSON('/data/certifications.json'),
     fetchJSON('/data/achievements.json'),
     fetchJSON('/data/leaderboard.json'),
@@ -1393,17 +1401,29 @@ function renderCourses() {
       const course = store.courses.find(c => c.id === btn.dataset.courseId);
       if (!course) return;
       if (course.progress === 100) {
+        const skills = course.skills || course.tags || [];
         openModal(`Certificado — ${course.title}`, `
           <div style="text-align:center;padding:16px 0">
             <div style="font-size:44px;margin-bottom:12px">🏆</div>
             <div style="font-weight:700;font-size:16px;margin-bottom:6px">${escapeHtml(course.title)}</div>
-            <div style="color:var(--text-mut);font-size:13px;margin-bottom:14px">${escapeHtml(course.provider)} · ${course.hours}h · ${course.modules} módulos</div>
+            <div style="color:var(--text-mut);font-size:13px;margin-bottom:14px">${escapeHtml(course.provider || '')}${course.hours ? ` · ${course.hours}h` : ''}${course.modules ? ` · ${course.modules} módulos` : ''}</div>
             <div style="display:flex;justify-content:center;gap:6px;flex-wrap:wrap;margin-bottom:14px">
-              ${course.skills.map(s => `<span class="chip">${escapeHtml(s)}</span>`).join('')}
+              ${skills.map(s => `<span class="chip">${escapeHtml(s)}</span>`).join('')}
             </div>
             <div style="color:var(--success);font-weight:600">✓ Curso concluído com sucesso!</div>
+            ${course.url ? `<a href="${escapeHtml(course.url)}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" style="margin-top:12px">Acessar curso <i data-lucide="external-link" style="width:12px;height:12px"></i></a>` : ''}
           </div>
         `, { showCancel: false });
+      } else if (course.url) {
+        // Real external course — open in new tab, mark as started if first access
+        window.open(course.url, '_blank', 'noopener');
+        if (course.progress === 0) {
+          course.progress = 10;
+          const xpGain = Math.round((course.xp || 60) * 0.10);
+          addXP(xpGain, 'course');
+          toast(`+${xpGain} XP — curso iniciado! Continue pelo link aberto.`);
+          renderCourses();
+        }
       } else {
         const isStart = course.progress === 0;
         course.progress = Math.min(100, course.progress + 10);
@@ -1417,34 +1437,53 @@ function renderCourses() {
   });
 }
 
+const SOURCE_BADGE = {
+  youtube:      { label: 'YT',  color: '#FF0000' },
+  coursera:     { label: 'CO',  color: '#0056D2' },
+  devto:        { label: 'DEV', color: '#3D3D3D' },
+  freecodecamp: { label: 'FCC', color: '#0A0A23' },
+};
+
 function courseCard(c) {
-  const chunks = 12;
-  const filled = Math.round((c.progress / 100) * chunks);
+  const chunks  = 12;
+  const filled  = Math.round((c.progress / 100) * chunks);
+  const tier    = c.tier || 'bronze';
+  const srcBadge = SOURCE_BADGE[c.source];
+  const skills  = c.skills || c.tags || [];
+  const metaParts = [
+    c.provider ? escapeHtml(c.provider) : null,
+    c.modules  ? `${c.modules} módulos` : null,
+    c.hours    ? `${c.hours}h` : null,
+    c.students ? `${fmt(c.students)} alunos` : null,
+    c.rating   ? `★ ${c.rating}` : null,
+  ].filter(Boolean);
+  const btnLabel = c.progress === 0 ? 'Começar' : c.progress === 100 ? 'Ver certificado' : 'Continuar';
   return `
     <article class="course-card" data-id="${c.id}">
-      <div class="course-cover" style="--c1:${c.color};--c2:${shade(c.color, -25)}">
-        <span class="tier tier-${c.tier}">${c.tier.toUpperCase()}</span>
+      <div class="course-cover" style="--c1:${c.color || '#5B4FB3'};--c2:${shade(c.color || '#5B4FB3', -25)}">
+        <span class="tier tier-${tier}">${tier.toUpperCase()}</span>
+        ${srcBadge ? `<span class="course-src-badge" style="background:${srcBadge.color}">${srcBadge.label}</span>` : ''}
         <i data-lucide="${courseIcon(c.icon)}"></i>
       </div>
       <div class="course-body">
         <div class="meta">
-          <span><i data-lucide="layers" style="width:12px;height:12px"></i>${escapeHtml(c.track)}</span>
+          <span><i data-lucide="layers" style="width:12px;height:12px"></i>${escapeHtml(c.track || 'Tech')}</span>
           <span>·</span>
-          <span>${escapeHtml(c.level)}</span>
-          <span>·</span>
-          <span>★ ${c.rating}</span>
+          <span>${escapeHtml(c.level || 'Variado')}</span>
+          ${c.certificate ? `<span>·</span><span style="color:var(--success)">🎓 Cert</span>` : ''}
+          ${c.language === 'en' ? `<span>·</span><span style="color:var(--text-mut)">EN</span>` : ''}
         </div>
         <div class="title">${escapeHtml(c.title)}</div>
-        <div class="meta">${escapeHtml(c.provider)} · ${c.modules} módulos · ${c.hours}h · ${fmt(c.students)} alunos</div>
+        ${metaParts.length ? `<div class="meta">${metaParts.join(' · ')}</div>` : ''}
         <div class="skills">
-          ${c.skills.map(s => `<span class="chip">${escapeHtml(s)}</span>`).join('')}
+          ${skills.slice(0, 4).map(s => `<span class="chip">${escapeHtml(s)}</span>`).join('')}
         </div>
         <div class="pxbar" title="${c.progress}% concluído">
           ${Array.from({length: chunks}, (_,i) => `<span class="chunk ${i < filled ? 'on' : ''}"></span>`).join('')}
         </div>
         <div class="course-foot">
-          <span class="xp-tag"><i data-lucide="zap" style="width:10px;height:10px"></i>+${c.xp} XP</span>
-          <button class="btn btn-primary btn-sm" data-course-id="${c.id}">${c.progress === 0 ? 'Começar' : c.progress === 100 ? 'Ver certificado' : 'Continuar'}</button>
+          <span class="xp-tag"><i data-lucide="zap" style="width:10px;height:10px"></i>+${c.xp || 0} XP</span>
+          <button class="btn btn-primary btn-sm" data-course-id="${c.id}">${btnLabel}</button>
         </div>
       </div>
     </article>

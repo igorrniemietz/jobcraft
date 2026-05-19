@@ -4,9 +4,10 @@ const http      = require('http');
 const fs        = require('fs');
 const path      = require('path');
 const url       = require('url');
-const store     = require('./src/jobStore');
-const userStore = require('./src/userStore');
-const scheduler = require('./src/scheduler');
+const store       = require('./src/jobStore');
+const userStore   = require('./src/userStore');
+const courseStore = require('./src/courseStore');
+const scheduler   = require('./src/scheduler');
 
 const PORT = process.env.PORT || 8080;
 const ROOT = path.join(__dirname, 'public');
@@ -87,6 +88,17 @@ const server = http.createServer(async (req, res) => {
   if (pathname === '/api/jobs/sync' && req.method === 'POST') {
     scheduler.syncAll().catch(console.error);
     return sendJSON(res, { ok: true, message: 'sync iniciado em background' });
+  }
+
+  /* GET /api/courses — cursos agregados de todas as fontes */
+  if (pathname === '/api/courses') {
+    const qs = new URLSearchParams(parsed.query || '');
+    const filters = {};
+    if (qs.get('source'))   filters.source   = qs.get('source');
+    if (qs.get('track'))    filters.track    = qs.get('track');
+    if (qs.get('language')) filters.language = qs.get('language');
+    const courses = courseStore.getAll(filters);
+    return sendJSON(res, { ok: true, count: courses.length, courses });
   }
 
   /* GET /api/saved — IDs das vagas salvas */
