@@ -1,5 +1,14 @@
 /* Jobcraft — SPA bootstrap */
 
+/* ============== localStorage helpers ============== */
+const LS = { profile: 'jc-profile', saved: 'jc-saved', apps: 'jc-apps' };
+function lsGet(key, def) {
+  try { return JSON.parse(localStorage.getItem(key)) ?? def; } catch { return def; }
+}
+function lsSet(key, val) {
+  try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
+}
+
 const store = {
   user: null,
   jobs: [],
@@ -67,7 +76,7 @@ async function boot() {
   ]);
   Object.assign(store, { user, jobs: [], courses, certs, achievements, leaderboard, quests });
 
-  await loadProfile();
+  loadProfile();
   paintUser();
   bindShell();
   bindRightPanel();
@@ -79,53 +88,47 @@ async function boot() {
   loadRealJobs();
 }
 
-async function loadProfile() {
-  try {
-    const res = await fetch('/api/profile');
-    if (!res.ok) return;
-    const data = await res.json();
-    if (data.ok && data.profile) {
-      const p = data.profile;
-      if (p.xp       !== undefined) store.user.xp       = p.xp;
-      if (p.level    !== undefined) store.user.level    = p.level;
-      if (p.xpNext   !== undefined) store.user.xpNext   = p.xpNext;
-      if (p.coins    !== undefined) store.user.coins    = p.coins;
-      if (p.streak   !== undefined) store.user.streak   = p.streak;
-      store.user.activities = p.activities || [];
-    }
-  } catch (e) { /* use user.json defaults */ }
+function loadProfile() {
+  const p = lsGet(LS.profile, {});
+  if (p.xp       !== undefined) store.user.xp       = p.xp;
+  if (p.level    !== undefined) store.user.level    = p.level;
+  if (p.xpNext   !== undefined) store.user.xpNext   = p.xpNext;
+  if (p.coins    !== undefined) store.user.coins    = p.coins;
+  if (p.streak   !== undefined) store.user.streak   = p.streak;
+  if (p.lastActivity)           store.user.lastActivity = p.lastActivity;
+  store.user.activities = p.activities || [];
 }
 
 async function loadRealJobs() {
   store.ui.realJobsStatus = 'loading';
   if (store.ui.route === '#/jobs') updateJobResults();
   try {
-    const res  = await fetch('/api/jobs');
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const res = await fetch('/api/jobs');
+    const ct  = res.headers.get('content-type') || '';
+    if (!res.ok || !ct.includes('json')) throw new Error('sem API');
     const data = await res.json();
     if (data.ok && Array.isArray(data.jobs)) {
       store.jobs = data.jobs;
       store.ui.realJobsStatus = data.jobs.length === 0 ? 'empty' : 'ok';
-    } else {
-      throw new Error('resposta inválida');
+    } else { throw new Error('resposta inválida'); }
+  } catch {
+    // fallback para arquivo estático (Vercel / sem servidor)
+    try {
+      const data = await fetchJSON('/data/jobs.json');
+      const jobs = Array.isArray(data) ? data : (data.jobs || []);
+      store.jobs = jobs;
+      store.ui.realJobsStatus = jobs.length === 0 ? 'empty' : 'ok';
+    } catch (e) {
+      console.error('[loadRealJobs]', e.message);
+      store.ui.realJobsStatus = 'error';
     }
-  } catch (e) {
-    console.error('[loadRealJobs]', e.message);
-    store.ui.realJobsStatus = 'error';
   }
   if (store.ui.route === '#/jobs') updateJobResults();
 }
 
-async function loadApplications() {
-  try {
-    const res = await fetch('/api/applications');
-    if (!res.ok) return;
-    const data = await res.json();
-    if (data.ok) {
-      store.applications = data.applications || {};
-      updateKanbanBadge();
-    }
-  } catch (e) { /* offline */ }
+function loadApplications() {
+  store.applications = lsGet(LS.apps, {});
+  updateKanbanBadge();
 }
 
 function updateKanbanBadge() {
@@ -136,89 +139,55 @@ function updateKanbanBadge() {
   badge.style.display = count > 0 ? '' : 'none';
 }
 
-async function applyToJob(jobId, btn) {
-  const already = store.applications[jobId];
-  if (already) { location.hash = '#/kanban'; return; }
-  store.applications[jobId] = { stage: 'applied', appliedAt: Date.now(), updatedAt: Date.now() };
+function applyToJob(jobId, btn) {
+  if (store.applications[jobId]) { location.hash = '#/kanban'; return; }
+  const now = Date.now();
+  store.applications[jobId] = { stage: 'applied', appliedAt: now, updatedAt: now };
+  lsSet(LS.apps, store.applications);
   updateKanbanBadge();
   if (btn) { btn.textContent = 'Candidatado ✓'; btn.disabled = true; }
-  try {
-    const res  = await fetch(`/api/applications/${encodeURIComponent(jobId)}`, { method: 'POST' });
-    const data = await res.json();
-    if (data.ok) {
-      store.applications[jobId] = { stage: data.stage, appliedAt: data.appliedAt, updatedAt: data.updatedAt };
-      addXP(50, 'apply');
-      toast('+50 XP — candidatura registrada!');
-    }
-  } catch (e) {
-    delete store.applications[jobId];
-    updateKanbanBadge();
-    if (btn) { btn.textContent = 'Candidatar'; btn.disabled = false; }
-  }
+  addXP(50, 'apply');
+  toast('+50 XP — candidatura registrada!');
 }
 
-async function updateApplicationStage(jobId, stage) {
+function updateApplicationStage(jobId, stage) {
   if (!store.applications[jobId]) return;
   const prev = store.applications[jobId].stage;
   store.applications[jobId] = { ...store.applications[jobId], stage, updatedAt: Date.now() };
+  lsSet(LS.apps, store.applications);
   renderKanban();
-
   const XP_BY_STAGE = { interview: 150, offer: 500 };
   if (XP_BY_STAGE[stage] && prev !== stage) {
     addXP(XP_BY_STAGE[stage], stage);
     toast(`+${XP_BY_STAGE[stage]} XP — ${stage === 'interview' ? 'entrevista marcada' : 'oferta recebida'}! 🎉`);
   }
-
-  try {
-    await fetch(`/api/applications/${encodeURIComponent(jobId)}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ stage }),
-    });
-  } catch (e) { /* silencioso */ }
 }
 
-async function removeApplication(jobId) {
+function removeApplication(jobId) {
   delete store.applications[jobId];
+  lsSet(LS.apps, store.applications);
   updateKanbanBadge();
   renderKanban();
-  try { await fetch(`/api/applications/${encodeURIComponent(jobId)}`, { method: 'DELETE' }); }
-  catch (e) { /* silencioso */ }
 }
 
-async function loadSavedJobs() {
-  try {
-    const res = await fetch('/api/saved');
-    if (!res.ok) return;
-    const data = await res.json();
-    if (data.ok) store.savedJobs = data.saved || {};
-  } catch (e) { /* offline — silencioso */ }
+function loadSavedJobs() {
+  store.savedJobs = lsGet(LS.saved, {});
 }
 
-async function toggleSaveJob(jobId, btn) {
+function toggleSaveJob(jobId, btn) {
   const wasSaved = !!store.savedJobs[jobId];
-  store.savedJobs[jobId] = wasSaved ? undefined : Date.now();
-  if (!store.savedJobs[jobId]) delete store.savedJobs[jobId];
+  if (wasSaved) {
+    delete store.savedJobs[jobId];
+  } else {
+    store.savedJobs[jobId] = Date.now();
+    addXP(10, 'save');
+    toast('+10 XP — missão salva!');
+  }
+  lsSet(LS.saved, store.savedJobs);
   if (btn) {
     btn.classList.toggle('saved', !wasSaved);
     btn.title = wasSaved ? 'Guardar missão' : 'Missão guardada';
-  }
-  try {
-    const res  = await fetch(`/api/saved/${encodeURIComponent(jobId)}`, { method: 'POST' });
-    const data = await res.json();
-    if (!data.ok) throw new Error('falhou');
-    if (data.saved) {
-      store.savedJobs[jobId] = data.savedAt;
-      addXP(10, 'save');
-      toast('+10 XP — missão salva!');
-    } else {
-      delete store.savedJobs[jobId];
-    }
-    if (btn) btn.classList.toggle('saved', !!store.savedJobs[jobId]);
-  } catch (e) {
-    if (wasSaved) store.savedJobs[jobId] = Date.now();
-    else delete store.savedJobs[jobId];
-    if (btn) btn.classList.toggle('saved', wasSaved);
+    btn.textContent = wasSaved ? '◇' : '⚔';
   }
 }
 
@@ -1705,7 +1674,7 @@ function renderProfile() {
       <div class="tl"><div class="tld"><i data-lucide="${activityIcon(a.type)}"></i></div>
         <div>
           <div class="ttitle">${escapeHtml(activityLabel(a.type))}</div>
-          <div class="tdate">${new Date(a.ts).toLocaleDateString('pt-BR', { day:'2-digit', month:'short', year:'numeric' })} · +${a.amount} XP</div>
+          <div class="tdate">${new Date(a.ts).toLocaleDateString('pt-BR', { day:'2-digit', month:'short', year:'numeric' })} · +${a.xp} XP</div>
         </div>
       </div>`).join('')
     : `<p style="color:var(--text-mut);font-size:13px">Realize ações na plataforma para ver sua linha do tempo.</p>`;
@@ -1833,31 +1802,40 @@ function renderProfile() {
 /* ============== XP / Toast ============== */
 function addXP(amount, action = 'misc') {
   const u = store.user;
+
+  // streak
+  const todayStr = new Date().toISOString().slice(0, 10);
+  if (u.lastActivity) {
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    if (u.lastActivity !== todayStr && u.lastActivity !== yesterday) u.streak = 1;
+    else if (u.lastActivity === yesterday) u.streak = (u.streak || 0) + 1;
+  } else { u.streak = 1; }
+  u.lastActivity = todayStr;
+
   u.xp += amount;
+  u.coins = (u.coins || 0) + Math.floor(amount / 10);
   let leveledUp = false;
   const prevLevel = u.level;
   while (u.xp >= u.xpNext) {
     u.xp -= u.xpNext;
     u.level += 1;
     u.xpNext = Math.round(u.xpNext * 1.25);
-    u.coins  = (u.coins || 0) + 100;
+    u.coins += 100;
     leveledUp = true;
   }
-  u.coins = (u.coins || 0) + Math.floor(amount / 10);
+
+  u.activities = u.activities || [];
+  u.activities.unshift({ type: action, xp: amount, ts: Date.now() });
+  if (u.activities.length > 90) u.activities = u.activities.slice(0, 90);
+
+  lsSet(LS.profile, {
+    xp: u.xp, level: u.level, xpNext: u.xpNext, coins: u.coins,
+    streak: u.streak, lastActivity: u.lastActivity, activities: u.activities,
+  });
+
   paintUser();
   if (leveledUp) toast(`LEVEL UP! Lv ${prevLevel} → Lv ${u.level}`, true);
   checkAchievements();
-
-  fetch('/api/profile/xp', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action, amount }),
-  }).then(r => r.json()).then(d => {
-    if (d.ok) {
-      store.user.streak = d.streak;
-      paintUser();
-    }
-  }).catch(() => {});
 }
 
 function openModal(title, bodyHtml, opts = {}) {
