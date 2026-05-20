@@ -1,5 +1,14 @@
 /* Jobcraft — SPA bootstrap */
 
+/* ============== localStorage helpers ============== */
+const LS = { profile: 'jc-profile', saved: 'jc-saved', apps: 'jc-apps' };
+function lsGet(key, def) {
+  try { return JSON.parse(localStorage.getItem(key)) ?? def; } catch { return def; }
+}
+function lsSet(key, val) {
+  try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
+}
+
 const store = {
   user: null,
   jobs: [],
@@ -17,6 +26,8 @@ const store = {
     rpTab: 'missoes',
     rpVoucher: false,
     rpLastQuery: '',
+    courseTrack: 'todos',
+    courseLang: 'pt',
   }
 };
 
@@ -46,10 +57,18 @@ async function fetchJSON(path) {
 }
 
 /* ============== bootstrap ============== */
+async function loadCourses() {
+  try {
+    const res = await fetchJSON('/api/courses');
+    if (res.ok && Array.isArray(res.courses) && res.courses.length > 0) return res.courses;
+  } catch {}
+  return fetchJSON('/data/courses.json');
+}
+
 async function boot() {
   const [user, courses, certs, achievements, leaderboard, quests] = await Promise.all([
     fetchJSON('/data/user.json'),
-    fetchJSON('/data/courses.json'),
+    loadCourses(),
     fetchJSON('/data/certifications.json'),
     fetchJSON('/data/achievements.json'),
     fetchJSON('/data/leaderboard.json'),
@@ -57,7 +76,7 @@ async function boot() {
   ]);
   Object.assign(store, { user, jobs: [], courses, certs, achievements, leaderboard, quests });
 
-  await loadProfile();
+  loadProfile();
   paintUser();
   bindShell();
   bindRightPanel();
@@ -69,53 +88,47 @@ async function boot() {
   loadRealJobs();
 }
 
-async function loadProfile() {
-  try {
-    const res = await fetch('/api/profile');
-    if (!res.ok) return;
-    const data = await res.json();
-    if (data.ok && data.profile) {
-      const p = data.profile;
-      if (p.xp       !== undefined) store.user.xp       = p.xp;
-      if (p.level    !== undefined) store.user.level    = p.level;
-      if (p.xpNext   !== undefined) store.user.xpNext   = p.xpNext;
-      if (p.coins    !== undefined) store.user.coins    = p.coins;
-      if (p.streak   !== undefined) store.user.streak   = p.streak;
-      store.user.activities = p.activities || [];
-    }
-  } catch (e) { /* use user.json defaults */ }
+function loadProfile() {
+  const p = lsGet(LS.profile, {});
+  if (p.xp       !== undefined) store.user.xp       = p.xp;
+  if (p.level    !== undefined) store.user.level    = p.level;
+  if (p.xpNext   !== undefined) store.user.xpNext   = p.xpNext;
+  if (p.coins    !== undefined) store.user.coins    = p.coins;
+  if (p.streak   !== undefined) store.user.streak   = p.streak;
+  if (p.lastActivity)           store.user.lastActivity = p.lastActivity;
+  store.user.activities = p.activities || [];
 }
 
 async function loadRealJobs() {
   store.ui.realJobsStatus = 'loading';
   if (store.ui.route === '#/jobs') updateJobResults();
   try {
-    const res  = await fetch('/api/jobs');
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const res = await fetch('/api/jobs');
+    const ct  = res.headers.get('content-type') || '';
+    if (!res.ok || !ct.includes('json')) throw new Error('sem API');
     const data = await res.json();
     if (data.ok && Array.isArray(data.jobs)) {
       store.jobs = data.jobs;
       store.ui.realJobsStatus = data.jobs.length === 0 ? 'empty' : 'ok';
-    } else {
-      throw new Error('resposta inválida');
+    } else { throw new Error('resposta inválida'); }
+  } catch {
+    // fallback para arquivo estático (Vercel / sem servidor)
+    try {
+      const data = await fetchJSON('/data/jobs.json');
+      const jobs = Array.isArray(data) ? data : (data.jobs || []);
+      store.jobs = jobs;
+      store.ui.realJobsStatus = jobs.length === 0 ? 'empty' : 'ok';
+    } catch (e) {
+      console.error('[loadRealJobs]', e.message);
+      store.ui.realJobsStatus = 'error';
     }
-  } catch (e) {
-    console.error('[loadRealJobs]', e.message);
-    store.ui.realJobsStatus = 'error';
   }
   if (store.ui.route === '#/jobs') updateJobResults();
 }
 
-async function loadApplications() {
-  try {
-    const res = await fetch('/api/applications');
-    if (!res.ok) return;
-    const data = await res.json();
-    if (data.ok) {
-      store.applications = data.applications || {};
-      updateKanbanBadge();
-    }
-  } catch (e) { /* offline */ }
+function loadApplications() {
+  store.applications = lsGet(LS.apps, {});
+  updateKanbanBadge();
 }
 
 function updateKanbanBadge() {
@@ -126,89 +139,55 @@ function updateKanbanBadge() {
   badge.style.display = count > 0 ? '' : 'none';
 }
 
-async function applyToJob(jobId, btn) {
-  const already = store.applications[jobId];
-  if (already) { location.hash = '#/kanban'; return; }
-  store.applications[jobId] = { stage: 'applied', appliedAt: Date.now(), updatedAt: Date.now() };
+function applyToJob(jobId, btn) {
+  if (store.applications[jobId]) { location.hash = '#/kanban'; return; }
+  const now = Date.now();
+  store.applications[jobId] = { stage: 'applied', appliedAt: now, updatedAt: now };
+  lsSet(LS.apps, store.applications);
   updateKanbanBadge();
   if (btn) { btn.textContent = 'Candidatado ✓'; btn.disabled = true; }
-  try {
-    const res  = await fetch(`/api/applications/${encodeURIComponent(jobId)}`, { method: 'POST' });
-    const data = await res.json();
-    if (data.ok) {
-      store.applications[jobId] = { stage: data.stage, appliedAt: data.appliedAt, updatedAt: data.updatedAt };
-      addXP(50, 'apply');
-      toast('+50 XP — candidatura registrada!');
-    }
-  } catch (e) {
-    delete store.applications[jobId];
-    updateKanbanBadge();
-    if (btn) { btn.textContent = 'Candidatar'; btn.disabled = false; }
-  }
+  addXP(50, 'apply');
+  toast('+50 XP — candidatura registrada!');
 }
 
-async function updateApplicationStage(jobId, stage) {
+function updateApplicationStage(jobId, stage) {
   if (!store.applications[jobId]) return;
   const prev = store.applications[jobId].stage;
   store.applications[jobId] = { ...store.applications[jobId], stage, updatedAt: Date.now() };
+  lsSet(LS.apps, store.applications);
   renderKanban();
-
   const XP_BY_STAGE = { interview: 150, offer: 500 };
   if (XP_BY_STAGE[stage] && prev !== stage) {
     addXP(XP_BY_STAGE[stage], stage);
     toast(`+${XP_BY_STAGE[stage]} XP — ${stage === 'interview' ? 'entrevista marcada' : 'oferta recebida'}! 🎉`);
   }
-
-  try {
-    await fetch(`/api/applications/${encodeURIComponent(jobId)}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ stage }),
-    });
-  } catch (e) { /* silencioso */ }
 }
 
-async function removeApplication(jobId) {
+function removeApplication(jobId) {
   delete store.applications[jobId];
+  lsSet(LS.apps, store.applications);
   updateKanbanBadge();
   renderKanban();
-  try { await fetch(`/api/applications/${encodeURIComponent(jobId)}`, { method: 'DELETE' }); }
-  catch (e) { /* silencioso */ }
 }
 
-async function loadSavedJobs() {
-  try {
-    const res = await fetch('/api/saved');
-    if (!res.ok) return;
-    const data = await res.json();
-    if (data.ok) store.savedJobs = data.saved || {};
-  } catch (e) { /* offline — silencioso */ }
+function loadSavedJobs() {
+  store.savedJobs = lsGet(LS.saved, {});
 }
 
-async function toggleSaveJob(jobId, btn) {
+function toggleSaveJob(jobId, btn) {
   const wasSaved = !!store.savedJobs[jobId];
-  store.savedJobs[jobId] = wasSaved ? undefined : Date.now();
-  if (!store.savedJobs[jobId]) delete store.savedJobs[jobId];
+  if (wasSaved) {
+    delete store.savedJobs[jobId];
+  } else {
+    store.savedJobs[jobId] = Date.now();
+    addXP(10, 'save');
+    toast('+10 XP — missão salva!');
+  }
+  lsSet(LS.saved, store.savedJobs);
   if (btn) {
     btn.classList.toggle('saved', !wasSaved);
     btn.title = wasSaved ? 'Guardar missão' : 'Missão guardada';
-  }
-  try {
-    const res  = await fetch(`/api/saved/${encodeURIComponent(jobId)}`, { method: 'POST' });
-    const data = await res.json();
-    if (!data.ok) throw new Error('falhou');
-    if (data.saved) {
-      store.savedJobs[jobId] = data.savedAt;
-      addXP(10, 'save');
-      toast('+10 XP — missão salva!');
-    } else {
-      delete store.savedJobs[jobId];
-    }
-    if (btn) btn.classList.toggle('saved', !!store.savedJobs[jobId]);
-  } catch (e) {
-    if (wasSaved) store.savedJobs[jobId] = Date.now();
-    else delete store.savedJobs[jobId];
-    if (btn) btn.classList.toggle('saved', wasSaved);
+    btn.textContent = wasSaved ? '◇' : '⚔';
   }
 }
 
@@ -222,7 +201,7 @@ function paintUser() {
   $('#user-level').textContent = u.level;
   $('#hud-level-num').textContent = u.level;
   $('#hud-xp-label').textContent = `${fmt(u.xp)}/${fmt(u.xpNext)}`;
-  $('#hud-pts').textContent = `${fmt(u.coins)} pts`;
+  $('#hud-pts').textContent = fmt(u.coins);
 
   requestAnimationFrame(() => {
     $('#hud-xp-fill').style.width = `${pct}%`;
@@ -249,6 +228,27 @@ function bindShell() {
     $('#user-menu').classList.toggle('open');
   });
   document.addEventListener('click', () => $('#user-menu').classList.remove('open'));
+
+  $('#user-menu').addEventListener('click', e => {
+    e.stopPropagation();
+    const a = e.target.closest('[data-action]');
+    if (!a) return;
+    const action = a.dataset.action;
+    if (action === 'profile')  { location.hash = '#/profile'; }
+    if (action === 'theme')    { toggleDarkTheme(); }
+    if (action === 'logout')   { logout(); }
+    $('#user-menu').classList.remove('open');
+  });
+
+  $$('.nav-item.ghost[data-action]').forEach(el => {
+    el.addEventListener('click', e => {
+      e.preventDefault();
+      const action = el.dataset.action;
+      if (action === 'mensagens')     openMensagensModal();
+      if (action === 'configuracoes') openConfiguracoesModal();
+      if (action === 'ajuda')         location.hash = '#/docs';
+    });
+  });
 }
 
 function bindRightPanel() {
@@ -657,19 +657,22 @@ function renderJobsPage() {
               ${filterBtns('dateFilter', [['all','Todas'],['1d','Hoje'],['7d','7 dias'],['30d','30 dias']])}
             </div>
           </div>
-          <div class="filter-toggle-row">
-            <button class="filter-toggle-btn ${s.areaFilter ? 'has-active' : ''}"
-                    id="ftb-area" data-panel="fpl-area" type="button">
-              <span class="ftb-icon">${s.areaFilter ? '●' : '+'}</span>
-              <span class="ftb-label">${s.areaFilter ? (AREA_BTN_LABELS[s.areaFilter] || 'TI') : 'TI'}</span>
-              ${s.areaFilter ? `<span class="ftb-x" data-clearfilter="areaFilter">×</span>` : ''}
-            </button>
-            <button class="filter-toggle-btn ${s.specialty ? 'has-active' : ''}"
-                    id="ftb-security" data-panel="fpl-security" type="button">
-              <span class="ftb-icon">${s.specialty ? '●' : '+'}</span>
-              <span class="ftb-label">${s.specialty ? (SPEC_BTN_LABELS[s.specialty] || 'Segurança') : 'Segurança'}</span>
-              ${s.specialty ? `<span class="ftb-x" data-clearfilter="specialty">×</span>` : ''}
-            </button>
+          <div class="inline-filter-row">
+            <span class="inline-filter-label">Área:</span>
+            <div class="inline-filter-opts">
+              <button class="filter-toggle-btn ${s.areaFilter ? 'has-active' : ''}"
+                      id="ftb-area" data-panel="fpl-area" type="button">
+                <span class="ftb-icon">${s.areaFilter ? '●' : '+'}</span>
+                <span class="ftb-label">${s.areaFilter ? (AREA_BTN_LABELS[s.areaFilter] || 'TI') : 'TI'}</span>
+                ${s.areaFilter ? `<span class="ftb-x" data-clearfilter="areaFilter">×</span>` : ''}
+              </button>
+              <button class="filter-toggle-btn ${s.specialty ? 'has-active' : ''}"
+                      id="ftb-security" data-panel="fpl-security" type="button">
+                <span class="ftb-icon">${s.specialty ? '●' : '+'}</span>
+                <span class="ftb-label">${s.specialty ? (SPEC_BTN_LABELS[s.specialty] || 'Segurança') : 'Segurança'}</span>
+                ${s.specialty ? `<span class="ftb-x" data-clearfilter="specialty">×</span>` : ''}
+              </button>
+            </div>
           </div>
           <div class="filter-expand-panel" id="fpl-area"
                style="display:${s.areaFilter ? 'flex' : 'none'}">
@@ -684,6 +687,12 @@ function renderJobsPage() {
               ['cloud',     'Cloud'],
               ['arqtech',   'Arquitetura'],
               ['qa',        'QA / Testes'],
+              ['ux',        'Produto / UX'],
+              ['bi',        'BI / Analytics'],
+              ['infra',     'Infra / Redes'],
+              ['dba',       'DBA'],
+              ['suporte',   'Suporte'],
+              ['games',     'Games'],
             ])}
           </div>
           <div class="filter-expand-panel" id="fpl-security"
@@ -697,15 +706,13 @@ function renderJobsPage() {
               ['cloudsec','Cloud Security'],
             ])}
           </div>
-          <div class="inline-filter-row filter-row-wide">
-            <label class="toggle-expired-label">
-              <input type="checkbox" id="ms-hide-expired" ${s.hideExpired ? 'checked' : ''}>
-              <span>Ocultar vagas encerradas</span>
-            </label>
-          </div>
         </div>
 
         <div class="mission-footer">
+          <label class="toggle-expired-label">
+            <input type="checkbox" id="ms-hide-expired" ${s.hideExpired ? 'checked' : ''}>
+            <span>Ocultar vagas encerradas</span>
+          </label>
           <div class="mission-actions" style="margin-left:auto">
             <button class="btn-clear" id="ms-clear" type="button">Limpar</button>
             <button class="btn-search" id="ms-search" type="button">
@@ -850,6 +857,12 @@ function filterJobs() {
       cloud:    ['cloud','aws','azure','gcp','google cloud','nuvem','s3','ec2','lambda','cloud architect','serverless','multicloud'],
       arqtech:  ['arquiteto','architect','tech lead','líder técnico','principal engineer','staff engineer','engineering manager','solution architect','sistema distribuído'],
       qa:       ['qa','quality assurance','teste','tester','automação de teste','selenium','cypress','playwright','jest','pytest','bdd','tdd','controle de qualidade','sdet'],
+      ux:       ['ux designer','ui designer','product designer','product manager','product owner','ux researcher','figma','design system','experiência do usuário','designer de produto','protótipo'],
+      bi:       ['business intelligence','bi','tableau','power bi','qlik','looker','analytics','relatório gerencial','dashboard','dados de negócio','analista de dados de negócio'],
+      infra:    ['infraestrutura','redes','sysadmin','linux admin','windows server','firewall','network engineer','vpn','active directory','administrador de redes','administrador de sistemas'],
+      dba:      ['dba','database administrator','postgresql','mysql','oracle database','sql server','mongodb','banco de dados','administrador de banco','tuning de banco'],
+      suporte:  ['suporte técnico','help desk','service desk','n1','n2','n3','atendimento técnico','técnico de informática','field service','suporte de campo','assistência técnica'],
+      games:    ['game developer','unity','unreal engine','game design','mobile game','jogos','gameplay programmer','desenvolvedor de jogos','engine de jogo'],
       // Segurança
       soc:      ['soc','blue team','siem','splunk','incident response','threat hunt','dfir','forense','monitoramento de segurança'],
       pentest:  ['pentest','penetration test','red team','oscp','kali','metasploit','burp suite','exploit','ctf','ethical hack','teste de invasão'],
@@ -978,9 +991,11 @@ function jobCardV2(j, dynMatch) {
    ============================================================ */
 /* Labels curtos para os chips de filtro quando activos */
 const AREA_BTN_LABELS = {
-  backend:'Backend', frontend:'Frontend', fullstack:'Full Stack',
-  mobile:'Mobile', data:'Data / IA', devops:'DevOps / SRE',
-  cloud:'Cloud', arqtech:'Arquitetura', qa:'QA / Testes',
+  backend:'Backend',   frontend:'Frontend',   fullstack:'Full Stack',
+  mobile:'Mobile',     data:'Data / IA',      devops:'DevOps / SRE',
+  cloud:'Cloud',       arqtech:'Arquitetura', qa:'QA / Testes',
+  ux:'Produto / UX',  bi:'BI / Analytics',   infra:'Infra / Redes',
+  dba:'DBA',           suporte:'Suporte',     games:'Games',
 };
 const SPEC_BTN_LABELS = {
   soc:'SOC / Blue', pentest:'Pentest', grc:'GRC', appsec:'AppSec', cloudsec:'Cloud Sec',
@@ -1313,66 +1328,164 @@ function matchClass(m) {
 
 /* ============== Courses ============== */
 function renderCourses() {
-  const tracks = [...new Set(store.courses.map(c => c.track))];
+  const activeTrack = store.ui.courseTrack || 'todos';
+  const activeLang  = store.ui.courseLang  || 'pt';
+  const tracks      = [...new Set(store.courses.map(c => c.track))];
+
+  let all = activeLang === 'todos' ? store.courses : store.courses.filter(c => (c.language || 'pt') === activeLang);
+  if (activeTrack !== 'todos') all = all.filter(c => c.track === activeTrack);
+
+  const inProgress  = all.filter(c => c.progress > 0 && c.progress < 100);
+  const catalog     = all.filter(c => c.progress === 0 || c.progress === 100);
+
+  const langBtns = [
+    { val: 'pt',    label: '🇧🇷 Português' },
+    { val: 'en',    label: '🇺🇸 English' },
+    { val: 'todos', label: 'Todos' },
+  ].map(l => `<button class="filter-pill ${activeLang === l.val ? 'active' : ''}" data-lang="${l.val}">${l.label}</button>`).join('');
+
   $('#view').innerHTML = `
     <div class="section-title" style="margin-top:0">
       <div>
         <h2>Cursos Gamificados</h2>
-        <small>${store.courses.length} cursos em Tech & Segurança · ganhe XP, suba de nível e desbloqueie badges</small>
+        <small>${store.courses.length} cursos em Tech &amp; Segurança · ganhe XP, suba de nível e desbloqueie badges</small>
       </div>
       <div style="display:flex;gap:8px">
-        <button class="btn btn-ghost"><i data-lucide="filter"></i>Filtrar</button>
-        <button class="btn btn-primary"><i data-lucide="sparkles"></i>Recomendado para mim</button>
+        <button class="btn btn-ghost" id="btn-course-reset"><i data-lucide="list"></i>Todos</button>
+        <button class="btn btn-primary" id="btn-course-recom"><i data-lucide="sparkles"></i>Recomendado para mim</button>
       </div>
     </div>
 
     <div class="jobs-toolbar">
-      <div class="toolbar-filters">
-        <button class="filter-pill active">Todos</button>
-        ${tracks.map(t => `<button class="filter-pill">${escapeHtml(t)}</button>`).join('')}
+      <div class="toolbar-filters" style="gap:6px">
+        <span style="font-size:12px;color:var(--text-mut);margin-right:4px">Idioma:</span>
+        ${langBtns}
+        <span style="width:1px;background:var(--border);margin:0 6px;align-self:stretch"></span>
+        <button class="filter-pill ${activeTrack === 'todos' ? 'active' : ''}" data-track="todos">Trilha: Todas</button>
+        ${tracks.map(t => `<button class="filter-pill ${activeTrack === t ? 'active' : ''}" data-track="${escapeHtml(t)}">${escapeHtml(t)}</button>`).join('')}
       </div>
     </div>
 
-    <div class="section-title"><h3>Em andamento</h3><small>${store.courses.filter(c => c.progress > 0 && c.progress < 100).length} cursos</small></div>
-    <div class="courses-grid">
-      ${store.courses.filter(c => c.progress > 0 && c.progress < 100).map(courseCard).join('')}
-    </div>
+    ${inProgress.length > 0 ? `
+      <div class="section-title"><h3>Em andamento</h3><small>${inProgress.length} cursos</small></div>
+      <div class="courses-grid">${inProgress.map(courseCard).join('')}</div>
+    ` : ''}
 
-    <div class="section-title"><h3>Catálogo</h3><small>Tier Bronze, Prata, Ouro e Diamante</small></div>
-    <div class="courses-grid">
-      ${store.courses.filter(c => c.progress === 0 || c.progress === 100).map(courseCard).join('')}
-    </div>
+    ${catalog.length > 0 ? `
+      <div class="section-title"><h3>Catálogo</h3><small>Tier Bronze, Prata, Ouro e Diamante</small></div>
+      <div class="courses-grid">${catalog.map(courseCard).join('')}</div>
+    ` : ''}
+
+    ${all.length === 0 ? `<div class="card panel" style="text-align:center;color:var(--text-mut);padding:40px">Nenhum curso encontrado para este filtro.</div>` : ''}
   `;
+
+  if (window.lucide) lucide.createIcons();
+
+  $$('[data-lang]', $('#view')).forEach(btn => {
+    btn.addEventListener('click', () => { store.ui.courseLang = btn.dataset.lang; renderCourses(); });
+  });
+
+  $$('[data-track]', $('#view')).forEach(btn => {
+    btn.addEventListener('click', () => { store.ui.courseTrack = btn.dataset.track; renderCourses(); });
+  });
+
+  $('#btn-course-reset')?.addEventListener('click', () => { store.ui.courseTrack = 'todos'; store.ui.courseLang = 'pt'; renderCourses(); });
+
+  $('#btn-course-recom')?.addEventListener('click', () => {
+    const userTracks = (store.user.tracks || []).map(t => t.toLowerCase());
+    const match = tracks.find(t => userTracks.some(u => t.toLowerCase().split(/\s+/).some(w => u.includes(w))));
+    store.ui.courseTrack = match || 'todos';
+    renderCourses();
+  });
+
+  $$('[data-course-id]', $('#view')).forEach(btn => {
+    btn.addEventListener('click', () => {
+      const course = store.courses.find(c => c.id === btn.dataset.courseId);
+      if (!course) return;
+      if (course.progress === 100) {
+        const skills = course.skills || course.tags || [];
+        openModal(`Certificado — ${course.title}`, `
+          <div style="text-align:center;padding:16px 0">
+            <div style="font-size:44px;margin-bottom:12px">🏆</div>
+            <div style="font-weight:700;font-size:16px;margin-bottom:6px">${escapeHtml(course.title)}</div>
+            <div style="color:var(--text-mut);font-size:13px;margin-bottom:14px">${escapeHtml(course.provider || '')}${course.hours ? ` · ${course.hours}h` : ''}${course.modules ? ` · ${course.modules} módulos` : ''}</div>
+            <div style="display:flex;justify-content:center;gap:6px;flex-wrap:wrap;margin-bottom:14px">
+              ${skills.map(s => `<span class="chip">${escapeHtml(s)}</span>`).join('')}
+            </div>
+            <div style="color:var(--success);font-weight:600">✓ Curso concluído com sucesso!</div>
+            ${course.url ? `<a href="${escapeHtml(course.url)}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" style="margin-top:12px">Acessar curso <i data-lucide="external-link" style="width:12px;height:12px"></i></a>` : ''}
+          </div>
+        `, { showCancel: false });
+      } else if (course.url) {
+        // Real external course — open in new tab, mark as started if first access
+        window.open(course.url, '_blank', 'noopener');
+        if (course.progress === 0) {
+          course.progress = 10;
+          const xpGain = Math.round((course.xp || 60) * 0.10);
+          addXP(xpGain, 'course');
+          toast(`+${xpGain} XP — curso iniciado! Continue pelo link aberto.`);
+          renderCourses();
+        }
+      } else {
+        const isStart = course.progress === 0;
+        course.progress = Math.min(100, course.progress + 10);
+        const xpGain = course.progress === 100 ? course.xp : Math.round(course.xp * 0.10);
+        addXP(xpGain, 'course');
+        const verb = course.progress === 100 ? 'concluído' : isStart ? 'iniciado' : 'avançado';
+        toast(`+${xpGain} XP — curso ${verb}!`);
+        renderCourses();
+      }
+    });
+  });
 }
 
+const SOURCE_BADGE = {
+  youtube:      { label: 'YT',  color: '#FF0000' },
+  coursera:     { label: 'CO',  color: '#0056D2' },
+  devto:        { label: 'DEV', color: '#3D3D3D' },
+  freecodecamp: { label: 'FCC', color: '#0A0A23' },
+};
+
 function courseCard(c) {
-  const chunks = 12;
-  const filled = Math.round((c.progress / 100) * chunks);
+  const chunks  = 12;
+  const filled  = Math.round((c.progress / 100) * chunks);
+  const tier    = c.tier || 'bronze';
+  const srcBadge = SOURCE_BADGE[c.source];
+  const skills  = c.skills || c.tags || [];
+  const metaParts = [
+    c.provider ? escapeHtml(c.provider) : null,
+    c.modules  ? `${c.modules} módulos` : null,
+    c.hours    ? `${c.hours}h` : null,
+    c.students ? `${fmt(c.students)} alunos` : null,
+    c.rating   ? `★ ${c.rating}` : null,
+  ].filter(Boolean);
+  const btnLabel = c.progress === 0 ? 'Começar' : c.progress === 100 ? 'Ver certificado' : 'Continuar';
   return `
     <article class="course-card" data-id="${c.id}">
-      <div class="course-cover" style="--c1:${c.color};--c2:${shade(c.color, -25)}">
-        <span class="tier tier-${c.tier}">${c.tier.toUpperCase()}</span>
+      <div class="course-cover" style="--c1:${c.color || '#5B4FB3'};--c2:${shade(c.color || '#5B4FB3', -25)}">
+        <span class="tier tier-${tier}">${tier.toUpperCase()}</span>
+        ${srcBadge ? `<span class="course-src-badge" style="background:${srcBadge.color}">${srcBadge.label}</span>` : ''}
         <i data-lucide="${courseIcon(c.icon)}"></i>
       </div>
       <div class="course-body">
         <div class="meta">
-          <span><i data-lucide="layers" style="width:12px;height:12px"></i>${escapeHtml(c.track)}</span>
+          <span><i data-lucide="layers" style="width:12px;height:12px"></i>${escapeHtml(c.track || 'Tech')}</span>
           <span>·</span>
-          <span>${escapeHtml(c.level)}</span>
-          <span>·</span>
-          <span>★ ${c.rating}</span>
+          <span>${escapeHtml(c.level || 'Variado')}</span>
+          ${c.certificate ? `<span>·</span><span style="color:var(--success)">🎓 Cert</span>` : ''}
+          ${c.language === 'en' ? `<span>·</span><span style="color:var(--text-mut)">EN</span>` : ''}
         </div>
         <div class="title">${escapeHtml(c.title)}</div>
-        <div class="meta">${escapeHtml(c.provider)} · ${c.modules} módulos · ${c.hours}h · ${fmt(c.students)} alunos</div>
+        ${metaParts.length ? `<div class="meta">${metaParts.join(' · ')}</div>` : ''}
         <div class="skills">
-          ${c.skills.map(s => `<span class="chip">${escapeHtml(s)}</span>`).join('')}
+          ${skills.slice(0, 4).map(s => `<span class="chip">${escapeHtml(s)}</span>`).join('')}
         </div>
         <div class="pxbar" title="${c.progress}% concluído">
           ${Array.from({length: chunks}, (_,i) => `<span class="chunk ${i < filled ? 'on' : ''}"></span>`).join('')}
         </div>
         <div class="course-foot">
-          <span class="xp-tag"><i data-lucide="zap" style="width:10px;height:10px"></i>+${c.xp} XP</span>
-          <button class="btn btn-primary btn-sm">${c.progress === 0 ? 'Começar' : c.progress === 100 ? 'Ver certificado' : 'Continuar'}</button>
+          <span class="xp-tag"><i data-lucide="zap" style="width:10px;height:10px"></i>+${c.xp || 0} XP</span>
+          <button class="btn btn-primary btn-sm" data-course-id="${c.id}">${btnLabel}</button>
         </div>
       </div>
     </article>
@@ -1400,13 +1513,37 @@ function renderCerts() {
         <h2>Certificações</h2>
         <small>${earned.length} conquistadas · ${inProg.length} em andamento · ${avail.length} disponíveis</small>
       </div>
-      <button class="btn btn-primary"><i data-lucide="upload"></i>Enviar certificado externo</button>
+      <button class="btn btn-primary" data-action="upload-cert"><i data-lucide="upload"></i>Enviar certificado externo</button>
     </div>
 
     ${section('Conquistadas', earned.map(certCard).join('') || empty('Você ainda não possui certificações'))}
     ${section('Em andamento', inProg.map(certCard).join('') || empty('Nenhuma certificação em andamento'))}
     ${section('Disponíveis', avail.map(certCard).join(''))}
   `;
+
+  if (window.lucide) lucide.createIcons();
+
+  $('[data-action="upload-cert"]')?.addEventListener('click', openUploadCertModal);
+
+  $$('[data-action="study-trail"]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const cert = store.certs.find(c => c.id === btn.dataset.certId);
+      if (!cert) return;
+      openModal(`Trilha: ${cert.name}`, `
+        <div>
+          <p style="color:var(--text-body);margin:0 0 12px">Para obter <strong>${escapeHtml(cert.name)}</strong> — <strong>${escapeHtml(cert.issuer)}</strong>:</p>
+          <ol style="padding-left:20px;color:var(--text-body);line-height:2.2;margin:0 0 12px">
+            <li>Estude o material oficial de <strong>${escapeHtml(cert.issuer)}</strong></li>
+            <li>Pratique com laboratórios e simulados</li>
+            <li>Faça questões de provas anteriores</li>
+            <li>Agende o exame no portal oficial do fornecedor</li>
+            <li>Após aprovação, envie o certificado nesta página</li>
+          </ol>
+          <p style="color:var(--text-mut);font-size:12px;margin:0">+${cert.xp} XP ao concluir · categoria: ${escapeHtml(cert.category)}</p>
+        </div>
+      `, { showCancel: false });
+    });
+  });
 }
 function section(title, html) {
   return `<div class="section-title"><h3>${title}</h3></div><div class="cert-grid">${html}</div>`;
@@ -1436,7 +1573,7 @@ function certCard(c) {
           </div>` : ''}
         ${c.status === 'available' ? `<div class="cert-foot">
             <span class="chip"><i data-lucide="zap"></i>+${c.xp} XP ao concluir</span>
-            <button class="btn btn-ghost btn-sm" style="margin-left:auto">Trilha de estudos</button>
+            <button class="btn btn-ghost btn-sm" style="margin-left:auto" data-action="study-trail" data-cert-id="${c.id}">Trilha de estudos</button>
           </div>` : ''}
       </div>
     </article>
@@ -1453,6 +1590,8 @@ function fmtDate(s) {
 }
 
 /* ============== Achievements ============== */
+const ACH_TIER = { bronze: 'B', prata: 'A', ouro: 'S', diamante: 'SS' };
+
 function renderAchievements() {
   const unlocked = store.achievements.filter(a => a.unlocked).length;
   $('#view').innerHTML = `
@@ -1464,14 +1603,21 @@ function renderAchievements() {
       <div class="chip chip-royal"><i data-lucide="trophy"></i> ${Math.round(unlocked / store.achievements.length * 100)}%</div>
     </div>
     <div class="ach-grid">
-      ${store.achievements.map(a => `
+      ${store.achievements.map(a => {
+        const tier = ACH_TIER[a.rarity] || 'B';
+        return `
         <div class="ach-card ${a.unlocked ? '' : 'locked'}" data-rarity="${a.rarity}">
-          <div class="ach-badge"><i data-lucide="${achIcon(a.icon)}"></i></div>
+          <div class="ach-badge-wrap">
+            <div class="ach-hex-border">
+              <div class="ach-badge"><i data-lucide="${achIcon(a.icon)}"></i></div>
+            </div>
+            <div class="ach-tier" data-tier="${tier}">${tier}</div>
+          </div>
           <div class="ach-name">${escapeHtml(a.name)}</div>
           <div class="ach-desc">${escapeHtml(a.desc)}</div>
           <div class="ach-xp">+${a.xp} XP</div>
-        </div>
-      `).join('')}
+        </div>`;
+      }).join('')}
     </div>
   `;
 }
@@ -1539,12 +1685,30 @@ function renderProfile() {
   const earned = store.certs.filter(c => c.status === 'earned');
   const lastCourses = store.courses.slice().sort((a,b) => b.progress - a.progress).slice(0,4);
 
+  const profileSkills = [...new Set(
+    store.courses.filter(c => c.progress > 0).flatMap(c => c.skills)
+  )];
+  const skillsHtml = profileSkills.length > 0
+    ? profileSkills.map(s => `<span class="chip">${escapeHtml(s)}</span>`).join('')
+    : `<span style="color:var(--text-mut);font-size:13px">Comece cursos para construir suas skills.</span>`;
+
+  const recentActs = (store.user.activities || []).slice(-5).reverse();
+  const timelineHtml = recentActs.length > 0
+    ? recentActs.map(a => `
+      <div class="tl"><div class="tld"><i data-lucide="${activityIcon(a.type)}"></i></div>
+        <div>
+          <div class="ttitle">${escapeHtml(activityLabel(a.type))}</div>
+          <div class="tdate">${new Date(a.ts).toLocaleDateString('pt-BR', { day:'2-digit', month:'short', year:'numeric' })} · +${a.xp} XP</div>
+        </div>
+      </div>`).join('')
+    : `<p style="color:var(--text-mut);font-size:13px">Realize ações na plataforma para ver sua linha do tempo.</p>`;
+
   $('#view').innerHTML = `
     <div class="section-title" style="margin-top:0">
       <div><h2>Meu Perfil</h2><small>Como recrutadores veem você</small></div>
       <div style="display:flex;gap:8px">
-        <button class="btn btn-ghost"><i data-lucide="share-2"></i>Compartilhar</button>
-        <button class="btn btn-primary"><i data-lucide="pencil"></i>Editar perfil</button>
+        <button class="btn btn-ghost" data-action="share-profile"><i data-lucide="share-2"></i>Compartilhar</button>
+        <button class="btn btn-primary" data-action="edit-profile"><i data-lucide="pencil"></i>Editar perfil</button>
       </div>
     </div>
 
@@ -1563,7 +1727,7 @@ function renderProfile() {
         <div class="profile-stats">
           <div class="b"><div class="v">${earned.length}</div><div class="l">Certificações</div></div>
           <div class="b"><div class="v">${store.achievements.filter(a=>a.unlocked).length}</div><div class="l">Conquistas</div></div>
-          <div class="b"><div class="v">${store.jobs.filter(j=>j.applied).length}</div><div class="l">Candidaturas</div></div>
+          <div class="b"><div class="v">${Object.keys(store.applications).length}</div><div class="l">Candidaturas</div></div>
           <div class="b"><div class="v">${store.courses.filter(c=>c.progress===100).length}</div><div class="l">Cursos concl.</div></div>
         </div>
 
@@ -1576,26 +1740,12 @@ function renderProfile() {
       <div class="profile-main">
         <div class="card profile-section">
           <div class="section-title" style="margin-top:0"><h3>Skills em destaque</h3><small>Construídas a partir dos seus cursos</small></div>
-          <div style="display:flex;flex-wrap:wrap;gap:6px">
-            ${['OWASP Top 10','Threat Modeling','Burp Suite','AWS IAM','Kubernetes','JWT','TLS 1.3','React','TypeScript','Python','Bash','Splunk','Terraform','GitHub Actions']
-              .map(s => `<span class="chip">${s}</span>`).join('')}
-          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px">${skillsHtml}</div>
         </div>
 
         <div class="card profile-section">
           <div class="section-title" style="margin-top:0"><h3>Linha do tempo</h3><small>Atividades recentes</small></div>
-          <div class="timeline">
-            <div class="tl"><div class="tld"><i data-lucide="badge-check"></i></div>
-              <div><div class="ttitle">Conquistou CKS (Kubernetes Security)</div><div class="tdate">18 de fev de 2026 · +950 XP</div></div></div>
-            <div class="tl"><div class="tld"><i data-lucide="trophy"></i></div>
-              <div><div class="ttitle">Entrou no Top 10 semanal</div><div class="tdate">10 de fev de 2026 · +200 XP</div></div></div>
-            <div class="tl"><div class="tld"><i data-lucide="briefcase"></i></div>
-              <div><div class="ttitle">Candidatou-se a "Security Engineer Pleno" na Nubank</div><div class="tdate">28 de jan de 2026 · +50 XP</div></div></div>
-            <div class="tl"><div class="tld"><i data-lucide="graduation-cap"></i></div>
-              <div><div class="ttitle">Concluiu "Pentest Web Moderno"</div><div class="tdate">20 de jan de 2026 · +380 XP</div></div></div>
-            <div class="tl"><div class="tld"><i data-lucide="zap"></i></div>
-              <div><div class="ttitle">Subiu para o nível 12</div><div class="tdate">12 de jan de 2026</div></div></div>
-          </div>
+          <div class="timeline">${timelineHtml}</div>
         </div>
 
         <div class="card profile-section">
@@ -1607,35 +1757,298 @@ function renderProfile() {
       </div>
     </div>
   `;
+
+  if (window.lucide) lucide.createIcons();
+
+  $('[data-action="share-profile"]')?.addEventListener('click', () => {
+    navigator.clipboard.writeText(window.location.href)
+      .then(() => toast('Link copiado para a área de transferência!'))
+      .catch(() => toast('Link: ' + window.location.href));
+  });
+
+  $('[data-action="edit-profile"]')?.addEventListener('click', () => {
+    openModal('Editar Perfil', `
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div>
+          <label style="font-size:12px;color:var(--text-mut);display:block;margin-bottom:4px">Nome</label>
+          <input id="ep-name" class="mission-field-input" value="${escapeHtml(store.user.name)}" style="width:100%">
+        </div>
+        <div>
+          <label style="font-size:12px;color:var(--text-mut);display:block;margin-bottom:4px">Cargo</label>
+          <input id="ep-role" class="mission-field-input" value="${escapeHtml(store.user.role)}" style="width:100%">
+        </div>
+        <div>
+          <label style="font-size:12px;color:var(--text-mut);display:block;margin-bottom:4px">Trilhas (separadas por vírgula)</label>
+          <input id="ep-tracks" class="mission-field-input" value="${escapeHtml((store.user.tracks || []).join(', '))}" style="width:100%">
+        </div>
+      </div>
+    `, {
+      confirmLabel: 'Salvar',
+      onConfirm: () => {
+        const name   = $('#ep-name')?.value.trim();
+        const role   = $('#ep-role')?.value.trim();
+        const tracks = $('#ep-tracks')?.value.split(',').map(t => t.trim()).filter(Boolean);
+        if (name) store.user.name = name;
+        if (role) store.user.role = role;
+        if (tracks?.length) store.user.tracks = tracks;
+        paintUser();
+        renderProfile();
+        toast('Perfil atualizado!');
+      },
+    });
+  });
+
+  $$('[data-course-id]', $('#view')).forEach(btn => {
+    btn.addEventListener('click', () => {
+      const course = store.courses.find(c => c.id === btn.dataset.courseId);
+      if (!course) return;
+      if (course.progress === 100) {
+        openModal(`Certificado — ${course.title}`, `
+          <div style="text-align:center;padding:16px 0">
+            <div style="font-size:44px;margin-bottom:12px">🏆</div>
+            <div style="font-weight:700;font-size:16px;margin-bottom:6px">${escapeHtml(course.title)}</div>
+            <div style="color:var(--text-mut);font-size:13px;margin-bottom:14px">${escapeHtml(course.provider)} · ${course.hours}h</div>
+            <div style="color:var(--success);font-weight:600">✓ Curso concluído!</div>
+          </div>
+        `, { showCancel: false });
+      } else {
+        const isStart = course.progress === 0;
+        course.progress = Math.min(100, course.progress + 10);
+        const xpGain = course.progress === 100 ? course.xp : Math.round(course.xp * 0.10);
+        addXP(xpGain, 'course');
+        toast(`+${xpGain} XP — curso ${course.progress === 100 ? 'concluído' : isStart ? 'iniciado' : 'avançado'}!`);
+        renderProfile();
+      }
+    });
+  });
 }
 
 /* ============== XP / Toast ============== */
 function addXP(amount, action = 'misc') {
   const u = store.user;
+
+  // streak
+  const todayStr = new Date().toISOString().slice(0, 10);
+  if (u.lastActivity) {
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    if (u.lastActivity !== todayStr && u.lastActivity !== yesterday) u.streak = 1;
+    else if (u.lastActivity === yesterday) u.streak = (u.streak || 0) + 1;
+  } else { u.streak = 1; }
+  u.lastActivity = todayStr;
+
   u.xp += amount;
+  u.coins = (u.coins || 0) + Math.floor(amount / 10);
   let leveledUp = false;
   const prevLevel = u.level;
   while (u.xp >= u.xpNext) {
     u.xp -= u.xpNext;
     u.level += 1;
     u.xpNext = Math.round(u.xpNext * 1.25);
-    u.coins  = (u.coins || 0) + 100;
+    u.coins += 100;
     leveledUp = true;
   }
-  u.coins = (u.coins || 0) + Math.floor(amount / 10);
+
+  u.activities = u.activities || [];
+  u.activities.unshift({ type: action, xp: amount, ts: Date.now() });
+  if (u.activities.length > 90) u.activities = u.activities.slice(0, 90);
+
+  lsSet(LS.profile, {
+    xp: u.xp, level: u.level, xpNext: u.xpNext, coins: u.coins,
+    streak: u.streak, lastActivity: u.lastActivity, activities: u.activities,
+  });
+
   paintUser();
   if (leveledUp) toast(`LEVEL UP! Lv ${prevLevel} → Lv ${u.level}`, true);
+  checkAchievements();
+}
 
-  fetch('/api/profile/xp', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action, amount }),
-  }).then(r => r.json()).then(d => {
-    if (d.ok) {
-      store.user.streak = d.streak;
-      paintUser();
-    }
-  }).catch(() => {});
+function openModal(title, bodyHtml, opts = {}) {
+  const { onConfirm, confirmLabel = 'Confirmar', cancelLabel = 'Cancelar', showCancel = true } = opts;
+  const existing = $('#jc-modal');
+  if (existing) existing.remove();
+  const el = document.createElement('div');
+  el.id = 'jc-modal';
+  el.className = 'jc-modal-overlay';
+  const footHtml = onConfirm
+    ? `${showCancel ? `<button class="btn btn-ghost" data-modal-close>${escapeHtml(cancelLabel)}</button>` : ''}
+       <button class="btn btn-primary" data-modal-confirm>${escapeHtml(confirmLabel)}</button>`
+    : `<button class="btn btn-ghost" data-modal-close>Fechar</button>`;
+  el.innerHTML = `
+    <div class="jc-modal">
+      <div class="jc-modal-hdr">
+        <span class="jc-modal-title">${escapeHtml(title)}</span>
+        <button class="jc-modal-x" data-modal-close>×</button>
+      </div>
+      <div class="jc-modal-body">${bodyHtml}</div>
+      <div class="jc-modal-foot">${footHtml}</div>
+    </div>
+  `;
+  document.body.appendChild(el);
+  if (window.lucide) lucide.createIcons();
+  const close = () => el.remove();
+  el.addEventListener('click', e => { if (e.target === el) close(); });
+  el.querySelectorAll('[data-modal-close]').forEach(b => b.addEventListener('click', close));
+  el.querySelector('[data-modal-confirm]')?.addEventListener('click', () => { onConfirm(); close(); });
+  return el;
+}
+
+function activityLabel(type) {
+  const m = { apply: 'Candidatura registrada', save: 'Vaga salva', quest: 'Quest diária concluída', interview: 'Entrevista marcada', offer: 'Oferta recebida', course: 'Módulo de curso concluído', achievement: 'Conquista desbloqueada', misc: 'Ação registrada' };
+  return m[type] || type;
+}
+function activityIcon(type) {
+  const m = { apply: 'briefcase', save: 'bookmark', quest: 'target', interview: 'message-square', offer: 'trophy', course: 'graduation-cap', achievement: 'award', misc: 'zap' };
+  return m[type] || 'zap';
+}
+
+let _checkingAch = false;
+function checkAchievements() {
+  if (_checkingAch) return;
+  _checkingAch = true;
+  const u = store.user;
+  const applied      = Object.keys(store.applications).length;
+  const inInterview  = Object.values(store.applications).filter(a => a.stage === 'interview').length;
+  const completedIds = store.courses.filter(c => c.progress === 100).map(c => c.id);
+  const rules = [
+    { id: 'a-001', ok: () => applied >= 1 },
+    { id: 'a-002', ok: () => inInterview >= 1 },
+    { id: 'a-003', ok: () => completedIds.includes('c-001') },
+    { id: 'a-004', ok: () => completedIds.includes('c-003') },
+    { id: 'a-005', ok: () => (u.streak || 0) >= 7 },
+    { id: 'a-006', ok: () => (u.streak || 0) >= 30 },
+    { id: 'a-010', ok: () => u.level >= 30 },
+    { id: 'a-011', ok: () => store.courses.some(c => c.id === 'c-003' && c.progress > 0) },
+  ];
+  for (const r of rules) {
+    const ach = store.achievements.find(a => a.id === r.id);
+    if (!ach || ach.unlocked || !r.ok()) continue;
+    ach.unlocked = true;
+    addXP(ach.xp, 'achievement');
+    toast(`🏆 Conquista: "${ach.name}" — +${ach.xp} XP!`);
+  }
+  _checkingAch = false;
+}
+
+function openUploadCertModal() {
+  openModal('Enviar certificado externo', `
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div>
+        <label style="font-size:12px;color:var(--text-mut);display:block;margin-bottom:4px">Nome da certificação *</label>
+        <input id="uc-name" class="mission-field-input" placeholder="ex: AWS Solutions Architect" style="width:100%">
+      </div>
+      <div>
+        <label style="font-size:12px;color:var(--text-mut);display:block;margin-bottom:4px">Emissor *</label>
+        <input id="uc-issuer" class="mission-field-input" placeholder="ex: Amazon Web Services" style="width:100%">
+      </div>
+      <div>
+        <label style="font-size:12px;color:var(--text-mut);display:block;margin-bottom:4px">Data de obtenção</label>
+        <input id="uc-date" class="mission-field-input" type="date" style="width:100%">
+      </div>
+      <div>
+        <label style="font-size:12px;color:var(--text-mut);display:block;margin-bottom:4px">ID da credencial</label>
+        <input id="uc-id" class="mission-field-input" placeholder="ex: ABC-123-XYZ" style="width:100%">
+      </div>
+    </div>
+  `, {
+    confirmLabel: 'Adicionar',
+    onConfirm: () => {
+      const name   = $('#uc-name')?.value.trim();
+      const issuer = $('#uc-issuer')?.value.trim();
+      const date   = $('#uc-date')?.value;
+      const credId = $('#uc-id')?.value.trim();
+      if (!name || !issuer) { toast('Preencha nome e emissor'); return; }
+      store.certs.unshift({
+        id: 'ext-' + Date.now(), name, issuer,
+        credentialId: credId || '—',
+        status: 'earned',
+        earnedAt: date || new Date().toISOString().slice(0, 10),
+        xp: 100, category: 'Externo', color: '#4CAF50',
+        voucherIncluded: false, progress: 100,
+      });
+      addXP(100, 'cert');
+      toast('+100 XP — certificação adicionada!');
+      renderCerts();
+    },
+  });
+}
+
+function openMensagensModal() {
+  const notifs = [
+    { icon: 'briefcase', text: 'Nubank visualizou seu perfil', sub: 'há 2 horas', color: '#8250df' },
+    { icon: 'zap',       text: 'Você ganhou +50 XP pela candidatura', sub: 'há 3 horas', color: '#FACC15' },
+    { icon: 'trophy',    text: 'Nova conquista desbloqueável disponível', sub: 'hoje', color: '#F59E0B' },
+    { icon: 'bell',      text: '3 novas vagas compatíveis com seu perfil', sub: 'ontem', color: '#5B4FB3' },
+  ];
+  openModal('Mensagens & Notificações', `
+    <div style="display:flex;flex-direction:column;gap:2px">
+      ${notifs.map(n => `
+        <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
+          <div style="width:36px;height:36px;border-radius:50%;background:${n.color}22;color:${n.color};display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <i data-lucide="${n.icon}" style="width:16px;height:16px"></i>
+          </div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;color:var(--text);font-weight:500">${escapeHtml(n.text)}</div>
+            <div style="font-size:11px;color:var(--text-mut)">${escapeHtml(n.sub)}</div>
+          </div>
+        </div>`).join('')}
+      <p style="text-align:center;color:var(--text-mut);font-size:12px;margin:12px 0 0">Sistema de mensagens em breve.</p>
+    </div>
+  `, { showCancel: false });
+}
+
+function openConfiguracoesModal() {
+  const isDark = document.body.classList.contains('dark-theme');
+  openModal('Configurações', `
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="font-weight:600;color:var(--text)">Tema escuro</div>
+          <div style="font-size:12px;color:var(--text-mut)">Alterna entre tema claro e escuro</div>
+        </div>
+        <label class="jc-toggle">
+          <input type="checkbox" id="cfg-dark" ${isDark ? 'checked' : ''}>
+          <span class="jc-toggle-track"></span>
+        </label>
+      </div>
+      <div style="border-top:1px solid var(--border);padding-top:16px">
+        <div style="font-weight:600;color:var(--text);margin-bottom:8px">Ocultar vagas encerradas</div>
+        <label class="jc-toggle">
+          <input type="checkbox" id="cfg-expired" ${store.ui.jobSearch.hideExpired ? 'checked' : ''}>
+          <span class="jc-toggle-track"></span>
+        </label>
+      </div>
+      <div style="border-top:1px solid var(--border);padding-top:16px">
+        <div style="font-weight:600;color:var(--text);margin-bottom:4px">Versão</div>
+        <div style="font-size:12px;color:var(--text-mut)">Jobcraft v2.0 · build ${new Date().toLocaleDateString('pt-BR')}</div>
+      </div>
+    </div>
+  `, {
+    confirmLabel: 'Salvar',
+    onConfirm: () => {
+      const wantDark    = $('#cfg-dark')?.checked;
+      const hideExpired = $('#cfg-expired')?.checked;
+      const nowDark = document.body.classList.contains('dark-theme');
+      if (wantDark !== nowDark) toggleDarkTheme();
+      store.ui.jobSearch.hideExpired = !!hideExpired;
+      toast('Configurações salvas!');
+    },
+  });
+}
+
+function toggleDarkTheme() {
+  document.body.classList.toggle('dark-theme');
+  const isDark = document.body.classList.contains('dark-theme');
+  localStorage.setItem('jc-theme', isDark ? 'dark' : 'light');
+  const item = $('#user-menu [data-action="theme"]');
+  if (item) item.innerHTML = `<i data-lucide="${isDark ? 'sun' : 'moon'}"></i> ${isDark ? 'Tema claro' : 'Tema escuro'}`;
+  if (window.lucide) lucide.createIcons();
+}
+
+function logout() {
+  openModal('Sair do Jobcraft', `<p style="color:var(--text-body)">Tem certeza que deseja encerrar a sessão?</p>`, {
+    confirmLabel: 'Sair',
+    onConfirm: () => { localStorage.removeItem('jc-theme'); location.reload(); },
+  });
 }
 
 function toast(msg, levelUp = false) {
@@ -1848,6 +2261,8 @@ function renderDocs() {
 }
 
 /* ============== go ============== */
+if (localStorage.getItem('jc-theme') === 'dark') document.body.classList.add('dark-theme');
+
 boot().catch(err => {
   $('#view').innerHTML = `<div class="card panel" style="margin:40px auto;text-align:center"><h3>Erro ao carregar Jobcraft</h3><p>${escapeHtml(err.message)}</p></div>`;
   console.error(err);

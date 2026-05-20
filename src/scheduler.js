@@ -8,6 +8,11 @@ const { fetchLever }      = require('./collectors/lever');
 const { fetchRemotar }    = require('./collectors/remotar');
 const store               = require('./jobStore');
 
+const courseStore                  = require('./courseStore');
+const { collect: curatedCollect }  = require('./collectors/curated');
+const { collect: ytCollect }       = require('./collectors/youtube');
+const { collect: fccCollect }      = require('./collectors/freecodecamp');
+
 const INTERVAL_MS = parseInt(process.env.SYNC_INTERVAL_MS || String(6 * 60 * 60 * 1000)); // 6h
 
 async function syncSource(name, fetchFn) {
@@ -27,6 +32,35 @@ async function syncSource(name, fetchFn) {
   }
 }
 
+async function syncCourseSource(name, collectFn) {
+  const t0 = Date.now();
+  try {
+    const courses = await collectFn();
+    let added = 0;
+    for (const c of courses) {
+      if (courseStore.upsert(c) === 'new') added++;
+    }
+    const ms = Date.now() - t0;
+    courseStore.setSyncLog(name, { added, total: courses.length, ms, ok: true });
+    console.log(`[courses:${name}] ${added} novos / ${courseStore.count(name)} total (${ms}ms)`);
+  } catch (e) {
+    courseStore.setSyncLog(name, { ok: false, error: e.message });
+    console.error(`[courses:${name}] falhou:`, e.message);
+  }
+}
+
+async function syncCourses() {
+  const tasks = [
+    syncCourseSource('curated', curatedCollect),
+    syncCourseSource('freecodecamp', fccCollect),
+  ];
+  if (process.env.YOUTUBE_API_KEY) {
+    tasks.push(syncCourseSource('youtube', ytCollect));
+  }
+  await Promise.allSettled(tasks);
+  console.log(`[courses] total: ${courseStore.count()} cursos únicos`);
+}
+
 async function syncAll() {
   console.log('[sync] iniciando sincronização de todas as fontes…');
   await Promise.allSettled([
@@ -40,6 +74,7 @@ async function syncAll() {
   const purged = store.purge();
   if (purged > 0) console.log(`[sync] purge — ${purged} vagas expiradas removidas`);
   console.log(`[sync] concluído — ${store.count()} vagas únicas no store`);
+  syncCourses().catch(e => console.error('[courses] sync falhou:', e.message));
 }
 
 function start() {
