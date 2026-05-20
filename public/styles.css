@@ -99,12 +99,12 @@ body.rp-hidden { padding-right: 0; }
   transition: width .25s var(--ease), left .25s var(--ease);
   z-index: 30;
   overflow-y: auto;
+  overflow-x: hidden;
 }
 body.sb-collapsed #sidebar { width: var(--sb-w-c); }
 body.sb-collapsed #sidebar .nav-item span,
 body.sb-collapsed #sidebar .nav-badge,
-body.sb-collapsed #sidebar .nav-section,
-body.sb-collapsed #sidebar .brand-logo,
+body.sb-collapsed #sidebar .nav-section { display: none; }
 body.sb-collapsed #sidebar .nav-item { justify-content: center; padding: 12px 0; }
 
 #layout { width: 100%; min-width: 0; display: flex; flex-direction: column; }
@@ -249,8 +249,8 @@ body.sb-collapsed .sb-bottom span { display: none; }
   display: grid; place-items: center;
   box-shadow: inset 0 -2px 0 rgba(0,0,0,.18);
 }
-.user-meta { display: flex; flex-direction: column; line-height: 1.15; }
-.user-name { font-weight: 700; color: var(--text); font-size: 13px; }
+.user-meta { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; }
+.user-name { font-weight: 700; color: var(--text); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
 .user-sub { display: flex; align-items: center; gap: 8px; }
 .level-tag {
   font-size: 9px;
@@ -258,8 +258,9 @@ body.sb-collapsed .sb-bottom span { display: none; }
   background: var(--xp-gold);
   padding: 2px 6px; border-radius: 4px;
   box-shadow: 2px 2px 0 var(--snes-obsidian);
+  flex-shrink: 0;
 }
-.user-role { font-size: 11px; color: var(--text-mut); }
+.user-role { font-size: 11px; color: var(--text-mut); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .user-menu {
   position: absolute; right: 0; top: calc(100% + 8px);
@@ -604,37 +605,130 @@ h3 { font-size: 16px; font-weight: 700; }
 /* ============================================================
    Achievements
    ============================================================ */
-.ach-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 16px; }
+.ach-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(138px, 1fr));
+  gap: 24px 12px;
+}
 .ach-card {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius-lg); padding: 16px;
+  background: transparent; border: none;
+  padding: 6px 8px 12px;
   text-align: center;
-  display: flex; flex-direction: column; align-items: center; gap: 10px;
-  transition: transform .15s var(--ease), box-shadow .15s var(--ease);
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  transition: transform .15s var(--ease);
 }
-.ach-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
-.ach-badge {
-  width: 86px; height: 96px;
-  background: linear-gradient(180deg, var(--snes-royal-light), var(--snes-royal-deep));
-  clip-path: polygon(50% 0, 100% 18%, 100% 70%, 50% 100%, 0 70%, 0 18%);
+.ach-card:hover { transform: translateY(-5px); }
+.ach-card.locked { opacity: .42; filter: grayscale(.9); }
+
+/* ── Hex structure (dois hexágonos: borda + fill) ─────────── */
+.ach-badge-wrap { position: relative; display: inline-block; }
+
+/* Hex externo — define a borda metálica */
+.ach-hex-border {
+  width: 92px; height: 104px;
+  clip-path: polygon(50% 0%, 93.3% 25%, 93.3% 75%, 50% 100%, 6.7% 75%, 6.7% 25%);
   display: grid; place-items: center;
-  color: var(--xp-gold);
-  position: relative;
-  box-shadow: var(--shadow-pixel);
+  filter: drop-shadow(0 5px 14px rgba(0,0,0,.7));
+  transition: filter .2s;
 }
-.ach-badge i { width: 36px; height: 36px; }
-.ach-card[data-rarity="bronze"]   .ach-badge { background: linear-gradient(180deg, #E0A06A, #8E5A2C); }
-.ach-card[data-rarity="prata"]    .ach-badge { background: linear-gradient(180deg, #F1F1F5, #9CA3AF); color: #1F1B25; }
-.ach-card[data-rarity="ouro"]     .ach-badge { background: linear-gradient(180deg, #FDE68A, #B45309); color: #1F1B25; }
-.ach-card[data-rarity="diamante"] .ach-badge { background: linear-gradient(180deg, #BAE6FD, #2563EB); }
-.ach-card.locked .ach-badge { filter: grayscale(1) brightness(.7); }
-.ach-card.locked { opacity: .85; }
+.ach-card:hover .ach-hex-border { filter: drop-shadow(0 8px 22px rgba(0,0,0,.8)); }
+.ach-card.locked .ach-hex-border { filter: none; }
+
+/* Hex interno — o fill escuro do metal */
+.ach-badge {
+  width: 78px; height: 88px;
+  clip-path: polygon(50% 0%, 93.3% 25%, 93.3% 75%, 50% 100%, 6.7% 75%, 6.7% 25%);
+  display: grid; place-items: center;
+}
+
+.ach-badge i {
+  width: 36px; height: 36px;
+}
+.ach-card.locked .ach-badge i { opacity: .3; }
+
+/* ── Rarity: fill brilhante + ícone escuro (estilo gravado) ── */
+
+/* Bronze — cobre brilhante */
+.ach-card[data-rarity="bronze"] .ach-hex-border {
+  background: linear-gradient(135deg, #E8A050 0%, #9A4C20 35%, #D08040 65%, #7A3418 100%);
+}
+.ach-card[data-rarity="bronze"] .ach-badge {
+  background: linear-gradient(145deg, #C87838 0%, #A06028 35%, #D89048 55%, #B07030 100%);
+}
+.ach-card[data-rarity="bronze"] .ach-badge i {
+  color: #3E1808;
+  filter: drop-shadow(0 1px 1px rgba(255,180,80,.45));
+}
+
+/* Prata — aço médio */
+.ach-card[data-rarity="prata"] .ach-hex-border {
+  background: linear-gradient(135deg, #D0D0E0 0%, #707080 35%, #B8B8C8 65%, #505060 100%);
+}
+.ach-card[data-rarity="prata"] .ach-badge {
+  background: linear-gradient(145deg, #909098 0%, #6A6A78 35%, #A8A8B8 55%, #808090 100%);
+}
+.ach-card[data-rarity="prata"] .ach-badge i {
+  color: #1A1A26;
+  filter: drop-shadow(0 1px 1px rgba(210,210,230,.45));
+}
+
+/* Ouro — âmbar brilhante */
+.ach-card[data-rarity="ouro"] .ach-hex-border {
+  background: linear-gradient(135deg, #FFE040 0%, #906000 35%, #E0B000 65%, #705000 100%);
+}
+.ach-card[data-rarity="ouro"] .ach-badge {
+  background: linear-gradient(145deg, #D09800 0%, #A07000 35%, #E8B800 55%, #C08800 100%);
+}
+.ach-card[data-rarity="ouro"] .ach-badge i {
+  color: #2A1400;
+  filter: drop-shadow(0 1px 1px rgba(255,230,80,.5));
+}
+
+/* Diamante — safira média */
+.ach-card[data-rarity="diamante"] .ach-hex-border {
+  background: linear-gradient(135deg, #90C0FF 0%, #1030A0 35%, #6090D8 65%, #0A2080 100%);
+}
+.ach-card[data-rarity="diamante"] .ach-badge {
+  background: linear-gradient(145deg, #3060C0 0%, #1840A0 35%, #4878D8 55%, #2858B8 100%);
+}
+.ach-card[data-rarity="diamante"] .ach-badge i {
+  color: #04102A;
+  filter: drop-shadow(0 1px 1px rgba(130,190,255,.5));
+}
+
+/* Locked */
+.ach-card.locked .ach-hex-border {
+  background: linear-gradient(135deg, #3A3A48 0%, #1E1E28 50%, #2E2E3A 100%);
+}
+.ach-card.locked .ach-badge {
+  background: linear-gradient(145deg, #383840 0%, #202028 50%, #303038 100%);
+}
+.ach-card.locked .ach-badge i { color: rgba(255,255,255,.3); filter: none; }
+
+/* Tier badge (canto superior direito) */
+.ach-tier {
+  position: absolute;
+  top: 6px; right: 2px;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 7px; line-height: 1;
+  padding: 2px 4px 3px;
+  border-radius: 3px;
+  border: 1px solid rgba(255,255,255,.2);
+  box-shadow: 1px 1px 0 rgba(0,0,0,.7);
+  z-index: 10;
+}
+.ach-tier[data-tier="B"]  { background: #5A2A08; color: #FFCF8A; }
+.ach-tier[data-tier="A"]  { background: #323240; color: #D4D4DE; }
+.ach-tier[data-tier="S"]  { background: #5A3C00; color: #FFE455; }
+.ach-tier[data-tier="SS"] { background: #081840; color: #90C8FF; }
+
+/* Text */
 .ach-name { font-weight: 700; color: var(--text); font-size: 13px; }
-.ach-desc { font-size: 11px; color: var(--text-mut); }
+.ach-desc { font-size: 10px; color: var(--text-mut); line-height: 1.4; max-width: 118px; }
 .ach-xp {
-  font-family: 'Press Start 2P', monospace; font-size: 9px;
+  font-family: 'Press Start 2P', monospace; font-size: 8px;
   background: var(--xp-gold); color: var(--snes-obsidian);
-  padding: 4px 8px; box-shadow: 2px 2px 0 var(--snes-obsidian);
+  padding: 3px 7px; box-shadow: 2px 2px 0 var(--snes-obsidian); border-radius: 2px;
 }
 
 /* ============================================================
@@ -814,6 +908,13 @@ h3 { font-size: 16px; font-weight: 700; }
   body { padding-right: 0; }
   #right-panel { display: none; }
 }
+/* Tablet: esconde cargo, comprime XP bar */
+@media (max-width: 960px) {
+  .user-role { display: none; }
+  .hud-pts-txt { display: none; }
+  .hud-xp-block { min-width: 160px; max-width: 220px; }
+}
+
 @media (max-width: 720px) {
   body, body.sb-collapsed { padding-left: 0; padding-right: 0; }
   #sidebar { left: -260px; }
@@ -821,12 +922,16 @@ h3 { font-size: 16px; font-weight: 700; }
   body.sb-open #sidebar { left: 0; }
   .mobile-only { display: grid !important; }
   .user-meta { display: none; }
+  .hud-xp-block { display: none; }
+  #topbar { padding: 0 12px; }
   .kpi-grid { grid-template-columns: 1fr; }
   .courses-grid, .cert-grid { grid-template-columns: 1fr; }
   .hero { flex-direction: column; align-items: flex-start; }
   .hero-art { display: none; }
   #view { padding: 18px; }
   .mission-fields { grid-template-columns: 1fr; }
+  .mission-row2 { grid-template-columns: 1fr; }
+  .mission-filters { grid-template-columns: 1fr; }
   .market-grid { grid-template-columns: repeat(2, 1fr); }
   .jobs-grid-v2 { grid-template-columns: 1fr; }
 }
@@ -873,7 +978,15 @@ h3 { font-size: 16px; font-weight: 700; }
 }
 .hud-exp-txt  { font-size: 9px; color: var(--snes-royal); letter-spacing: .5px; }
 .hud-xp-nums  { font-size: 9px; color: #fff; letter-spacing: .3px; flex: 1; text-align: center; }
-.hud-pts-txt  { font-size: 9px; color: var(--xp-gold); letter-spacing: .3px; margin-left: auto; }
+.hud-pts-txt  { font-size: 9px; color: var(--xp-gold); letter-spacing: .3px; }
+.hud-bar-row  { display: flex; align-items: center; gap: 8px; }
+.hud-bar-row .hud-xpbar-outer { flex: 1; }
+.hud-coin-wrap { display: flex; align-items: center; gap: 5px; flex-shrink: 0; margin-left: 14px; }
+.pixel-coin { image-rendering: pixelated; animation: coin-bounce .9s ease-in-out infinite; }
+@keyframes coin-bounce {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-3px); }
+}
 .hud-xpbar-outer {
   position: relative;
   height: 14px;
@@ -1222,7 +1335,7 @@ h3 { font-size: 16px; font-weight: 700; }
 /* Row 2: skills + graduation side by side */
 .mission-row2 {
   display: grid;
-  grid-template-columns: 1fr 260px;
+  grid-template-columns: 3fr 2fr;
   gap: 14px;
   margin-bottom: 14px;
 }
@@ -1270,7 +1383,7 @@ h3 { font-size: 16px; font-weight: 700; }
 .mission-skills-input {
   border: none; outline: none; background: transparent;
   font: inherit; font-size: 13px; color: var(--text);
-  min-width: 120px; padding: 8px 0;
+  min-width: 80px; flex: 1; padding: 8px 0;
 }
 .mission-skills-input::placeholder { color: var(--text-mut); }
 .mission-skills-add {
@@ -1298,7 +1411,7 @@ h3 { font-size: 16px; font-weight: 700; }
 .inline-filter-label {
   font-size: 9px; font-weight: 700; text-transform: uppercase;
   letter-spacing: .8px; color: var(--text-mut);
-  min-width: 66px; flex-shrink: 0;
+  min-width: 82px; flex-shrink: 0;
 }
 
 .inline-filter-opts { display: flex; gap: 4px; flex-wrap: wrap; }

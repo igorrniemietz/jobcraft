@@ -201,7 +201,7 @@ function paintUser() {
   $('#user-level').textContent = u.level;
   $('#hud-level-num').textContent = u.level;
   $('#hud-xp-label').textContent = `${fmt(u.xp)}/${fmt(u.xpNext)}`;
-  $('#hud-pts').textContent = `${fmt(u.coins)} pts`;
+  $('#hud-pts').textContent = fmt(u.coins);
 
   requestAnimationFrame(() => {
     $('#hud-xp-fill').style.width = `${pct}%`;
@@ -657,19 +657,22 @@ function renderJobsPage() {
               ${filterBtns('dateFilter', [['all','Todas'],['1d','Hoje'],['7d','7 dias'],['30d','30 dias']])}
             </div>
           </div>
-          <div class="filter-toggle-row">
-            <button class="filter-toggle-btn ${s.areaFilter ? 'has-active' : ''}"
-                    id="ftb-area" data-panel="fpl-area" type="button">
-              <span class="ftb-icon">${s.areaFilter ? '●' : '+'}</span>
-              <span class="ftb-label">${s.areaFilter ? (AREA_BTN_LABELS[s.areaFilter] || 'TI') : 'TI'}</span>
-              ${s.areaFilter ? `<span class="ftb-x" data-clearfilter="areaFilter">×</span>` : ''}
-            </button>
-            <button class="filter-toggle-btn ${s.specialty ? 'has-active' : ''}"
-                    id="ftb-security" data-panel="fpl-security" type="button">
-              <span class="ftb-icon">${s.specialty ? '●' : '+'}</span>
-              <span class="ftb-label">${s.specialty ? (SPEC_BTN_LABELS[s.specialty] || 'Segurança') : 'Segurança'}</span>
-              ${s.specialty ? `<span class="ftb-x" data-clearfilter="specialty">×</span>` : ''}
-            </button>
+          <div class="inline-filter-row">
+            <span class="inline-filter-label">Área:</span>
+            <div class="inline-filter-opts">
+              <button class="filter-toggle-btn ${s.areaFilter ? 'has-active' : ''}"
+                      id="ftb-area" data-panel="fpl-area" type="button">
+                <span class="ftb-icon">${s.areaFilter ? '●' : '+'}</span>
+                <span class="ftb-label">${s.areaFilter ? (AREA_BTN_LABELS[s.areaFilter] || 'TI') : 'TI'}</span>
+                ${s.areaFilter ? `<span class="ftb-x" data-clearfilter="areaFilter">×</span>` : ''}
+              </button>
+              <button class="filter-toggle-btn ${s.specialty ? 'has-active' : ''}"
+                      id="ftb-security" data-panel="fpl-security" type="button">
+                <span class="ftb-icon">${s.specialty ? '●' : '+'}</span>
+                <span class="ftb-label">${s.specialty ? (SPEC_BTN_LABELS[s.specialty] || 'Segurança') : 'Segurança'}</span>
+                ${s.specialty ? `<span class="ftb-x" data-clearfilter="specialty">×</span>` : ''}
+              </button>
+            </div>
           </div>
           <div class="filter-expand-panel" id="fpl-area"
                style="display:${s.areaFilter ? 'flex' : 'none'}">
@@ -684,6 +687,12 @@ function renderJobsPage() {
               ['cloud',     'Cloud'],
               ['arqtech',   'Arquitetura'],
               ['qa',        'QA / Testes'],
+              ['ux',        'Produto / UX'],
+              ['bi',        'BI / Analytics'],
+              ['infra',     'Infra / Redes'],
+              ['dba',       'DBA'],
+              ['suporte',   'Suporte'],
+              ['games',     'Games'],
             ])}
           </div>
           <div class="filter-expand-panel" id="fpl-security"
@@ -697,15 +706,13 @@ function renderJobsPage() {
               ['cloudsec','Cloud Security'],
             ])}
           </div>
-          <div class="inline-filter-row filter-row-wide">
-            <label class="toggle-expired-label">
-              <input type="checkbox" id="ms-hide-expired" ${s.hideExpired ? 'checked' : ''}>
-              <span>Ocultar vagas encerradas</span>
-            </label>
-          </div>
         </div>
 
         <div class="mission-footer">
+          <label class="toggle-expired-label">
+            <input type="checkbox" id="ms-hide-expired" ${s.hideExpired ? 'checked' : ''}>
+            <span>Ocultar vagas encerradas</span>
+          </label>
           <div class="mission-actions" style="margin-left:auto">
             <button class="btn-clear" id="ms-clear" type="button">Limpar</button>
             <button class="btn-search" id="ms-search" type="button">
@@ -850,6 +857,12 @@ function filterJobs() {
       cloud:    ['cloud','aws','azure','gcp','google cloud','nuvem','s3','ec2','lambda','cloud architect','serverless','multicloud'],
       arqtech:  ['arquiteto','architect','tech lead','líder técnico','principal engineer','staff engineer','engineering manager','solution architect','sistema distribuído'],
       qa:       ['qa','quality assurance','teste','tester','automação de teste','selenium','cypress','playwright','jest','pytest','bdd','tdd','controle de qualidade','sdet'],
+      ux:       ['ux designer','ui designer','product designer','product manager','product owner','ux researcher','figma','design system','experiência do usuário','designer de produto','protótipo'],
+      bi:       ['business intelligence','bi','tableau','power bi','qlik','looker','analytics','relatório gerencial','dashboard','dados de negócio','analista de dados de negócio'],
+      infra:    ['infraestrutura','redes','sysadmin','linux admin','windows server','firewall','network engineer','vpn','active directory','administrador de redes','administrador de sistemas'],
+      dba:      ['dba','database administrator','postgresql','mysql','oracle database','sql server','mongodb','banco de dados','administrador de banco','tuning de banco'],
+      suporte:  ['suporte técnico','help desk','service desk','n1','n2','n3','atendimento técnico','técnico de informática','field service','suporte de campo','assistência técnica'],
+      games:    ['game developer','unity','unreal engine','game design','mobile game','jogos','gameplay programmer','desenvolvedor de jogos','engine de jogo'],
       // Segurança
       soc:      ['soc','blue team','siem','splunk','incident response','threat hunt','dfir','forense','monitoramento de segurança'],
       pentest:  ['pentest','penetration test','red team','oscp','kali','metasploit','burp suite','exploit','ctf','ethical hack','teste de invasão'],
@@ -978,9 +991,11 @@ function jobCardV2(j, dynMatch) {
    ============================================================ */
 /* Labels curtos para os chips de filtro quando activos */
 const AREA_BTN_LABELS = {
-  backend:'Backend', frontend:'Frontend', fullstack:'Full Stack',
-  mobile:'Mobile', data:'Data / IA', devops:'DevOps / SRE',
-  cloud:'Cloud', arqtech:'Arquitetura', qa:'QA / Testes',
+  backend:'Backend',   frontend:'Frontend',   fullstack:'Full Stack',
+  mobile:'Mobile',     data:'Data / IA',      devops:'DevOps / SRE',
+  cloud:'Cloud',       arqtech:'Arquitetura', qa:'QA / Testes',
+  ux:'Produto / UX',  bi:'BI / Analytics',   infra:'Infra / Redes',
+  dba:'DBA',           suporte:'Suporte',     games:'Games',
 };
 const SPEC_BTN_LABELS = {
   soc:'SOC / Blue', pentest:'Pentest', grc:'GRC', appsec:'AppSec', cloudsec:'Cloud Sec',
@@ -1575,6 +1590,8 @@ function fmtDate(s) {
 }
 
 /* ============== Achievements ============== */
+const ACH_TIER = { bronze: 'B', prata: 'A', ouro: 'S', diamante: 'SS' };
+
 function renderAchievements() {
   const unlocked = store.achievements.filter(a => a.unlocked).length;
   $('#view').innerHTML = `
@@ -1586,14 +1603,21 @@ function renderAchievements() {
       <div class="chip chip-royal"><i data-lucide="trophy"></i> ${Math.round(unlocked / store.achievements.length * 100)}%</div>
     </div>
     <div class="ach-grid">
-      ${store.achievements.map(a => `
+      ${store.achievements.map(a => {
+        const tier = ACH_TIER[a.rarity] || 'B';
+        return `
         <div class="ach-card ${a.unlocked ? '' : 'locked'}" data-rarity="${a.rarity}">
-          <div class="ach-badge"><i data-lucide="${achIcon(a.icon)}"></i></div>
+          <div class="ach-badge-wrap">
+            <div class="ach-hex-border">
+              <div class="ach-badge"><i data-lucide="${achIcon(a.icon)}"></i></div>
+            </div>
+            <div class="ach-tier" data-tier="${tier}">${tier}</div>
+          </div>
           <div class="ach-name">${escapeHtml(a.name)}</div>
           <div class="ach-desc">${escapeHtml(a.desc)}</div>
           <div class="ach-xp">+${a.xp} XP</div>
-        </div>
-      `).join('')}
+        </div>`;
+      }).join('')}
     </div>
   `;
 }

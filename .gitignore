@@ -19,3 +19,9 @@ dist/
 # dados persistidos do usuário (não versionar)
 data/user-data.json
 data/*.tmp
+.vercel
+
+# previews de desenvolvimento
+*.png
+*.jpg
+*.jpeg
