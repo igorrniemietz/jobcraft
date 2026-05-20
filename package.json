@@ -6,6 +6,7 @@
   "scripts": {
     "start":     "node server.js",
     "dev":       "node server.js",
-    "sync-push": "node sync-push.js"
+    "sync-push": "node sync-push.js",
+    "sync-hml":  "node sync-hml.js"
   }
 }
