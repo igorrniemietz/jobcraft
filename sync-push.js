@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// sync-push.js — exporta vagas/cursos do container e faz git push para o Vercel redeployar
+// sync-push.js — exporta vagas/cursos do container e deploya no Vercel
 'use strict';
 const http  = require('http');
 const https = require('https');
@@ -50,19 +50,29 @@ async function main() {
   writeAtomic(path.join(__dirname, 'public', 'data', 'courses.json'), courses);
   console.log(`[sync-push] ${courses.length} cursos → public/data/courses.json`);
 
-  // 3. Git commit + push
+  // 3. Git commit (histórico local) + deploy no Vercel
   try {
     git('git add public/data/jobs.json public/data/courses.json');
     const status = git('git status --porcelain public/data/jobs.json public/data/courses.json');
     if (!status) {
       console.log('[sync-push] nenhuma mudança nos dados — sem commit');
-      return;
+    } else {
+      git(`git commit -m "data: sync ${ts} — ${jobs.length} vagas, ${courses.length} cursos"`);
+      git('git push origin dev');
+      console.log('[sync-push] commit e push concluídos');
     }
-    git(`git commit -m "data: sync ${ts} — ${jobs.length} vagas, ${courses.length} cursos"`);
-    git('git push origin dev');
-    console.log('[sync-push] push concluído — Vercel redeploya em ~1 min');
   } catch (e) {
-    console.error('[sync-push] erro no git:', e.message);
+    console.error('[sync-push] aviso git:', e.message);
+  }
+
+  // 4. Deploy no Vercel (não depende do GitHub integration)
+  console.log('[sync-push] enviando para o Vercel...');
+  try {
+    const out = execSync('vercel deploy --prod --yes', { cwd: __dirname, stdio: 'pipe' }).toString().trim();
+    const urlMatch = out.match(/https:\/\/\S+\.vercel\.app/);
+    console.log(`[sync-push] deploy concluído → ${urlMatch ? urlMatch[0] : 'ver saída do vercel'}`);
+  } catch (e) {
+    console.error('[sync-push] erro no vercel deploy:', e.message);
     process.exit(1);
   }
 }
