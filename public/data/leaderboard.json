@@ -7,6 +7,6 @@
   { "rank": 6, "name": "Rafael Pinto",    "handle": "@rpinto", "xp": 8540,  "level": 20, "track": "Frontend", "country": "BR" },
   { "rank": 7, "name": "Camila Reis",     "handle": "@creis",  "xp": 7980,  "level": 19, "track": "Crypto",    "country": "BR" },
   { "rank": 8, "name": "Bruno Oliveira",  "handle": "@bruno_o","xp": 7340,  "level": 18, "track": "SRE",       "country": "PT" },
-  { "rank": 9, "name": "Vivaldo Júnior",  "handle": "@vivaldo","xp": 1750,  "level": 12, "track": "AppSec",    "country": "BR", "isMe": true },
+  { "rank": 9, "name": "Vivaldo Júnior",  "handle": "@vivaldo","xp": 1750,  "level": 12, "track": "AppSec",    "country": "BR" },
   { "rank": 10,"name": "Júlia Ferreira",  "handle": "@juliaf", "xp": 1610,  "level": 11, "track": "Frontend",  "country": "BR" }
 ]

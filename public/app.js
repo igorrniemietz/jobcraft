@@ -1,7 +1,7 @@
 /* Jobcraft — SPA bootstrap */
 
 /* ============== localStorage helpers ============== */
-const LS = { profile: 'jc-profile', saved: 'jc-saved', apps: 'jc-apps', quests: 'jc-quests' };
+const LS = { profile: 'jc-profile', saved: 'jc-saved', apps: 'jc-apps', quests: 'jc-quests', achievements: 'jc-achievements' };
 
 /* ============== Daily Quests ============== */
 const QUEST_DEFS = [
@@ -138,6 +138,7 @@ async function boot() {
   store.quests = buildDailyQuests();
 
   loadProfile();
+  store.leaderboard = buildLeaderboard(leaderboard);
   paintUser();
   bindShell();
   bindRightPanel();
@@ -158,6 +159,21 @@ function loadProfile() {
   if (p.streak   !== undefined) store.user.streak   = p.streak;
   if (p.lastActivity)           store.user.lastActivity = p.lastActivity;
   store.user.activities = p.activities || [];
+
+  const savedAchs = lsGet(LS.achievements, []);
+  if (savedAchs.length) {
+    store.achievements.forEach(a => { if (savedAchs.includes(a.id)) a.unlocked = true; });
+  }
+}
+
+function buildLeaderboard(rawRows) {
+  const u      = store.user;
+  const handle = '@' + u.name.toLowerCase().replace(/\s+/g, '.');
+  const track  = (u.tracks && u.tracks[0]) || 'Segurança';
+  const me     = { name: u.name, handle, xp: u.xp || 0, level: u.level || 1, track, country: 'BR', isMe: true };
+  return [...rawRows.filter(r => !r.isMe), me]
+    .sort((a, b) => b.xp - a.xp)
+    .map((r, i) => ({ ...r, rank: i + 1 }));
 }
 
 async function loadRealJobs() {
@@ -735,16 +751,16 @@ function renderJobsPage() {
           </div>
           <div class="inline-filter-row">
             <span class="inline-filter-label">Área:</span>
-            <div class="inline-filter-opts">
+            <div class="inline-filter-opts filter-toggle-row">
               <button class="filter-toggle-btn ${s.areaFilter ? 'has-active' : ''}"
                       id="ftb-area" data-panel="fpl-area" type="button">
-                <span class="ftb-icon">${s.areaFilter ? '●' : '+'}</span>
+                <span class="ftb-icon">${s.areaFilter ? '●' : '<i data-lucide="monitor" style="width:13px;height:13px;vertical-align:middle"></i>'}</span>
                 <span class="ftb-label">${s.areaFilter ? (AREA_BTN_LABELS[s.areaFilter] || 'TI') : 'TI'}</span>
                 ${s.areaFilter ? `<span class="ftb-x" data-clearfilter="areaFilter">×</span>` : ''}
               </button>
               <button class="filter-toggle-btn ${s.specialty ? 'has-active' : ''}"
                       id="ftb-security" data-panel="fpl-security" type="button">
-                <span class="ftb-icon">${s.specialty ? '●' : '+'}</span>
+                <span class="ftb-icon">${s.specialty ? '●' : '<i data-lucide="shield" style="width:13px;height:13px;vertical-align:middle"></i>'}</span>
                 <span class="ftb-label">${s.specialty ? (SPEC_BTN_LABELS[s.specialty] || 'Segurança') : 'Segurança'}</span>
                 ${s.specialty ? `<span class="ftb-x" data-clearfilter="specialty">×</span>` : ''}
               </button>
@@ -759,6 +775,7 @@ function renderJobsPage() {
               ['fullstack', 'Full Stack'],
               ['mobile',    'Mobile'],
               ['data',      'Data / IA'],
+              ['dados',     'Dados'],
               ['devops',    'DevOps / SRE'],
               ['cloud',     'Cloud'],
               ['arqtech',   'Arquitetura'],
@@ -928,7 +945,8 @@ function filterJobs() {
       frontend: ['frontend','front-end','front end','react','vue','angular','next.js','nuxt','svelte','css','html','javascript','typescript','interface','ui developer','desenvolvedor web'],
       fullstack:['fullstack','full stack','full-stack','front e back','back e front','stack completa','desenvolvedor full'],
       mobile:   ['mobile','android','ios','react native','flutter','kotlin','swift','xcode','jetpack','app móvel','aplicativo'],
-      data:     ['data engineer','data science','data analyst','machine learning','deep learning','mlops','engenheiro de dados','cientista de dados','analista de dados','pipeline de dados','spark','dbt','airflow','inteligência artificial','llm','nlp','bigquery','databricks'],
+      data:     ['machine learning','deep learning','mlops','cientista de dados','inteligência artificial','llm','nlp','databricks','data science','ai engineer','engenheiro de ia','researcher'],
+      dados:    ['data engineer','engenheiro de dados','analista de dados','pipeline de dados','spark','dbt','airflow','bigquery','data analyst','etl','data warehouse','lakehouse','data platform','sql','snowflake'],
       devops:   ['devops','sre','platform engineer','site reliability','infraestrutura','kubernetes','k8s','docker','terraform','ansible','ci/cd','observabilidade','helm','gitops','argocd'],
       cloud:    ['cloud','aws','azure','gcp','google cloud','nuvem','s3','ec2','lambda','cloud architect','serverless','multicloud'],
       arqtech:  ['arquiteto','architect','tech lead','líder técnico','principal engineer','staff engineer','engineering manager','solution architect','sistema distribuído'],
@@ -1041,12 +1059,7 @@ function jobCardV2(j, dynMatch) {
         ${j.externalUrl
           ? `<a class="jcv2-cta" href="${escapeHtml(j.externalUrl)}" target="_blank" rel="noopener noreferrer">Ver vaga ↗</a>`
           : `<span class="jcv2-cta jcv2-cta-disabled">Indisponível</span>`}
-        <span class="jcv2-date ${dateAgeCls}">${escapeHtml(j.posted || 'recente')}</span>
-        <button class="btn-save-job ${store.savedJobs[j.id] ? 'saved' : ''}"
-          data-job-id="${escapeHtml(j.id)}"
-          title="${store.savedJobs[j.id] ? 'Missão guardada' : 'Guardar missão'}">
-          ${store.savedJobs[j.id] ? '⚔' : '◇'}
-        </button>
+        <span class="jcv2-date ${dateAgeCls}" style="flex:1;text-align:center">${escapeHtml(j.posted || 'recente')}</span>
         ${store.applications[j.id]
           ? `<button class="btn-apply-job applied" data-job-id="${escapeHtml(j.id)}" title="Ver no kanban">
                ${STAGE_LABELS[store.applications[j.id].stage] || 'Candidatado'} ✓
@@ -1068,10 +1081,10 @@ function jobCardV2(j, dynMatch) {
 /* Labels curtos para os chips de filtro quando activos */
 const AREA_BTN_LABELS = {
   backend:'Backend',   frontend:'Frontend',   fullstack:'Full Stack',
-  mobile:'Mobile',     data:'Data / IA',      devops:'DevOps / SRE',
-  cloud:'Cloud',       arqtech:'Arquitetura', qa:'QA / Testes',
-  ux:'Produto / UX',  bi:'BI / Analytics',   infra:'Infra / Redes',
-  dba:'DBA',           suporte:'Suporte',     games:'Games',
+  mobile:'Mobile',     data:'Data / IA',      dados:'Dados',
+  devops:'DevOps / SRE', cloud:'Cloud',       arqtech:'Arquitetura',
+  qa:'QA / Testes',   ux:'Produto / UX',     bi:'BI / Analytics',
+  infra:'Infra / Redes', dba:'DBA',           suporte:'Suporte',     games:'Games',
 };
 const SPEC_BTN_LABELS = {
   soc:'SOC / Blue', pentest:'Pentest', grc:'GRC', appsec:'AppSec', cloudsec:'Cloud Sec',
@@ -1183,6 +1196,7 @@ function _refreshFilterToggle(filterName, value) {
   const labels = isArea ? AREA_BTN_LABELS : SPEC_BTN_LABELS;
   const defaultLabel = isArea ? 'TI' : 'Segurança';
 
+  const iconName = isArea ? 'monitor' : 'shield';
   if (value) {
     btn.classList.add('has-active');
     if (icon)  icon.textContent = '●';
@@ -1196,7 +1210,7 @@ function _refreshFilterToggle(filterName, value) {
     }
   } else {
     btn.classList.remove('has-active');
-    if (icon)  icon.textContent = '+';
+    if (icon)  { icon.innerHTML = `<i data-lucide="${iconName}" style="width:13px;height:13px;vertical-align:middle"></i>`; if (window.lucide) lucide.createIcons(); }
     if (label) label.textContent = defaultLabel;
     xBtn?.remove();
   }
@@ -1349,9 +1363,7 @@ function bindJobsPageEvents() {
 
   // Delegação de eventos para salvar e candidatar
   $('#jobs-results')?.addEventListener('click', e => {
-    const saveBtn  = e.target.closest('.btn-save-job');
     const applyBtn = e.target.closest('.btn-apply-job');
-    if (saveBtn)  toggleSaveJob(saveBtn.dataset.jobId, saveBtn);
     if (applyBtn) applyToJob(applyBtn.dataset.jobId, applyBtn);
   });
 }
@@ -1982,26 +1994,40 @@ function checkAchievements() {
   if (_checkingAch) return;
   _checkingAch = true;
   const u = store.user;
-  const applied      = Object.keys(store.applications).length;
-  const inInterview  = Object.values(store.applications).filter(a => a.stage === 'interview').length;
-  const completedIds = store.courses.filter(c => c.progress === 100).map(c => c.id);
+  const applied     = Object.keys(store.applications).length;
+  const inInterview = Object.values(store.applications).filter(a => a.stage === 'interview').length;
+
+  const courseTitle = (substr) => (c) => c.title.toLowerCase().includes(substr.toLowerCase());
+  const completed   = (substr) => store.courses.some(c => c.progress === 100 && courseTitle(substr)(c));
+  const started     = (substr) => store.courses.some(c => c.progress > 0    && courseTitle(substr)(c));
+  const myRank      = store.leaderboard.findIndex(r => r.isMe) + 1;
+
   const rules = [
     { id: 'a-001', ok: () => applied >= 1 },
     { id: 'a-002', ok: () => inInterview >= 1 },
-    { id: 'a-003', ok: () => completedIds.includes('c-001') },
-    { id: 'a-004', ok: () => completedIds.includes('c-003') },
+    { id: 'a-003', ok: () => completed('owasp') },
+    { id: 'a-004', ok: () => completed('pentest') },
     { id: 'a-005', ok: () => (u.streak || 0) >= 7 },
     { id: 'a-006', ok: () => (u.streak || 0) >= 30 },
+    { id: 'a-007', ok: () => completed('criptografi') },
+    { id: 'a-008', ok: () => store.certs.some(c => c.id === 'cert-004' && c.status === 'earned') },
+    { id: 'a-009', ok: () => myRank > 0 && myRank <= 10 },
     { id: 'a-010', ok: () => u.level >= 30 },
-    { id: 'a-011', ok: () => store.courses.some(c => c.id === 'c-003' && c.progress > 0) },
+    { id: 'a-011', ok: () => started('forens') },
+    { id: 'a-012', ok: () => completed('zero trust') },
   ];
+
+  const savedAchs = lsGet(LS.achievements, []);
+  let changed = false;
   for (const r of rules) {
     const ach = store.achievements.find(a => a.id === r.id);
     if (!ach || ach.unlocked || !r.ok()) continue;
     ach.unlocked = true;
+    if (!savedAchs.includes(ach.id)) { savedAchs.push(ach.id); changed = true; }
     addXP(ach.xp, 'achievement');
     toast(`🏆 Conquista: "${ach.name}" — +${ach.xp} XP!`);
   }
+  if (changed) lsSet(LS.achievements, savedAchs);
   _checkingAch = false;
 }
 
