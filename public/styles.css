@@ -132,7 +132,7 @@ body.sb-collapsed #sidebar .nav-item { justify-content: center; padding: 12px 0;
    Sidebar
    ============================================================ */
 .brand { display: flex; align-items: center; justify-content: space-between; padding: 4px 6px 14px; gap: 8px; flex-wrap: wrap; }
-.brand-logo { height: 40px; width: auto; min-width: 0; }
+.brand-logo { height: 50px; width: auto; min-width: 0; }
 .brand-online { display: flex; align-items: center; gap: 5px; flex: 1; }
 .online-dot {
   width: 8px; height: 8px; border-radius: 50%;
@@ -618,7 +618,7 @@ h3 { font-size: 16px; font-weight: 700; }
   transition: transform .15s var(--ease);
 }
 .ach-card:hover { transform: translateY(-5px); }
-.ach-card.locked { opacity: .42; filter: grayscale(.9); }
+.ach-card.locked { opacity: .62; filter: grayscale(.55) brightness(.85); }
 
 /* ── Hex structure (dois hexágonos: borda + fill) ─────────── */
 .ach-badge-wrap { position: relative; display: inline-block; }
@@ -788,6 +788,79 @@ h3 { font-size: 16px; font-weight: 700; }
 .tl .tdate { font-size: 11px; color: var(--text-mut); }
 
 /* ============================================================
+   Notification Panel
+   ============================================================ */
+.notif-panel {
+  position: fixed;
+  top: calc(var(--tb-h) + 8px);
+  right: 16px;
+  width: 340px;
+  max-height: 480px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: notif-in .18s var(--ease);
+}
+@keyframes notif-in {
+  from { opacity:0; transform: translateY(-8px) scale(.97); }
+  to   { opacity:1; transform: translateY(0) scale(1); }
+}
+.notif-hdr {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.notif-title { font-size: 9px; color: var(--snes-royal); flex: 1; }
+.notif-badge {
+  background: var(--danger); color: #fff;
+  font-size: 10px; font-weight: 700;
+  padding: 1px 6px; border-radius: 20px;
+}
+.notif-clear-btn {
+  font-size: 11px; color: var(--text-mut); cursor: pointer;
+  background: none; border: none; padding: 0;
+}
+.notif-clear-btn:hover { color: var(--snes-royal); }
+.notif-list {
+  overflow-y: auto; flex: 1;
+  padding: 6px 0;
+}
+.notif-empty {
+  text-align: center; color: var(--text-mut); font-size: 12px;
+  padding: 32px 16px;
+}
+.notif-item {
+  display: flex; gap: 12px; align-items: flex-start;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  cursor: default; transition: background .12s;
+}
+.notif-item:last-child { border-bottom: none; }
+.notif-item:hover { background: var(--surface-2); }
+.notif-item.unread { background: color-mix(in srgb, var(--snes-royal) 5%, var(--surface)); }
+.notif-item-icon {
+  width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; background: var(--surface-2);
+}
+.notif-item-body { flex: 1; min-width: 0; }
+.notif-item-title { font-size: 12px; font-weight: 700; color: var(--text); }
+.notif-item-desc  { font-size: 11px; color: var(--text-mut); margin-top: 1px; }
+.notif-item-time  { font-size: 10px; color: var(--text-mut); margin-top: 3px; }
+.notif-dot {
+  position: absolute; top: 6px; right: 6px;
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--danger);
+  border: 2px solid var(--surface);
+}
+.icon-btn { position: relative; }
+
+/* ============================================================
    Toast
    ============================================================ */
 #toast-root {
@@ -814,6 +887,13 @@ h3 { font-size: 16px; font-weight: 700; }
   min-width: 290px;
 }
 .toast-ach .pixel { color: var(--ach-color, var(--xp-gold)); }
+.toast-quest {
+  cursor: pointer;
+  border-color: #FACC15;
+  box-shadow: 0 0 18px rgba(250,204,21,.35);
+  min-width: 280px;
+}
+.toast-quest:hover { filter: brightness(1.1); }
 
 /* ============================================================
    Documentação
@@ -923,9 +1003,10 @@ h3 { font-size: 16px; font-weight: 700; }
 
 @media (max-width: 720px) {
   body, body.sb-collapsed { padding-left: 0; padding-right: 0; }
-  #sidebar { left: -260px; }
+  #sidebar { left: -260px; transition: left .25s var(--ease); }
   #right-panel { display: none; }
-  body.sb-open #sidebar { left: 0; }
+  body.sb-open #sidebar { left: 0; box-shadow: 4px 0 24px rgba(0,0,0,.35); }
+  body.sb-open::after { content: ''; position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 29; }
   .mobile-only { display: grid !important; }
   .user-meta { display: none; }
   .hud-xp-block { display: none; }
@@ -934,12 +1015,30 @@ h3 { font-size: 16px; font-weight: 700; }
   .courses-grid, .cert-grid { grid-template-columns: 1fr; }
   .hero { flex-direction: column; align-items: flex-start; }
   .hero-art { display: none; }
-  #view { padding: 18px; }
+  #view { padding: 14px; }
   .mission-fields { grid-template-columns: 1fr; }
   .mission-row2 { grid-template-columns: 1fr; }
   .mission-filters { grid-template-columns: 1fr; }
   .market-grid { grid-template-columns: repeat(2, 1fr); }
   .jobs-grid-v2 { grid-template-columns: 1fr; }
+  /* Botões de área menores no mobile */
+  .area-top-btn { font-size: 10px; padding: 4px 8px; }
+  .filter-toggle-btn { font-size: 11px; }
+  /* Sub-painel de área ocupa largura total */
+  .filter-subarea-panel { flex-wrap: wrap; gap: 5px; }
+  .sub-mode-btn { font-size: 10px; padding: 4px 8px; }
+  /* Job card footer empilhado */
+  .jcv2-foot { flex-wrap: wrap; gap: 6px; }
+  .jcv2-date { flex: none; order: 3; width: 100%; text-align: left !important; }
+  .jcv2-match { order: 4; width: 100%; }
+  .btn-apply-job { margin: 0; }
+  /* Painel de notificações full-width no mobile */
+  .notif-panel { left: 8px; right: 8px; width: auto; }
+  /* Ach grid */
+  .ach-grid { grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  /* Kanban horizontal scroll */
+  .kanban-board { overflow-x: auto; }
+  .kanban-col { min-width: 260px; }
 }
 .mobile-only { display: none; }
 
@@ -988,11 +1087,7 @@ h3 { font-size: 16px; font-weight: 700; }
 .hud-bar-row  { display: flex; align-items: center; gap: 8px; }
 .hud-bar-row .hud-xpbar-outer { flex: 1; }
 .hud-coin-wrap { display: flex; align-items: center; gap: 5px; flex-shrink: 0; margin-left: 14px; }
-.pixel-coin { animation: coin-bounce .9s ease-in-out infinite; }
-@keyframes coin-bounce {
-  0%, 100% { transform: translateY(0); }
-  50%       { transform: translateY(-3px); }
-}
+.pixel-coin { display: block; image-rendering: pixelated; }
 .hud-xpbar-outer {
   position: relative;
   height: 14px;
@@ -1054,14 +1149,43 @@ h3 { font-size: 16px; font-weight: 700; }
   display: flex; flex-direction: column;
   z-index: 25;
   overflow-y: auto;
+  transition: transform .25s var(--ease);
 }
+body.rp-hidden #right-panel { transform: translateX(100%); }
+
+.rp-reopen-tab {
+  position: fixed;
+  top: 50%; right: 0;
+  transform: translateY(-50%) translateX(100%);
+  background: var(--snes-obsidian);
+  border: 3px solid var(--xp-gold);
+  border-right: none;
+  border-radius: 8px 0 0 8px;
+  color: var(--xp-gold);
+  cursor: pointer;
+  padding: 12px 8px;
+  z-index: 26;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  transition: transform .25s var(--ease);
+}
+body.rp-hidden .rp-reopen-tab { transform: translateY(-50%) translateX(0); }
+.rp-reopen-tab svg { width: 16px; height: 16px; }
 
 .rp-header {
   background: var(--snes-obsidian);
   padding: 14px 16px;
-  text-align: center;
+  display: flex; align-items: center; justify-content: space-between;
   border-bottom: 3px solid var(--xp-gold);
 }
+.rp-toggle-btn {
+  background: none; border: none; cursor: pointer;
+  color: var(--xp-gold); padding: 4px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 4px; flex-shrink: 0;
+  transition: background .15s;
+}
+.rp-toggle-btn:hover { background: rgba(255,255,255,.12); }
+.rp-toggle-btn svg { width: 16px; height: 16px; }
 .rp-title {
   font-size: 13px;
   color: var(--xp-gold);
@@ -1209,6 +1333,7 @@ h3 { font-size: 16px; font-weight: 700; }
 .rp-course-item {
   display: flex; align-items: center; gap: 10px;
   padding: 9px 10px;
+  text-decoration: none; color: inherit;
   border: 1px solid var(--border); border-radius: 8px;
   background: var(--surface);
   transition: border-color .15s var(--ease);
@@ -1221,6 +1346,23 @@ h3 { font-size: 16px; font-weight: 700; }
 }
 .rp-course-name { font-size: 11px; font-weight: 700; color: var(--text); line-height: 1.3; }
 .rp-course-meta { font-size: 10px; color: var(--text-mut); }
+.rp-course-tier-badge {
+  font-size: 7px; font-weight: 700; font-family: 'Press Start 2P', monospace;
+  padding: 2px 5px; border-radius: 4px; flex-shrink: 0; text-transform: uppercase;
+}
+.rp-tier-bronze { background: #CD7F32; color: #fff; }
+.rp-tier-prata  { background: #9E9E9E; color: #fff; }
+.rp-tier-ouro   { background: var(--xp-gold); color: #0D0D0D; }
+.rp-ver-todos {
+  display: block; text-align: center;
+  padding: 8px 12px; margin-top: 4px;
+  font-size: 9px; font-weight: 700; font-family: 'Press Start 2P', monospace;
+  color: var(--snes-royal); background: var(--surface-2);
+  border: 2px solid var(--snes-royal-light); border-radius: 6px;
+  text-decoration: none;
+  transition: background .15s, color .15s;
+}
+.rp-ver-todos:hover { background: var(--snes-royal); color: #fff; }
 
 /* ============================================================
    Jobs page — layout com sidebar de filtros
@@ -1579,7 +1721,8 @@ h3 { font-size: 16px; font-weight: 700; }
   border: 1px solid #FFB74D;
 }
 .jcv2-sep { height: 1px; background: var(--border); }
-.jcv2-foot { display: flex; align-items: center; justify-content: space-between; }
+.jcv2-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.jcv2-foot .jcv2-date { flex: 1; text-align: center; }
 .jcv2-link {
   font-size: 13px; font-weight: 600;
   color: var(--snes-royal); cursor: pointer; background: none; border: none;
@@ -1854,6 +1997,23 @@ h3 { font-size: 16px; font-weight: 700; }
 .heatmap-legend {
   display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-mut);
 }
+
+.area-top-btn { padding: 5px 10px; font-size: 12px; }
+.filter-toggle-row { flex-wrap: wrap; gap: 5px; }
+.filter-subarea-panel {
+  border-top: 1px dashed var(--border);
+  padding-top: 10px;
+  background: color-mix(in srgb, var(--snes-royal) 4%, var(--surface));
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+}
+.subarea-back-label {
+  font-size: 10px; font-weight: 700; color: var(--snes-royal);
+  align-self: center; white-space: nowrap;
+  padding: 3px 8px; border: 1px solid var(--snes-royal);
+  border-radius: 12px; background: color-mix(in srgb, var(--snes-royal) 10%, transparent);
+  margin-right: 4px; flex-shrink: 0;
+}
+.sub-mode-btn { font-size: 11px; }
 
 /* ── InfoSec specialty filter — no extra CSS needed (reuses .mode-btn) ── */
 
