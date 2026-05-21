@@ -808,6 +808,12 @@ h3 { font-size: 16px; font-weight: 700; }
 .toast.in { transform: translateX(0); }
 .toast .pixel { font-size: 10px; color: var(--xp-gold); }
 .toast .msg { font-size: 13px; }
+.toast-ach {
+  border-color: var(--ach-color, var(--xp-gold));
+  box-shadow: 0 0 18px color-mix(in srgb, var(--ach-color, var(--xp-gold)) 40%, transparent);
+  min-width: 290px;
+}
+.toast-ach .pixel { color: var(--ach-color, var(--xp-gold)); }
 
 /* ============================================================
    Documentação
@@ -977,12 +983,12 @@ h3 { font-size: 16px; font-weight: 700; }
   display: flex; align-items: center; gap: 8px;
 }
 .hud-exp-txt  { font-size: 9px; color: var(--snes-royal); letter-spacing: .5px; }
-.hud-xp-nums  { font-size: 9px; color: #fff; letter-spacing: .3px; flex: 1; text-align: center; }
+.hud-xp-nums  { font-size: 9px; color: var(--snes-royal); letter-spacing: .3px; flex: 1; text-align: center; }
 .hud-pts-txt  { font-size: 9px; color: var(--xp-gold); letter-spacing: .3px; }
 .hud-bar-row  { display: flex; align-items: center; gap: 8px; }
 .hud-bar-row .hud-xpbar-outer { flex: 1; }
 .hud-coin-wrap { display: flex; align-items: center; gap: 5px; flex-shrink: 0; margin-left: 14px; }
-.pixel-coin { image-rendering: pixelated; animation: coin-bounce .9s ease-in-out infinite; }
+.pixel-coin { animation: coin-bounce .9s ease-in-out infinite; }
 @keyframes coin-bounce {
   0%, 100% { transform: translateY(0); }
   50%       { transform: translateY(-3px); }

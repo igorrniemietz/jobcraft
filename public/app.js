@@ -5,11 +5,11 @@ const LS = { profile: 'jc-profile', saved: 'jc-saved', apps: 'jc-apps', quests: 
 
 /* ============== Daily Quests ============== */
 const QUEST_DEFS = [
-  { id: 'login',  title: 'Acesse o JobCraft hoje',       type: 'login',  goal: 1, xp: 30  },
-  { id: 'apply3', title: 'Candidate-se a 3 vagas hoje',  type: 'apply',  goal: 3, xp: 100 },
-  { id: 'save2',  title: 'Salve 2 vagas',                type: 'save',   goal: 2, xp: 40  },
-  { id: 'course1',title: 'Conclua 1 módulo de curso',    type: 'course', goal: 1, xp: 60  },
-  { id: 'streak', title: 'Mantenha o streak ativo',      type: 'streak', goal: 1, xp: 50  },
+  { id: 'login',      title: 'Acesse o JobCraft hoje',              type: 'login',     goal: 1, xp: 30  },
+  { id: 'apply3',     title: 'Candidate-se a 3 vagas hoje',         type: 'apply',     goal: 3, xp: 100 },
+  { id: 'interview1', title: 'Atualize uma candidatura no Kanban',  type: 'interview', goal: 1, xp: 80  },
+  { id: 'course1',    title: 'Conclua 1 módulo de curso',           type: 'course',    goal: 1, xp: 60  },
+  { id: 'streak',     title: 'Mantenha o streak ativo',             type: 'streak',    goal: 1, xp: 50  },
 ];
 
 function _today() { return new Date().toISOString().slice(0, 10); }
@@ -769,23 +769,13 @@ function renderJobsPage() {
           <div class="filter-expand-panel" id="fpl-area"
                style="display:${s.areaFilter ? 'flex' : 'none'}">
             ${filterBtns('areaFilter', [
-              ['',          'Todas'],
-              ['backend',   'Backend'],
-              ['frontend',  'Frontend'],
-              ['fullstack', 'Full Stack'],
-              ['mobile',    'Mobile'],
-              ['data',      'Data / IA'],
-              ['dados',     'Dados'],
-              ['devops',    'DevOps / SRE'],
-              ['cloud',     'Cloud'],
-              ['arqtech',   'Arquitetura'],
-              ['qa',        'QA / Testes'],
-              ['ux',        'Produto / UX'],
-              ['bi',        'BI / Analytics'],
-              ['infra',     'Infra / Redes'],
-              ['dba',       'DBA'],
-              ['suporte',   'Suporte'],
-              ['games',     'Games'],
+              ['',            'Todas'],
+              ['dev',         'Desenvolvimento'],
+              ['mobile',      'Mobile'],
+              ['dadosai',     'Dados & IA'],
+              ['devopscloud', 'DevOps / Cloud'],
+              ['produtoqa',   'Produto & QA'],
+              ['infraredes',  'Infra & Redes'],
             ])}
           </div>
           <div class="filter-expand-panel" id="fpl-security"
@@ -947,6 +937,12 @@ function filterJobs() {
       mobile:   ['mobile','android','ios','react native','flutter','kotlin','swift','xcode','jetpack','app móvel','aplicativo'],
       data:     ['machine learning','deep learning','mlops','cientista de dados','inteligência artificial','llm','nlp','databricks','data science','ai engineer','engenheiro de ia','researcher'],
       dados:    ['data engineer','engenheiro de dados','analista de dados','pipeline de dados','spark','dbt','airflow','bigquery','data analyst','etl','data warehouse','lakehouse','data platform','sql','snowflake'],
+      // Categorias agregadas para o painel TI
+      dev:          ['backend','back-end','api rest','node.js','nodejs','django','spring','golang','fastapi','laravel','ruby on rails','frontend','front-end','react','vue','angular','next.js','nuxt','svelte','css','html','javascript','typescript','fullstack','full stack','full-stack','desenvolvedor','software engineer','engenheiro de software'],
+      dadosai:      ['machine learning','deep learning','mlops','llm','nlp','data science','data engineer','engenheiro de dados','analista de dados','pipeline de dados','spark','dbt','airflow','bigquery','data analyst','etl','data warehouse','business intelligence','bi','tableau','power bi','qlik','looker','analytics','cientista de dados','inteligência artificial','databricks'],
+      devopscloud:  ['devops','sre','platform engineer','site reliability','kubernetes','k8s','docker','terraform','ansible','ci/cd','gitops','argocd','aws','azure','gcp','google cloud','cloud','nuvem','serverless','cloud architect','multicloud','helm','observabilidade'],
+      produtoqa:    ['ux designer','ui designer','product designer','product manager','product owner','figma','design system','qa','quality assurance','automação de teste','selenium','cypress','playwright','jest','bdd','tdd','arquiteto','architect','tech lead','líder técnico','principal engineer','staff engineer','solution architect','unity','unreal engine','game developer','game design'],
+      infraredes:   ['infraestrutura','redes','sysadmin','linux admin','windows server','firewall','network engineer','vpn','active directory','administrador de redes','dba','database administrator','postgresql','mysql','oracle database','sql server','mongodb','administrador de banco','suporte técnico','help desk','service desk','n1','n2','n3','técnico de informática','field service'],
       devops:   ['devops','sre','platform engineer','site reliability','infraestrutura','kubernetes','k8s','docker','terraform','ansible','ci/cd','observabilidade','helm','gitops','argocd'],
       cloud:    ['cloud','aws','azure','gcp','google cloud','nuvem','s3','ec2','lambda','cloud architect','serverless','multicloud'],
       arqtech:  ['arquiteto','architect','tech lead','líder técnico','principal engineer','staff engineer','engineering manager','solution architect','sistema distribuído'],
@@ -1080,11 +1076,14 @@ function jobCardV2(j, dynMatch) {
    ============================================================ */
 /* Labels curtos para os chips de filtro quando activos */
 const AREA_BTN_LABELS = {
-  backend:'Backend',   frontend:'Frontend',   fullstack:'Full Stack',
-  mobile:'Mobile',     data:'Data / IA',      dados:'Dados',
-  devops:'DevOps / SRE', cloud:'Cloud',       arqtech:'Arquitetura',
-  qa:'QA / Testes',   ux:'Produto / UX',     bi:'BI / Analytics',
-  infra:'Infra / Redes', dba:'DBA',           suporte:'Suporte',     games:'Games',
+  dev:'Desenvolvimento', mobile:'Mobile',      dadosai:'Dados & IA',
+  devopscloud:'DevOps / Cloud', produtoqa:'Produto & QA', infraredes:'Infra & Redes',
+  // legado — compatibilidade com filtros salvos
+  backend:'Backend', frontend:'Frontend', fullstack:'Full Stack',
+  data:'Data / IA',  dados:'Dados',       devops:'DevOps / SRE',
+  cloud:'Cloud',     arqtech:'Arquitetura', qa:'QA / Testes',
+  ux:'Produto / UX', bi:'BI / Analytics', infra:'Infra / Redes',
+  dba:'DBA',         suporte:'Suporte',    games:'Games',
 };
 const SPEC_BTN_LABELS = {
   soc:'SOC / Blue', pentest:'Pentest', grc:'GRC', appsec:'AppSec', cloudsec:'Cloud Sec',
@@ -1245,6 +1244,13 @@ function bindJobsPageEvents() {
       panel.style.display = 'none';
       toggleBtn.classList.remove('open');
     } else {
+      // Fechar o outro painel antes de abrir este
+      const otherPanelId = panelId === 'fpl-area' ? 'fpl-security' : 'fpl-area';
+      const otherBtnId   = panelId === 'fpl-area' ? 'ftb-security' : 'ftb-area';
+      const otherPanel   = $('#' + otherPanelId);
+      const otherBtn     = $('#' + otherBtnId);
+      if (otherPanel) otherPanel.style.display = 'none';
+      if (otherBtn)   otherBtn.classList.remove('open');
       panel.style.display = 'flex';
       toggleBtn.classList.add('open');
     }
@@ -2025,7 +2031,7 @@ function checkAchievements() {
     ach.unlocked = true;
     if (!savedAchs.includes(ach.id)) { savedAchs.push(ach.id); changed = true; }
     addXP(ach.xp, 'achievement');
-    toast(`🏆 Conquista: "${ach.name}" — +${ach.xp} XP!`);
+    toastAch(ach);
   }
   if (changed) lsSet(LS.achievements, savedAchs);
   _checkingAch = false;
@@ -2194,6 +2200,29 @@ function toast(msg, levelUp = false) {
   }, 3200);
 }
 
+const RARITY_COLOR = { bronze: '#cd7f32', prata: '#94a3b8', ouro: '#FACC15', diamante: '#38bdf8' };
+function toastAch(ach) {
+  const root  = $('#toast-root');
+  const color = RARITY_COLOR[ach.rarity] || '#FACC15';
+  const el = document.createElement('div');
+  el.className = 'toast toast-ach';
+  el.style.setProperty('--ach-color', color);
+  el.innerHTML = `
+    <i data-lucide="award" style="color:${color};flex-shrink:0"></i>
+    <div>
+      <div class="pixel" style="color:${color}">CONQUISTA!</div>
+      <div class="msg" style="font-weight:700">${escapeHtml(ach.name)}</div>
+      <div class="msg" style="font-size:11px;opacity:.8">${escapeHtml(ach.desc)} · +${ach.xp} XP</div>
+    </div>`;
+  root.appendChild(el);
+  if (window.lucide) lucide.createIcons();
+  requestAnimationFrame(() => el.classList.add('in'));
+  setTimeout(() => {
+    el.style.transform = 'translateX(120%)';
+    setTimeout(() => el.remove(), 400);
+  }, 4500);
+}
+
 /* ============== util cor ============== */
 function shade(hex, pct) {
   const h = hex.replace('#','');
@@ -2296,7 +2325,6 @@ function renderDocs() {
       title: 'Sistema de XP e Nível',
       color: '#5B4FB3',
       items: [
-        { label: 'Salvar vaga', desc: '+10 XP por vaga salva.' },
         { label: 'Candidatar', desc: '+50 XP ao registrar candidatura.' },
         { label: 'Entrevista', desc: '+150 XP ao avançar para estágio de entrevista.' },
         { label: 'Oferta recebida', desc: '+500 XP ao registrar uma proposta/oferta.' },
