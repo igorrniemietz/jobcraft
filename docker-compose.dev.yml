@@ -1,0 +1,32 @@
+version: "3.9"
+
+# Ambiente de desenvolvimento — hot-reload via node --watch
+# Uso: docker compose -f docker-compose.dev.yml up
+# ou:  npm run docker:dev
+
+services:
+  jobcraft:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: jobcraft_dev
+    ports:
+      - "8080:8080"
+    volumes:
+      - .:/app                # monta o código-fonte no container
+      - /app/node_modules     # preserva node_modules do container (não sobrescreve com host)
+    environment:
+      NODE_ENV: development
+      PORT: 8080
+      YOUTUBE_API_KEY:    "${YOUTUBE_API_KEY:-}"
+      SYNC_INTERVAL_MS:   "${SYNC_INTERVAL_MS:-21600000}"
+      VAGAS_ENABLED:      "${VAGAS_ENABLED:-true}"
+      GREENHOUSE_ENABLED: "${GREENHOUSE_ENABLED:-true}"
+      LEVER_ENABLED:      "${LEVER_ENABLED:-true}"
+      DATABASE_URL:       "${DATABASE_URL:-}"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
