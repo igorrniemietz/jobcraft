@@ -770,12 +770,13 @@ function renderJobsPage() {
                style="display:${s.areaFilter ? 'flex' : 'none'}">
             ${filterBtns('areaFilter', [
               ['',            'Todas'],
-              ['dev',         'Desenvolvimento'],
-              ['mobile',      'Mobile'],
-              ['dadosai',     'Dados & IA'],
-              ['devopscloud', 'DevOps / Cloud'],
-              ['produtoqa',   'Produto & QA'],
-              ['infraredes',  'Infra & Redes'],
+              ['dev',         'Dev  ·  Front / Back / Full Stack'],
+              ['mobile',      'Mobile  ·  Android / iOS / Flutter'],
+              ['dados',       'Dados  ·  BI / SQL / Analytics / DBA'],
+              ['ia',          'IA & ML  ·  Data Science / LLMs / MLOps'],
+              ['devopscloud', 'DevOps & Cloud  ·  AWS / K8s / Docker'],
+              ['produtoqa',   'Produto  ·  UX / Design / QA / Arquitetura'],
+              ['suporte',     'Suporte & Redes  ·  Help Desk / Infra / Sysadmin'],
             ])}
           </div>
           <div class="filter-expand-panel" id="fpl-security"
@@ -936,12 +937,14 @@ function filterJobs() {
       fullstack:['fullstack','full stack','full-stack','front e back','back e front','stack completa','desenvolvedor full'],
       mobile:   ['mobile','android','ios','react native','flutter','kotlin','swift','xcode','jetpack','app móvel','aplicativo'],
       data:     ['machine learning','deep learning','mlops','cientista de dados','inteligência artificial','llm','nlp','databricks','data science','ai engineer','engenheiro de ia','researcher'],
-      dados:    ['data engineer','engenheiro de dados','analista de dados','pipeline de dados','spark','dbt','airflow','bigquery','data analyst','etl','data warehouse','lakehouse','data platform','sql','snowflake'],
-      // Categorias agregadas para o painel TI
+      dados:    ['data engineer','engenheiro de dados','analista de dados','pipeline de dados','spark','dbt','airflow','bigquery','data analyst','etl','data warehouse','lakehouse','data platform','sql','snowflake','business intelligence','bi','tableau','power bi','qlik','looker','analytics','relatório gerencial','dashboard','dba','database administrator','postgresql','mysql','oracle database','sql server','mongodb','administrador de banco','tuning de banco'],
+      // Grupos TI para o painel de filtro
       dev:          ['backend','back-end','api rest','node.js','nodejs','django','spring','golang','fastapi','laravel','ruby on rails','frontend','front-end','react','vue','angular','next.js','nuxt','svelte','css','html','javascript','typescript','fullstack','full stack','full-stack','desenvolvedor','software engineer','engenheiro de software'],
-      dadosai:      ['machine learning','deep learning','mlops','llm','nlp','data science','data engineer','engenheiro de dados','analista de dados','pipeline de dados','spark','dbt','airflow','bigquery','data analyst','etl','data warehouse','business intelligence','bi','tableau','power bi','qlik','looker','analytics','cientista de dados','inteligência artificial','databricks'],
+      ia:           ['machine learning','deep learning','mlops','llm','nlp','gpt','inteligência artificial','ai engineer','engenheiro de ia','data science','cientista de dados','databricks','researcher','computer vision','processamento de linguagem natural'],
+      dadosai:      ['data engineer','engenheiro de dados','analista de dados','pipeline de dados','spark','dbt','airflow','bigquery','data analyst','etl','data warehouse','business intelligence','bi','tableau','power bi','analytics','dba','database administrator','postgresql','mysql'],
       devopscloud:  ['devops','sre','platform engineer','site reliability','kubernetes','k8s','docker','terraform','ansible','ci/cd','gitops','argocd','aws','azure','gcp','google cloud','cloud','nuvem','serverless','cloud architect','multicloud','helm','observabilidade'],
-      produtoqa:    ['ux designer','ui designer','product designer','product manager','product owner','figma','design system','qa','quality assurance','automação de teste','selenium','cypress','playwright','jest','bdd','tdd','arquiteto','architect','tech lead','líder técnico','principal engineer','staff engineer','solution architect','unity','unreal engine','game developer','game design'],
+      produtoqa:    ['ux designer','ui designer','product designer','product manager','product owner','figma','design system','qa','quality assurance','automação de teste','selenium','cypress','playwright','jest','bdd','tdd','arquiteto','architect','tech lead','líder técnico','principal engineer','staff engineer','solution architect'],
+      suporte:      ['infraestrutura','redes','sysadmin','linux admin','windows server','firewall','network engineer','vpn','active directory','administrador de redes','suporte técnico','help desk','service desk','n1','n2','n3','técnico de informática','field service','suporte de campo','assistência técnica','unity','unreal engine','game developer','game design','mobile game','jogos'],
       infraredes:   ['infraestrutura','redes','sysadmin','linux admin','windows server','firewall','network engineer','vpn','active directory','administrador de redes','dba','database administrator','postgresql','mysql','oracle database','sql server','mongodb','administrador de banco','suporte técnico','help desk','service desk','n1','n2','n3','técnico de informática','field service'],
       devops:   ['devops','sre','platform engineer','site reliability','infraestrutura','kubernetes','k8s','docker','terraform','ansible','ci/cd','observabilidade','helm','gitops','argocd'],
       cloud:    ['cloud','aws','azure','gcp','google cloud','nuvem','s3','ec2','lambda','cloud architect','serverless','multicloud'],
@@ -1076,14 +1079,19 @@ function jobCardV2(j, dynMatch) {
    ============================================================ */
 /* Labels curtos para os chips de filtro quando activos */
 const AREA_BTN_LABELS = {
-  dev:'Desenvolvimento', mobile:'Mobile',      dadosai:'Dados & IA',
-  devopscloud:'DevOps / Cloud', produtoqa:'Produto & QA', infraredes:'Infra & Redes',
-  // legado — compatibilidade com filtros salvos
+  dev:         'Dev Web',
+  mobile:      'Mobile',
+  dados:       'Dados',
+  ia:          'IA & ML',
+  devopscloud: 'DevOps / Cloud',
+  produtoqa:   'Produto / QA',
+  suporte:     'Suporte & Redes',
+  // legado
   backend:'Backend', frontend:'Frontend', fullstack:'Full Stack',
-  data:'Data / IA',  dados:'Dados',       devops:'DevOps / SRE',
-  cloud:'Cloud',     arqtech:'Arquitetura', qa:'QA / Testes',
-  ux:'Produto / UX', bi:'BI / Analytics', infra:'Infra / Redes',
-  dba:'DBA',         suporte:'Suporte',    games:'Games',
+  data:'Data / IA',  dadosai:'Dados & IA', devops:'DevOps / SRE',
+  cloud:'Cloud',     arqtech:'Arquitetura', qa:'QA', ux:'UX / Produto',
+  bi:'BI / Analytics', infra:'Infra', infraredes:'Infra & Redes',
+  dba:'DBA', games:'Games',
 };
 const SPEC_BTN_LABELS = {
   soc:'SOC / Blue', pentest:'Pentest', grc:'GRC', appsec:'AppSec', cloudsec:'Cloud Sec',
