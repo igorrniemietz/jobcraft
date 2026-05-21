@@ -1,7 +1,68 @@
 /* Jobcraft — SPA bootstrap */
 
 /* ============== localStorage helpers ============== */
-const LS = { profile: 'jc-profile', saved: 'jc-saved', apps: 'jc-apps' };
+const LS = { profile: 'jc-profile', saved: 'jc-saved', apps: 'jc-apps', quests: 'jc-quests', achievements: 'jc-achievements' };
+
+/* ============== Daily Quests ============== */
+const QUEST_DEFS = [
+  { id: 'login',      title: 'Acesse o JobCraft hoje',              type: 'login',     goal: 1, xp: 30  },
+  { id: 'apply3',     title: 'Candidate-se a 3 vagas hoje',         type: 'apply',     goal: 3, xp: 100 },
+  { id: 'interview1', title: 'Atualize uma candidatura no Kanban',  type: 'interview', goal: 1, xp: 80  },
+  { id: 'course1',    title: 'Conclua 1 módulo de curso',           type: 'course',    goal: 1, xp: 60  },
+  { id: 'streak',     title: 'Mantenha o streak ativo',             type: 'streak',    goal: 1, xp: 50  },
+];
+
+function _today() { return new Date().toISOString().slice(0, 10); }
+
+function buildDailyQuests() {
+  const today = _today();
+  const acts  = (store.user?.activities) || [];
+
+  // Count actions of each type done today
+  const countToday = type => acts.filter(a =>
+    a.type === type && new Date(a.ts).toISOString().slice(0, 10) === today
+  ).length;
+
+  // Claimed quests (reset each new day)
+  const saved    = lsGet(LS.quests, {});
+  const claimed  = saved.day === today ? (saved.claimed || []) : [];
+
+  return QUEST_DEFS.map(def => {
+    let progress = 0;
+    if (def.type === 'login') {
+      progress = 1;                                                        // sempre pronto ao abrir o app
+    } else if (def.type === 'streak') {
+      progress = store.user?.lastActivity === today ? 1 : 0;              // precisa ter feito algo hoje
+    } else {
+      progress = Math.min(def.goal, countToday(def.type));
+    }
+    const done  = claimed.includes(def.id);
+    const ready = !done && progress >= def.goal;
+    return { ...def, progress, done, ready };
+  });
+}
+
+function claimQuest(id) {
+  const today   = _today();
+  const saved   = lsGet(LS.quests, {});
+  const claimed = saved.day === today ? (saved.claimed || []) : [];
+  if (claimed.includes(id)) return;
+  claimed.push(id);
+  lsSet(LS.quests, { day: today, claimed });
+  const def = QUEST_DEFS.find(d => d.id === id);
+  if (def) { addXP(def.xp, 'quest'); toast(`+${def.xp} XP — ${def.title}!`); }
+  refreshQuests();
+}
+
+function refreshQuests() {
+  store.quests = buildDailyQuests();
+  renderQuestsPanel();
+  // Atualiza chip de pendentes no dashboard se estiver visível
+  const chip = document.querySelector('#quests')?.previousElementSibling?.querySelector('.chip-royal');
+  if (chip) chip.innerHTML = `<i data-lucide="target"></i>${store.quests.filter(q => !q.done).length} pendentes`;
+  const qdiv = $('#quests');
+  if (qdiv) { qdiv.innerHTML = store.quests.map(questRow).join(''); lucide.createIcons(); }
+}
 function lsGet(key, def) {
   try { return JSON.parse(localStorage.getItem(key)) ?? def; } catch { return def; }
 }
@@ -66,17 +127,18 @@ async function loadCourses() {
 }
 
 async function boot() {
-  const [user, courses, certs, achievements, leaderboard, quests] = await Promise.all([
+  const [user, courses, certs, achievements, leaderboard] = await Promise.all([
     fetchJSON('/data/user.json'),
     loadCourses(),
     fetchJSON('/data/certifications.json'),
     fetchJSON('/data/achievements.json'),
     fetchJSON('/data/leaderboard.json'),
-    fetchJSON('/data/quests.json'),
   ]);
-  Object.assign(store, { user, jobs: [], courses, certs, achievements, leaderboard, quests });
+  Object.assign(store, { user, jobs: [], courses, certs, achievements, leaderboard });
+  store.quests = buildDailyQuests();
 
   loadProfile();
+  store.leaderboard = buildLeaderboard(leaderboard);
   paintUser();
   bindShell();
   bindRightPanel();
@@ -97,6 +159,21 @@ function loadProfile() {
   if (p.streak   !== undefined) store.user.streak   = p.streak;
   if (p.lastActivity)           store.user.lastActivity = p.lastActivity;
   store.user.activities = p.activities || [];
+
+  const savedAchs = lsGet(LS.achievements, []);
+  if (savedAchs.length) {
+    store.achievements.forEach(a => { if (savedAchs.includes(a.id)) a.unlocked = true; });
+  }
+}
+
+function buildLeaderboard(rawRows) {
+  const u      = store.user;
+  const handle = '@' + u.name.toLowerCase().replace(/\s+/g, '.');
+  const track  = (u.tracks && u.tracks[0]) || 'Segurança';
+  const me     = { name: u.name, handle, xp: u.xp || 0, level: u.level || 1, track, country: 'BR', isMe: true };
+  return [...rawRows.filter(r => !r.isMe), me]
+    .sort((a, b) => b.xp - a.xp)
+    .map((r, i) => ({ ...r, rank: i + 1 }));
 }
 
 async function loadRealJobs() {
@@ -124,6 +201,7 @@ async function loadRealJobs() {
     }
   }
   if (store.ui.route === '#/jobs') updateJobResults();
+  updateJobsBadge();
 }
 
 function loadApplications() {
@@ -139,6 +217,27 @@ function updateKanbanBadge() {
   badge.style.display = count > 0 ? '' : 'none';
 }
 
+function _isPostedToday(posted) {
+  if (!posted) return false;
+  const s = posted.toLowerCase().trim();
+  if (s === 'agora' || s === 'hoje') return true;
+  const m = s.match(/h[áa]\s+(\d+)\s*(min|hora)/);
+  return !!m;
+}
+
+function updateJobsBadge() {
+  const badge = $('#jobs-nav-badge');
+  if (!badge) return;
+  const count = store.jobs.filter(j => _isPostedToday(j.posted)).length;
+  badge.textContent = count;
+  badge.style.display = count > 0 ? '' : 'none';
+}
+
+function markJobsVisited() {
+  const badge = $('#jobs-nav-badge');
+  if (badge) badge.style.display = 'none';
+}
+
 function applyToJob(jobId, btn) {
   if (store.applications[jobId]) { location.hash = '#/kanban'; return; }
   const now = Date.now();
@@ -148,6 +247,7 @@ function applyToJob(jobId, btn) {
   if (btn) { btn.textContent = 'Candidatado ✓'; btn.disabled = true; }
   addXP(50, 'apply');
   toast('+50 XP — candidatura registrada!');
+  refreshQuests();
 }
 
 function updateApplicationStage(jobId, stage) {
@@ -182,6 +282,7 @@ function toggleSaveJob(jobId, btn) {
     store.savedJobs[jobId] = Date.now();
     addXP(10, 'save');
     toast('+10 XP — missão salva!');
+    refreshQuests();
   }
   lsSet(LS.saved, store.savedJobs);
   if (btn) {
@@ -257,16 +358,10 @@ function bindRightPanel() {
   // Quest click — bound ONCE here so renderQuestsPanel() can safely replace innerHTML
   $('#rp-quests-list')?.addEventListener('click', e => {
     const item = e.target.closest('.rp-quest-item');
-    if (!item || item.classList.contains('done')) return;
-    const id  = item.dataset.id;
-    const xp  = parseInt(item.dataset.xp, 10);
-    const quest = store.quests.find(q => q.id === id);
-    if (!quest || quest.done) return;
-    quest.done     = true;
-    quest.progress = quest.goal;
-    renderQuestsPanel();
-    addXP(xp, 'quest');
-    toast(`+${xp} XP — quest concluída!`);
+    if (!item) return;
+    const quest = buildDailyQuests().find(q => q.id === item.dataset.id);
+    if (!quest || quest.done || !quest.ready) return;
+    claimQuest(quest.id);
   });
 
   $$('.rp-tab').forEach(btn => {
@@ -295,15 +390,18 @@ function renderQuestsPanel() {
   const totalEl = $('#rp-quest-total');
   if (!list) return;
 
-  const pendingXp = store.quests.filter(q => !q.done).reduce((sum, q) => sum + q.xp, 0);
+  const quests = buildDailyQuests();
+  store.quests = quests;
+  const pendingXp = quests.filter(q => !q.done).reduce((sum, q) => sum + q.xp, 0);
   if (totalEl) totalEl.textContent = `${pendingXp} XP disponível`;
 
-  list.innerHTML = store.quests.map(q => {
+  list.innerHTML = quests.map(q => {
     const pct = Math.round((q.progress / q.goal) * 100);
+    const cls = q.done ? 'done' : q.ready ? 'ready' : '';
     return `
-      <div class="rp-quest-item ${q.done ? 'done' : ''}" data-id="${q.id}" data-xp="${q.xp}">
-        <div class="rp-quest-check ${q.done ? 'checked' : ''}">
-          ${q.done ? '✓' : ''}
+      <div class="rp-quest-item ${cls}" data-id="${q.id}" data-xp="${q.xp}">
+        <div class="rp-quest-check ${q.done ? 'checked' : q.ready ? 'checked-ready' : ''}">
+          ${q.done ? '✓' : q.ready ? '!' : ''}
         </div>
         <div class="rp-quest-body">
           <div class="rp-quest-title">${escapeHtml(q.title)}</div>
@@ -495,10 +593,10 @@ function renderDashboard() {
       <div class="card panel">
         <div class="section-title" style="margin-top:0">
           <h3>Quests de hoje</h3>
-          <span class="chip chip-royal"><i data-lucide="target"></i>${store.quests.filter(q => !q.done).length} pendentes</span>
+          <span class="chip chip-royal"><i data-lucide="target"></i>${buildDailyQuests().filter(q => !q.done).length} pendentes</span>
         </div>
         <div id="quests">
-          ${store.quests.map(questRow).join('')}
+          ${buildDailyQuests().map(questRow).join('')}
         </div>
       </div>
     </div>
@@ -525,17 +623,10 @@ function renderDashboard() {
 
   view.addEventListener('click', e => {
     const qEl = e.target.closest('.quest');
-    if (!qEl || qEl.classList.contains('done')) return;
-    const id  = qEl.dataset.id;
-    const xp  = parseInt(qEl.dataset.xp, 10);
-    const quest = store.quests.find(q => q.id === id);
-    if (!quest || quest.done) return;
-    quest.done     = true;
-    quest.progress = quest.goal;
-    qEl.classList.add('done');
-    renderQuestsPanel();
-    addXP(xp, 'quest');
-    toast(`+${xp} XP — quest concluída!`);
+    if (!qEl) return;
+    const quest = buildDailyQuests().find(q => q.id === qEl.dataset.id);
+    if (!quest || quest.done || !quest.ready) return;
+    claimQuest(quest.id);
   });
 }
 
@@ -570,6 +661,7 @@ function jobMini(j, dynMatch) {
 
 /* ============== Jobs — Nova Missão ============== */
 function renderJobsPage() {
+  markJobsVisited();
   const s = store.ui.jobSearch;
   const skillsHtml = s.skills.map(sk => `
     <span class="mission-skill-tag" data-skill="${escapeHtml(sk)}">
@@ -659,16 +751,16 @@ function renderJobsPage() {
           </div>
           <div class="inline-filter-row">
             <span class="inline-filter-label">Área:</span>
-            <div class="inline-filter-opts">
+            <div class="inline-filter-opts filter-toggle-row">
               <button class="filter-toggle-btn ${s.areaFilter ? 'has-active' : ''}"
                       id="ftb-area" data-panel="fpl-area" type="button">
-                <span class="ftb-icon">${s.areaFilter ? '●' : '+'}</span>
+                <span class="ftb-icon">${s.areaFilter ? '●' : '<i data-lucide="monitor" style="width:13px;height:13px;vertical-align:middle"></i>'}</span>
                 <span class="ftb-label">${s.areaFilter ? (AREA_BTN_LABELS[s.areaFilter] || 'TI') : 'TI'}</span>
                 ${s.areaFilter ? `<span class="ftb-x" data-clearfilter="areaFilter">×</span>` : ''}
               </button>
               <button class="filter-toggle-btn ${s.specialty ? 'has-active' : ''}"
                       id="ftb-security" data-panel="fpl-security" type="button">
-                <span class="ftb-icon">${s.specialty ? '●' : '+'}</span>
+                <span class="ftb-icon">${s.specialty ? '●' : '<i data-lucide="shield" style="width:13px;height:13px;vertical-align:middle"></i>'}</span>
                 <span class="ftb-label">${s.specialty ? (SPEC_BTN_LABELS[s.specialty] || 'Segurança') : 'Segurança'}</span>
                 ${s.specialty ? `<span class="ftb-x" data-clearfilter="specialty">×</span>` : ''}
               </button>
@@ -677,22 +769,14 @@ function renderJobsPage() {
           <div class="filter-expand-panel" id="fpl-area"
                style="display:${s.areaFilter ? 'flex' : 'none'}">
             ${filterBtns('areaFilter', [
-              ['',          'Todas'],
-              ['backend',   'Backend'],
-              ['frontend',  'Frontend'],
-              ['fullstack', 'Full Stack'],
-              ['mobile',    'Mobile'],
-              ['data',      'Data / IA'],
-              ['devops',    'DevOps / SRE'],
-              ['cloud',     'Cloud'],
-              ['arqtech',   'Arquitetura'],
-              ['qa',        'QA / Testes'],
-              ['ux',        'Produto / UX'],
-              ['bi',        'BI / Analytics'],
-              ['infra',     'Infra / Redes'],
-              ['dba',       'DBA'],
-              ['suporte',   'Suporte'],
-              ['games',     'Games'],
+              ['',            'Todas'],
+              ['dev',         'Dev  ·  Front / Back / Full Stack'],
+              ['mobile',      'Mobile  ·  Android / iOS / Flutter'],
+              ['dados',       'Dados  ·  BI / SQL / Analytics / DBA'],
+              ['ia',          'IA & ML  ·  Data Science / LLMs / MLOps'],
+              ['devopscloud', 'DevOps & Cloud  ·  AWS / K8s / Docker'],
+              ['produtoqa',   'Produto  ·  UX / Design / QA / Arquitetura'],
+              ['suporte',     'Suporte & Redes  ·  Help Desk / Infra / Sysadmin'],
             ])}
           </div>
           <div class="filter-expand-panel" id="fpl-security"
@@ -852,7 +936,16 @@ function filterJobs() {
       frontend: ['frontend','front-end','front end','react','vue','angular','next.js','nuxt','svelte','css','html','javascript','typescript','interface','ui developer','desenvolvedor web'],
       fullstack:['fullstack','full stack','full-stack','front e back','back e front','stack completa','desenvolvedor full'],
       mobile:   ['mobile','android','ios','react native','flutter','kotlin','swift','xcode','jetpack','app móvel','aplicativo'],
-      data:     ['data engineer','data science','data analyst','machine learning','deep learning','mlops','engenheiro de dados','cientista de dados','analista de dados','pipeline de dados','spark','dbt','airflow','inteligência artificial','llm','nlp','bigquery','databricks'],
+      data:     ['machine learning','deep learning','mlops','cientista de dados','inteligência artificial','llm','nlp','databricks','data science','ai engineer','engenheiro de ia','researcher'],
+      dados:    ['data engineer','engenheiro de dados','analista de dados','pipeline de dados','spark','dbt','airflow','bigquery','data analyst','etl','data warehouse','lakehouse','data platform','sql','snowflake','business intelligence','bi','tableau','power bi','qlik','looker','analytics','relatório gerencial','dashboard','dba','database administrator','postgresql','mysql','oracle database','sql server','mongodb','administrador de banco','tuning de banco'],
+      // Grupos TI para o painel de filtro
+      dev:          ['backend','back-end','api rest','node.js','nodejs','django','spring','golang','fastapi','laravel','ruby on rails','frontend','front-end','react','vue','angular','next.js','nuxt','svelte','css','html','javascript','typescript','fullstack','full stack','full-stack','desenvolvedor','software engineer','engenheiro de software'],
+      ia:           ['machine learning','deep learning','mlops','llm','nlp','gpt','inteligência artificial','ai engineer','engenheiro de ia','data science','cientista de dados','databricks','researcher','computer vision','processamento de linguagem natural'],
+      dadosai:      ['data engineer','engenheiro de dados','analista de dados','pipeline de dados','spark','dbt','airflow','bigquery','data analyst','etl','data warehouse','business intelligence','bi','tableau','power bi','analytics','dba','database administrator','postgresql','mysql'],
+      devopscloud:  ['devops','sre','platform engineer','site reliability','kubernetes','k8s','docker','terraform','ansible','ci/cd','gitops','argocd','aws','azure','gcp','google cloud','cloud','nuvem','serverless','cloud architect','multicloud','helm','observabilidade'],
+      produtoqa:    ['ux designer','ui designer','product designer','product manager','product owner','figma','design system','qa','quality assurance','automação de teste','selenium','cypress','playwright','jest','bdd','tdd','arquiteto','architect','tech lead','líder técnico','principal engineer','staff engineer','solution architect'],
+      suporte:      ['infraestrutura','redes','sysadmin','linux admin','windows server','firewall','network engineer','vpn','active directory','administrador de redes','suporte técnico','help desk','service desk','n1','n2','n3','técnico de informática','field service','suporte de campo','assistência técnica','unity','unreal engine','game developer','game design','mobile game','jogos'],
+      infraredes:   ['infraestrutura','redes','sysadmin','linux admin','windows server','firewall','network engineer','vpn','active directory','administrador de redes','dba','database administrator','postgresql','mysql','oracle database','sql server','mongodb','administrador de banco','suporte técnico','help desk','service desk','n1','n2','n3','técnico de informática','field service'],
       devops:   ['devops','sre','platform engineer','site reliability','infraestrutura','kubernetes','k8s','docker','terraform','ansible','ci/cd','observabilidade','helm','gitops','argocd'],
       cloud:    ['cloud','aws','azure','gcp','google cloud','nuvem','s3','ec2','lambda','cloud architect','serverless','multicloud'],
       arqtech:  ['arquiteto','architect','tech lead','líder técnico','principal engineer','staff engineer','engineering manager','solution architect','sistema distribuído'],
@@ -965,12 +1058,7 @@ function jobCardV2(j, dynMatch) {
         ${j.externalUrl
           ? `<a class="jcv2-cta" href="${escapeHtml(j.externalUrl)}" target="_blank" rel="noopener noreferrer">Ver vaga ↗</a>`
           : `<span class="jcv2-cta jcv2-cta-disabled">Indisponível</span>`}
-        <span class="jcv2-date ${dateAgeCls}">${escapeHtml(j.posted || 'recente')}</span>
-        <button class="btn-save-job ${store.savedJobs[j.id] ? 'saved' : ''}"
-          data-job-id="${escapeHtml(j.id)}"
-          title="${store.savedJobs[j.id] ? 'Missão guardada' : 'Guardar missão'}">
-          ${store.savedJobs[j.id] ? '⚔' : '◇'}
-        </button>
+        <span class="jcv2-date ${dateAgeCls}" style="flex:1;text-align:center">${escapeHtml(j.posted || 'recente')}</span>
         ${store.applications[j.id]
           ? `<button class="btn-apply-job applied" data-job-id="${escapeHtml(j.id)}" title="Ver no kanban">
                ${STAGE_LABELS[store.applications[j.id].stage] || 'Candidatado'} ✓
@@ -991,11 +1079,19 @@ function jobCardV2(j, dynMatch) {
    ============================================================ */
 /* Labels curtos para os chips de filtro quando activos */
 const AREA_BTN_LABELS = {
-  backend:'Backend',   frontend:'Frontend',   fullstack:'Full Stack',
-  mobile:'Mobile',     data:'Data / IA',      devops:'DevOps / SRE',
-  cloud:'Cloud',       arqtech:'Arquitetura', qa:'QA / Testes',
-  ux:'Produto / UX',  bi:'BI / Analytics',   infra:'Infra / Redes',
-  dba:'DBA',           suporte:'Suporte',     games:'Games',
+  dev:         'Dev Web',
+  mobile:      'Mobile',
+  dados:       'Dados',
+  ia:          'IA & ML',
+  devopscloud: 'DevOps / Cloud',
+  produtoqa:   'Produto / QA',
+  suporte:     'Suporte & Redes',
+  // legado
+  backend:'Backend', frontend:'Frontend', fullstack:'Full Stack',
+  data:'Data / IA',  dadosai:'Dados & IA', devops:'DevOps / SRE',
+  cloud:'Cloud',     arqtech:'Arquitetura', qa:'QA', ux:'UX / Produto',
+  bi:'BI / Analytics', infra:'Infra', infraredes:'Infra & Redes',
+  dba:'DBA', games:'Games',
 };
 const SPEC_BTN_LABELS = {
   soc:'SOC / Blue', pentest:'Pentest', grc:'GRC', appsec:'AppSec', cloudsec:'Cloud Sec',
@@ -1107,6 +1203,7 @@ function _refreshFilterToggle(filterName, value) {
   const labels = isArea ? AREA_BTN_LABELS : SPEC_BTN_LABELS;
   const defaultLabel = isArea ? 'TI' : 'Segurança';
 
+  const iconName = isArea ? 'monitor' : 'shield';
   if (value) {
     btn.classList.add('has-active');
     if (icon)  icon.textContent = '●';
@@ -1120,7 +1217,7 @@ function _refreshFilterToggle(filterName, value) {
     }
   } else {
     btn.classList.remove('has-active');
-    if (icon)  icon.textContent = '+';
+    if (icon)  { icon.innerHTML = `<i data-lucide="${iconName}" style="width:13px;height:13px;vertical-align:middle"></i>`; if (window.lucide) lucide.createIcons(); }
     if (label) label.textContent = defaultLabel;
     xBtn?.remove();
   }
@@ -1155,6 +1252,13 @@ function bindJobsPageEvents() {
       panel.style.display = 'none';
       toggleBtn.classList.remove('open');
     } else {
+      // Fechar o outro painel antes de abrir este
+      const otherPanelId = panelId === 'fpl-area' ? 'fpl-security' : 'fpl-area';
+      const otherBtnId   = panelId === 'fpl-area' ? 'ftb-security' : 'ftb-area';
+      const otherPanel   = $('#' + otherPanelId);
+      const otherBtn     = $('#' + otherBtnId);
+      if (otherPanel) otherPanel.style.display = 'none';
+      if (otherBtn)   otherBtn.classList.remove('open');
       panel.style.display = 'flex';
       toggleBtn.classList.add('open');
     }
@@ -1273,9 +1377,7 @@ function bindJobsPageEvents() {
 
   // Delegação de eventos para salvar e candidatar
   $('#jobs-results')?.addEventListener('click', e => {
-    const saveBtn  = e.target.closest('.btn-save-job');
     const applyBtn = e.target.closest('.btn-apply-job');
-    if (saveBtn)  toggleSaveJob(saveBtn.dataset.jobId, saveBtn);
     if (applyBtn) applyToJob(applyBtn.dataset.jobId, applyBtn);
   });
 }
@@ -1906,26 +2008,40 @@ function checkAchievements() {
   if (_checkingAch) return;
   _checkingAch = true;
   const u = store.user;
-  const applied      = Object.keys(store.applications).length;
-  const inInterview  = Object.values(store.applications).filter(a => a.stage === 'interview').length;
-  const completedIds = store.courses.filter(c => c.progress === 100).map(c => c.id);
+  const applied     = Object.keys(store.applications).length;
+  const inInterview = Object.values(store.applications).filter(a => a.stage === 'interview').length;
+
+  const courseTitle = (substr) => (c) => c.title.toLowerCase().includes(substr.toLowerCase());
+  const completed   = (substr) => store.courses.some(c => c.progress === 100 && courseTitle(substr)(c));
+  const started     = (substr) => store.courses.some(c => c.progress > 0    && courseTitle(substr)(c));
+  const myRank      = store.leaderboard.findIndex(r => r.isMe) + 1;
+
   const rules = [
     { id: 'a-001', ok: () => applied >= 1 },
     { id: 'a-002', ok: () => inInterview >= 1 },
-    { id: 'a-003', ok: () => completedIds.includes('c-001') },
-    { id: 'a-004', ok: () => completedIds.includes('c-003') },
+    { id: 'a-003', ok: () => completed('owasp') },
+    { id: 'a-004', ok: () => completed('pentest') },
     { id: 'a-005', ok: () => (u.streak || 0) >= 7 },
     { id: 'a-006', ok: () => (u.streak || 0) >= 30 },
+    { id: 'a-007', ok: () => completed('criptografi') },
+    { id: 'a-008', ok: () => store.certs.some(c => c.id === 'cert-004' && c.status === 'earned') },
+    { id: 'a-009', ok: () => myRank > 0 && myRank <= 10 },
     { id: 'a-010', ok: () => u.level >= 30 },
-    { id: 'a-011', ok: () => store.courses.some(c => c.id === 'c-003' && c.progress > 0) },
+    { id: 'a-011', ok: () => started('forens') },
+    { id: 'a-012', ok: () => completed('zero trust') },
   ];
+
+  const savedAchs = lsGet(LS.achievements, []);
+  let changed = false;
   for (const r of rules) {
     const ach = store.achievements.find(a => a.id === r.id);
     if (!ach || ach.unlocked || !r.ok()) continue;
     ach.unlocked = true;
+    if (!savedAchs.includes(ach.id)) { savedAchs.push(ach.id); changed = true; }
     addXP(ach.xp, 'achievement');
-    toast(`🏆 Conquista: "${ach.name}" — +${ach.xp} XP!`);
+    toastAch(ach);
   }
+  if (changed) lsSet(LS.achievements, savedAchs);
   _checkingAch = false;
 }
 
@@ -1972,26 +2088,51 @@ function openUploadCertModal() {
   });
 }
 
+function _relTime(ts) {
+  const diff = Date.now() - ts;
+  const m = Math.floor(diff / 60000);
+  if (m < 1)   return 'agora';
+  if (m < 60)  return `há ${m} min`;
+  const h = Math.floor(m / 60);
+  if (h < 24)  return `há ${h}h`;
+  const d = Math.floor(h / 24);
+  if (d === 1) return 'ontem';
+  if (d < 7)   return `há ${d} dias`;
+  return new Date(ts).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+}
+
+const _NOTIF_COLOR = {
+  apply: '#8250df', save: '#5B4FB3', quest: '#FACC15',
+  course: '#10B981', cert: '#F59E0B', achievement: '#EF4444',
+  streak: '#F97316', login: '#3B82F6', misc: '#64748B',
+};
+
 function openMensagensModal() {
-  const notifs = [
-    { icon: 'briefcase', text: 'Nubank visualizou seu perfil', sub: 'há 2 horas', color: '#8250df' },
-    { icon: 'zap',       text: 'Você ganhou +50 XP pela candidatura', sub: 'há 3 horas', color: '#FACC15' },
-    { icon: 'trophy',    text: 'Nova conquista desbloqueável disponível', sub: 'hoje', color: '#F59E0B' },
-    { icon: 'bell',      text: '3 novas vagas compatíveis com seu perfil', sub: 'ontem', color: '#5B4FB3' },
-  ];
-  openModal('Mensagens & Notificações', `
-    <div style="display:flex;flex-direction:column;gap:2px">
-      ${notifs.map(n => `
-        <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
-          <div style="width:36px;height:36px;border-radius:50%;background:${n.color}22;color:${n.color};display:flex;align-items:center;justify-content:center;flex-shrink:0">
-            <i data-lucide="${n.icon}" style="width:16px;height:16px"></i>
-          </div>
-          <div style="flex:1;min-width:0">
-            <div style="font-size:13px;color:var(--text);font-weight:500">${escapeHtml(n.text)}</div>
-            <div style="font-size:11px;color:var(--text-mut)">${escapeHtml(n.sub)}</div>
-          </div>
-        </div>`).join('')}
-      <p style="text-align:center;color:var(--text-mut);font-size:12px;margin:12px 0 0">Sistema de mensagens em breve.</p>
+  const acts = (store.user?.activities || []).slice(0, 30);
+  const rows = acts.map(a => {
+    const icon  = activityIcon(a.type);
+    const color = _NOTIF_COLOR[a.type] || '#64748B';
+    const label = activityLabel(a.type);
+    const xpTag = a.xp ? ` · <span style="color:${color};font-weight:700">+${a.xp} XP</span>` : '';
+    return `
+      <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
+        <div style="width:36px;height:36px;border-radius:50%;background:${color}22;color:${color};display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <i data-lucide="${icon}" style="width:16px;height:16px"></i>
+        </div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;color:var(--text);font-weight:500">${escapeHtml(label)}${xpTag}</div>
+          <div style="font-size:11px;color:var(--text-mut)">${_relTime(a.ts)}</div>
+        </div>
+      </div>`;
+  }).join('');
+
+  const empty = acts.length === 0
+    ? `<p style="text-align:center;color:var(--text-mut);font-size:13px;padding:24px 0">Nenhuma atividade ainda. Candidate-se, salve vagas e complete cursos!</p>`
+    : '';
+
+  openModal('Notificações & Histórico', `
+    <div style="display:flex;flex-direction:column;gap:2px;max-height:420px;overflow-y:auto">
+      ${rows}${empty}
     </div>
   `, { showCancel: false });
 }
@@ -2065,6 +2206,29 @@ function toast(msg, levelUp = false) {
     el.style.transform = 'translateX(120%)';
     setTimeout(() => el.remove(), 400);
   }, 3200);
+}
+
+const RARITY_COLOR = { bronze: '#cd7f32', prata: '#94a3b8', ouro: '#FACC15', diamante: '#38bdf8' };
+function toastAch(ach) {
+  const root  = $('#toast-root');
+  const color = RARITY_COLOR[ach.rarity] || '#FACC15';
+  const el = document.createElement('div');
+  el.className = 'toast toast-ach';
+  el.style.setProperty('--ach-color', color);
+  el.innerHTML = `
+    <i data-lucide="award" style="color:${color};flex-shrink:0"></i>
+    <div>
+      <div class="pixel" style="color:${color}">CONQUISTA!</div>
+      <div class="msg" style="font-weight:700">${escapeHtml(ach.name)}</div>
+      <div class="msg" style="font-size:11px;opacity:.8">${escapeHtml(ach.desc)} · +${ach.xp} XP</div>
+    </div>`;
+  root.appendChild(el);
+  if (window.lucide) lucide.createIcons();
+  requestAnimationFrame(() => el.classList.add('in'));
+  setTimeout(() => {
+    el.style.transform = 'translateX(120%)';
+    setTimeout(() => el.remove(), 400);
+  }, 4500);
 }
 
 /* ============== util cor ============== */
@@ -2169,7 +2333,6 @@ function renderDocs() {
       title: 'Sistema de XP e Nível',
       color: '#5B4FB3',
       items: [
-        { label: 'Salvar vaga', desc: '+10 XP por vaga salva.' },
         { label: 'Candidatar', desc: '+50 XP ao registrar candidatura.' },
         { label: 'Entrevista', desc: '+150 XP ao avançar para estágio de entrevista.' },
         { label: 'Oferta recebida', desc: '+500 XP ao registrar uma proposta/oferta.' },

@@ -1,0 +1,11 @@
+FROM node:22-alpine
+WORKDIR /app
+
+# Instala dependências separado para aproveitar cache
+COPY package*.json ./
+RUN npm install
+
+EXPOSE 8080
+
+# --watch reinicia o server automaticamente quando src/*.js ou server.js mudar
+CMD ["node", "--watch", "server.js"]
