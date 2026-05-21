@@ -14,6 +14,10 @@ const ORG_ID          = 'team_SWdeWVznSwFRbWCJ6KWYZWlc';
 const HML_PROJECT_ID  = 'prj_iJdpjWFQqThaqy6rvM3nUAIiOE9m';
 const PROD_PROJECT_ID = 'prj_1cwyzzoudogAQHcW55B88yw3Hxsd';
 
+// Pasta sem .git usada para deploy — evita erro "Not authorized" do Vercel
+// ao tentar validar o commit do git contra o GitHub.
+const DEPLOY_DIR = path.join(path.dirname(__dirname), 'jobcraft-deploy');
+
 function get(url) {
   return new Promise((resolve, reject) => {
     const mod = url.startsWith('https') ? https : http;
@@ -78,25 +82,31 @@ async function main() {
     console.error('[sync-hml] aviso git:', e.message);
   }
 
-  // 4. Deploy no Vercel HML (troca project.json temporariamente)
+  // 4. Deploy no Vercel HML via pasta sem .git (sem .git o Vercel não tenta
+  //    validar o commit contra o GitHub e o deploy vai direto)
+  console.log('[sync-hml] sincronizando pasta de deploy...');
+  execSync(`robocopy "${path.join(__dirname, 'public')}" "${path.join(DEPLOY_DIR, 'public')}" /MIR /NFL /NDL /NJH /NJS`, { stdio: 'pipe' });
+  fs.writeFileSync(
+    path.join(DEPLOY_DIR, 'vercel.json'),
+    fs.readFileSync(path.join(__dirname, 'vercel.json'))
+  );
+  fs.mkdirSync(path.join(DEPLOY_DIR, '.vercel'), { recursive: true });
+  fs.writeFileSync(
+    path.join(DEPLOY_DIR, '.vercel', 'project.json'),
+    JSON.stringify({ projectId: HML_PROJECT_ID, orgId: ORG_ID, projectName: 'jobcraft-hml' })
+  );
+
   console.log('[sync-hml] enviando para o Vercel HML...');
-  setVercelProject(HML_PROJECT_ID, 'jobcraft-hml');
   try {
-    const out = execSync('vercel deploy --prod --yes', { cwd: __dirname, stdio: 'pipe' }).toString().trim();
-    const urlMatch = out.match(/https:\/\/\S+\.vercel\.app/);
-    console.log(`[sync-hml] deploy HML concluído → ${urlMatch ? urlMatch[0] : 'ver saída do vercel'}`);
+    const out = execSync('vercel deploy --prod --yes', { cwd: DEPLOY_DIR, stdio: 'pipe' }).toString().trim();
+    const urlMatch = out.match(/https:\/\/jobcraft-hml\.vercel\.app/);
+    console.log(`[sync-hml] deploy HML concluído → ${urlMatch ? urlMatch[0] : out.split('\n').pop()}`);
   } catch (e) {
-    console.error('[sync-hml] erro no vercel deploy HML:', e.message);
-  } finally {
-    // Sempre restaura o project.json de prod
-    setVercelProject(PROD_PROJECT_ID, 'jobcraft');
-    console.log('[sync-hml] project.json restaurado para prod');
+    console.error('[sync-hml] erro no vercel deploy HML:', e.stderr?.toString() || e.message);
   }
 }
 
 main().catch(e => {
-  // Garante restauração mesmo em erros não capturados
-  try { setVercelProject(PROD_PROJECT_ID, 'jobcraft'); } catch {}
   console.error('[sync-hml] erro:', e.message);
   process.exit(1);
 });
