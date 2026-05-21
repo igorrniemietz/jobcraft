@@ -1,7 +1,68 @@
 /* Jobcraft — SPA bootstrap */
 
 /* ============== localStorage helpers ============== */
-const LS = { profile: 'jc-profile', saved: 'jc-saved', apps: 'jc-apps' };
+const LS = { profile: 'jc-profile', saved: 'jc-saved', apps: 'jc-apps', quests: 'jc-quests' };
+
+/* ============== Daily Quests ============== */
+const QUEST_DEFS = [
+  { id: 'login',  title: 'Acesse o JobCraft hoje',       type: 'login',  goal: 1, xp: 30  },
+  { id: 'apply3', title: 'Candidate-se a 3 vagas hoje',  type: 'apply',  goal: 3, xp: 100 },
+  { id: 'save2',  title: 'Salve 2 vagas',                type: 'save',   goal: 2, xp: 40  },
+  { id: 'course1',title: 'Conclua 1 módulo de curso',    type: 'course', goal: 1, xp: 60  },
+  { id: 'streak', title: 'Mantenha o streak ativo',      type: 'streak', goal: 1, xp: 50  },
+];
+
+function _today() { return new Date().toISOString().slice(0, 10); }
+
+function buildDailyQuests() {
+  const today = _today();
+  const acts  = (store.user?.activities) || [];
+
+  // Count actions of each type done today
+  const countToday = type => acts.filter(a =>
+    a.type === type && new Date(a.ts).toISOString().slice(0, 10) === today
+  ).length;
+
+  // Claimed quests (reset each new day)
+  const saved    = lsGet(LS.quests, {});
+  const claimed  = saved.day === today ? (saved.claimed || []) : [];
+
+  return QUEST_DEFS.map(def => {
+    let progress = 0;
+    if (def.type === 'login') {
+      progress = 1;                                                        // sempre pronto ao abrir o app
+    } else if (def.type === 'streak') {
+      progress = store.user?.lastActivity === today ? 1 : 0;              // precisa ter feito algo hoje
+    } else {
+      progress = Math.min(def.goal, countToday(def.type));
+    }
+    const done  = claimed.includes(def.id);
+    const ready = !done && progress >= def.goal;
+    return { ...def, progress, done, ready };
+  });
+}
+
+function claimQuest(id) {
+  const today   = _today();
+  const saved   = lsGet(LS.quests, {});
+  const claimed = saved.day === today ? (saved.claimed || []) : [];
+  if (claimed.includes(id)) return;
+  claimed.push(id);
+  lsSet(LS.quests, { day: today, claimed });
+  const def = QUEST_DEFS.find(d => d.id === id);
+  if (def) { addXP(def.xp, 'quest'); toast(`+${def.xp} XP — ${def.title}!`); }
+  refreshQuests();
+}
+
+function refreshQuests() {
+  store.quests = buildDailyQuests();
+  renderQuestsPanel();
+  // Atualiza chip de pendentes no dashboard se estiver visível
+  const chip = document.querySelector('#quests')?.previousElementSibling?.querySelector('.chip-royal');
+  if (chip) chip.innerHTML = `<i data-lucide="target"></i>${store.quests.filter(q => !q.done).length} pendentes`;
+  const qdiv = $('#quests');
+  if (qdiv) { qdiv.innerHTML = store.quests.map(questRow).join(''); lucide.createIcons(); }
+}
 function lsGet(key, def) {
   try { return JSON.parse(localStorage.getItem(key)) ?? def; } catch { return def; }
 }
@@ -66,15 +127,15 @@ async function loadCourses() {
 }
 
 async function boot() {
-  const [user, courses, certs, achievements, leaderboard, quests] = await Promise.all([
+  const [user, courses, certs, achievements, leaderboard] = await Promise.all([
     fetchJSON('/data/user.json'),
     loadCourses(),
     fetchJSON('/data/certifications.json'),
     fetchJSON('/data/achievements.json'),
     fetchJSON('/data/leaderboard.json'),
-    fetchJSON('/data/quests.json'),
   ]);
-  Object.assign(store, { user, jobs: [], courses, certs, achievements, leaderboard, quests });
+  Object.assign(store, { user, jobs: [], courses, certs, achievements, leaderboard });
+  store.quests = buildDailyQuests();
 
   loadProfile();
   paintUser();
@@ -124,6 +185,7 @@ async function loadRealJobs() {
     }
   }
   if (store.ui.route === '#/jobs') updateJobResults();
+  updateJobsBadge();
 }
 
 function loadApplications() {
@@ -139,6 +201,27 @@ function updateKanbanBadge() {
   badge.style.display = count > 0 ? '' : 'none';
 }
 
+function _isPostedToday(posted) {
+  if (!posted) return false;
+  const s = posted.toLowerCase().trim();
+  if (s === 'agora' || s === 'hoje') return true;
+  const m = s.match(/h[áa]\s+(\d+)\s*(min|hora)/);
+  return !!m;
+}
+
+function updateJobsBadge() {
+  const badge = $('#jobs-nav-badge');
+  if (!badge) return;
+  const count = store.jobs.filter(j => _isPostedToday(j.posted)).length;
+  badge.textContent = count;
+  badge.style.display = count > 0 ? '' : 'none';
+}
+
+function markJobsVisited() {
+  const badge = $('#jobs-nav-badge');
+  if (badge) badge.style.display = 'none';
+}
+
 function applyToJob(jobId, btn) {
   if (store.applications[jobId]) { location.hash = '#/kanban'; return; }
   const now = Date.now();
@@ -148,6 +231,7 @@ function applyToJob(jobId, btn) {
   if (btn) { btn.textContent = 'Candidatado ✓'; btn.disabled = true; }
   addXP(50, 'apply');
   toast('+50 XP — candidatura registrada!');
+  refreshQuests();
 }
 
 function updateApplicationStage(jobId, stage) {
@@ -182,6 +266,7 @@ function toggleSaveJob(jobId, btn) {
     store.savedJobs[jobId] = Date.now();
     addXP(10, 'save');
     toast('+10 XP — missão salva!');
+    refreshQuests();
   }
   lsSet(LS.saved, store.savedJobs);
   if (btn) {
@@ -257,16 +342,10 @@ function bindRightPanel() {
   // Quest click — bound ONCE here so renderQuestsPanel() can safely replace innerHTML
   $('#rp-quests-list')?.addEventListener('click', e => {
     const item = e.target.closest('.rp-quest-item');
-    if (!item || item.classList.contains('done')) return;
-    const id  = item.dataset.id;
-    const xp  = parseInt(item.dataset.xp, 10);
-    const quest = store.quests.find(q => q.id === id);
-    if (!quest || quest.done) return;
-    quest.done     = true;
-    quest.progress = quest.goal;
-    renderQuestsPanel();
-    addXP(xp, 'quest');
-    toast(`+${xp} XP — quest concluída!`);
+    if (!item) return;
+    const quest = buildDailyQuests().find(q => q.id === item.dataset.id);
+    if (!quest || quest.done || !quest.ready) return;
+    claimQuest(quest.id);
   });
 
   $$('.rp-tab').forEach(btn => {
@@ -295,15 +374,18 @@ function renderQuestsPanel() {
   const totalEl = $('#rp-quest-total');
   if (!list) return;
 
-  const pendingXp = store.quests.filter(q => !q.done).reduce((sum, q) => sum + q.xp, 0);
+  const quests = buildDailyQuests();
+  store.quests = quests;
+  const pendingXp = quests.filter(q => !q.done).reduce((sum, q) => sum + q.xp, 0);
   if (totalEl) totalEl.textContent = `${pendingXp} XP disponível`;
 
-  list.innerHTML = store.quests.map(q => {
+  list.innerHTML = quests.map(q => {
     const pct = Math.round((q.progress / q.goal) * 100);
+    const cls = q.done ? 'done' : q.ready ? 'ready' : '';
     return `
-      <div class="rp-quest-item ${q.done ? 'done' : ''}" data-id="${q.id}" data-xp="${q.xp}">
-        <div class="rp-quest-check ${q.done ? 'checked' : ''}">
-          ${q.done ? '✓' : ''}
+      <div class="rp-quest-item ${cls}" data-id="${q.id}" data-xp="${q.xp}">
+        <div class="rp-quest-check ${q.done ? 'checked' : q.ready ? 'checked-ready' : ''}">
+          ${q.done ? '✓' : q.ready ? '!' : ''}
         </div>
         <div class="rp-quest-body">
           <div class="rp-quest-title">${escapeHtml(q.title)}</div>
@@ -495,10 +577,10 @@ function renderDashboard() {
       <div class="card panel">
         <div class="section-title" style="margin-top:0">
           <h3>Quests de hoje</h3>
-          <span class="chip chip-royal"><i data-lucide="target"></i>${store.quests.filter(q => !q.done).length} pendentes</span>
+          <span class="chip chip-royal"><i data-lucide="target"></i>${buildDailyQuests().filter(q => !q.done).length} pendentes</span>
         </div>
         <div id="quests">
-          ${store.quests.map(questRow).join('')}
+          ${buildDailyQuests().map(questRow).join('')}
         </div>
       </div>
     </div>
@@ -525,17 +607,10 @@ function renderDashboard() {
 
   view.addEventListener('click', e => {
     const qEl = e.target.closest('.quest');
-    if (!qEl || qEl.classList.contains('done')) return;
-    const id  = qEl.dataset.id;
-    const xp  = parseInt(qEl.dataset.xp, 10);
-    const quest = store.quests.find(q => q.id === id);
-    if (!quest || quest.done) return;
-    quest.done     = true;
-    quest.progress = quest.goal;
-    qEl.classList.add('done');
-    renderQuestsPanel();
-    addXP(xp, 'quest');
-    toast(`+${xp} XP — quest concluída!`);
+    if (!qEl) return;
+    const quest = buildDailyQuests().find(q => q.id === qEl.dataset.id);
+    if (!quest || quest.done || !quest.ready) return;
+    claimQuest(quest.id);
   });
 }
 
@@ -570,6 +645,7 @@ function jobMini(j, dynMatch) {
 
 /* ============== Jobs — Nova Missão ============== */
 function renderJobsPage() {
+  markJobsVisited();
   const s = store.ui.jobSearch;
   const skillsHtml = s.skills.map(sk => `
     <span class="mission-skill-tag" data-skill="${escapeHtml(sk)}">
@@ -1972,26 +2048,51 @@ function openUploadCertModal() {
   });
 }
 
+function _relTime(ts) {
+  const diff = Date.now() - ts;
+  const m = Math.floor(diff / 60000);
+  if (m < 1)   return 'agora';
+  if (m < 60)  return `há ${m} min`;
+  const h = Math.floor(m / 60);
+  if (h < 24)  return `há ${h}h`;
+  const d = Math.floor(h / 24);
+  if (d === 1) return 'ontem';
+  if (d < 7)   return `há ${d} dias`;
+  return new Date(ts).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+}
+
+const _NOTIF_COLOR = {
+  apply: '#8250df', save: '#5B4FB3', quest: '#FACC15',
+  course: '#10B981', cert: '#F59E0B', achievement: '#EF4444',
+  streak: '#F97316', login: '#3B82F6', misc: '#64748B',
+};
+
 function openMensagensModal() {
-  const notifs = [
-    { icon: 'briefcase', text: 'Nubank visualizou seu perfil', sub: 'há 2 horas', color: '#8250df' },
-    { icon: 'zap',       text: 'Você ganhou +50 XP pela candidatura', sub: 'há 3 horas', color: '#FACC15' },
-    { icon: 'trophy',    text: 'Nova conquista desbloqueável disponível', sub: 'hoje', color: '#F59E0B' },
-    { icon: 'bell',      text: '3 novas vagas compatíveis com seu perfil', sub: 'ontem', color: '#5B4FB3' },
-  ];
-  openModal('Mensagens & Notificações', `
-    <div style="display:flex;flex-direction:column;gap:2px">
-      ${notifs.map(n => `
-        <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
-          <div style="width:36px;height:36px;border-radius:50%;background:${n.color}22;color:${n.color};display:flex;align-items:center;justify-content:center;flex-shrink:0">
-            <i data-lucide="${n.icon}" style="width:16px;height:16px"></i>
-          </div>
-          <div style="flex:1;min-width:0">
-            <div style="font-size:13px;color:var(--text);font-weight:500">${escapeHtml(n.text)}</div>
-            <div style="font-size:11px;color:var(--text-mut)">${escapeHtml(n.sub)}</div>
-          </div>
-        </div>`).join('')}
-      <p style="text-align:center;color:var(--text-mut);font-size:12px;margin:12px 0 0">Sistema de mensagens em breve.</p>
+  const acts = (store.user?.activities || []).slice(0, 30);
+  const rows = acts.map(a => {
+    const icon  = activityIcon(a.type);
+    const color = _NOTIF_COLOR[a.type] || '#64748B';
+    const label = activityLabel(a.type);
+    const xpTag = a.xp ? ` · <span style="color:${color};font-weight:700">+${a.xp} XP</span>` : '';
+    return `
+      <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
+        <div style="width:36px;height:36px;border-radius:50%;background:${color}22;color:${color};display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <i data-lucide="${icon}" style="width:16px;height:16px"></i>
+        </div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;color:var(--text);font-weight:500">${escapeHtml(label)}${xpTag}</div>
+          <div style="font-size:11px;color:var(--text-mut)">${_relTime(a.ts)}</div>
+        </div>
+      </div>`;
+  }).join('');
+
+  const empty = acts.length === 0
+    ? `<p style="text-align:center;color:var(--text-mut);font-size:13px;padding:24px 0">Nenhuma atividade ainda. Candidate-se, salve vagas e complete cursos!</p>`
+    : '';
+
+  openModal('Notificações & Histórico', `
+    <div style="display:flex;flex-direction:column;gap:2px;max-height:420px;overflow-y:auto">
+      ${rows}${empty}
     </div>
   `, { showCancel: false });
 }

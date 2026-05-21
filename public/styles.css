@@ -1159,8 +1159,11 @@ h3 { font-size: 16px; font-weight: 700; }
   background: var(--surface); cursor: pointer;
   transition: border-color .15s var(--ease), background .15s var(--ease);
 }
-.rp-quest-item:hover:not(.done) { border-color: var(--snes-royal-light); background: #F7F5FF; }
-.rp-quest-item.done { opacity: .6; cursor: default; }
+.rp-quest-item:hover:not(.done):not(.ready) { border-color: var(--snes-royal-light); background: #F7F5FF; }
+.rp-quest-item.done  { opacity: .6; cursor: default; }
+.rp-quest-item.ready { border-color: var(--xp-gold); background: #FFFBEE; cursor: pointer; animation: quest-pulse 1.4s ease-in-out infinite; }
+@keyframes quest-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(250,204,21,.35); } 50% { box-shadow: 0 0 0 6px rgba(250,204,21,0); } }
+.rp-quest-check.checked-ready { background: var(--xp-gold); border-color: var(--xp-gold); color: var(--snes-obsidian); font-weight: 900; }
 
 .rp-quest-check {
   width: 20px; height: 20px; border-radius: 5px;
