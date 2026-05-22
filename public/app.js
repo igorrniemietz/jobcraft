@@ -175,6 +175,9 @@ function loadProfile() {
   if (p.coins    !== undefined) store.user.coins    = p.coins;
   if (p.streak   !== undefined) store.user.streak   = p.streak;
   if (p.lastActivity)           store.user.lastActivity = p.lastActivity;
+  if (p.name)                   store.user.name     = p.name;
+  if (p.role)                   store.user.role     = p.role;
+  if (p.tracks?.length)         store.user.tracks   = p.tracks;
   store.user.activities = p.activities || [];
 
   const savedAchs = lsGet(LS.achievements, []);
@@ -2067,7 +2070,7 @@ function renderLeaderboard() {
           <div class="podium-item ${cls}">
             <span class="crown pixel">${label}</span>
             <div class="avatar" style="margin-top:8px">${initials(r.name)}</div>
-            <div class="pname">${escapeHtml(r.name)}</div>
+            <div class="pname">${escapeHtml(r.name)}${r.npc ? ' <span class="lb-npc-tag">NPC</span>' : ''}</div>
             <div class="pxp">${fmt(r.xp)} XP · LV ${r.level}</div>
             <div class="chip chip-royal" style="margin-top:8px">${escapeHtml(r.track)}</div>
           </div>
@@ -2085,7 +2088,7 @@ function renderLeaderboard() {
               <td style="display:flex;align-items:center;gap:10px">
                 <div class="avatar" style="width:32px;height:32px;font-size:11px">${initials(r.name)}</div>
                 <div>
-                  <div style="font-weight:700;color:var(--text)">${escapeHtml(r.name)}</div>
+                  <div style="font-weight:700;color:var(--text)">${escapeHtml(r.name)}${r.npc ? ' <span class="lb-npc-tag">NPC</span>' : ''}</div>
                   <div style="font-size:11px;color:var(--text-mut)">${escapeHtml(r.handle)}</div>
                 </div>
               </td>
@@ -2212,6 +2215,8 @@ function renderProfile() {
         if (name) store.user.name = name;
         if (role) store.user.role = role;
         if (tracks?.length) store.user.tracks = tracks;
+        lsSet(LS.profile, { ...lsGet(LS.profile, {}), name: store.user.name, role: store.user.role, tracks: store.user.tracks });
+        store.leaderboard = buildLeaderboard(store.leaderboard.filter(r => !r.isMe));
         paintUser();
         renderProfile();
         toast('Perfil atualizado!');

@@ -1,12 +1,12 @@
 [
-  { "rank": 1, "name": "Lara Silva",      "handle": "@laras", "xp": 12450, "level": 28, "track": "Offensive", "country": "BR" },
-  { "rank": 2, "name": "Diego Tanaka",    "handle": "@dtanaka", "xp": 11820, "level": 27, "track": "Cloud Sec", "country": "BR" },
-  { "rank": 3, "name": "Marina Costa",    "handle": "@mcosta", "xp": 10930, "level": 25, "track": "AppSec", "country": "BR" },
-  { "rank": 4, "name": "Henrique Alves",  "handle": "@halves", "xp": 9870,  "level": 23, "track": "Blue Team", "country": "BR" },
-  { "rank": 5, "name": "Paula Mendes",    "handle": "@paulam", "xp": 9210,  "level": 22, "track": "DevSecOps", "country": "BR" },
-  { "rank": 6, "name": "Rafael Pinto",    "handle": "@rpinto", "xp": 8540,  "level": 20, "track": "Frontend", "country": "BR" },
-  { "rank": 7, "name": "Camila Reis",     "handle": "@creis",  "xp": 7980,  "level": 19, "track": "Crypto",    "country": "BR" },
-  { "rank": 8, "name": "Bruno Oliveira",  "handle": "@bruno_o","xp": 7340,  "level": 18, "track": "SRE",       "country": "PT" },
-  { "rank": 9, "name": "Vivaldo Júnior",  "handle": "@vivaldo","xp": 1750,  "level": 12, "track": "AppSec",    "country": "BR" },
-  { "rank": 10,"name": "Júlia Ferreira",  "handle": "@juliaf", "xp": 1610,  "level": 11, "track": "Frontend",  "country": "BR" }
+  { "rank": 1,  "name": "Zephyr",       "handle": "@zephyr_npc",    "xp": 12450, "level": 28, "track": "Offensive",  "npc": true },
+  { "rank": 2,  "name": "Kr4k3n",       "handle": "@kr4k3n_npc",    "xp": 11820, "level": 27, "track": "Cloud Sec",  "npc": true },
+  { "rank": 3,  "name": "0xSelene",     "handle": "@0xselene",      "xp": 10930, "level": 25, "track": "AppSec",     "npc": true },
+  { "rank": 4,  "name": "Ph4nth0m",     "handle": "@ph4nth0m",      "xp": 9870,  "level": 23, "track": "Blue Team",  "npc": true },
+  { "rank": 5,  "name": "CloudStr1fe",  "handle": "@cloudstr1fe",   "xp": 9210,  "level": 22, "track": "DevSecOps",  "npc": true },
+  { "rank": 6,  "name": "R3dQu33n",     "handle": "@r3dqu33n",      "xp": 8540,  "level": 20, "track": "AppSec",     "npc": true },
+  { "rank": 7,  "name": "S0l1dSnek",    "handle": "@s0l1dsnek",     "xp": 7980,  "level": 19, "track": "Offensive",  "npc": true },
+  { "rank": 8,  "name": "ByteW1tch",    "handle": "@byte_w1tch",    "xp": 7340,  "level": 18, "track": "Crypto",     "npc": true },
+  { "rank": 9,  "name": "N3cr0m4ncer",  "handle": "@n3cr0m4ncer",   "xp": 6890,  "level": 17, "track": "SRE",        "npc": true },
+  { "rank": 10, "name": "D3adC0de",     "handle": "@d3adc0de",      "xp": 6120,  "level": 16, "track": "Blue Team",  "npc": true }
 ]
