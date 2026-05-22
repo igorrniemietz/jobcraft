@@ -7,7 +7,7 @@ const LS = { profile: 'jc-profile', saved: 'jc-saved', apps: 'jc-apps', quests: 
 const QUEST_DEFS = [
   { id: 'login',      title: 'Acesse o JobCraft hoje',              type: 'login',     goal: 1, xp: 30  },
   { id: 'apply3',     title: 'Candidate-se a 3 vagas hoje',         type: 'apply',     goal: 3, xp: 100 },
-  { id: 'interview1', title: 'Atualize uma candidatura no Kanban',  type: 'interview', goal: 1, xp: 80  },
+  { id: 'interview1', title: 'Atualize candidatura pela Aba Candidatura', type: 'interview', goal: 1, xp: 80  },
   { id: 'course1',    title: 'Conclua 1 módulo de curso',           type: 'course',    goal: 1, xp: 60  },
   { id: 'streak',     title: 'Mantenha o streak ativo',             type: 'streak',    goal: 1, xp: 50  },
 ];
@@ -54,6 +54,9 @@ function claimQuest(id) {
   refreshQuests();
 }
 
+let _shownQuestToasts = new Set();
+let _questToastsEnabled = false;
+
 function refreshQuests() {
   store.quests = buildDailyQuests();
   renderQuestsPanel();
@@ -62,6 +65,13 @@ function refreshQuests() {
   if (chip) chip.innerHTML = `<i data-lucide="target"></i>${store.quests.filter(q => !q.done).length} pendentes`;
   const qdiv = $('#quests');
   if (qdiv) { qdiv.innerHTML = store.quests.map(questRow).join(''); lucide.createIcons(); }
+
+  if (_questToastsEnabled) {
+    store.quests.filter(q => q.done && !q.claimed && !_shownQuestToasts.has(q.id)).forEach(q => {
+      _shownQuestToasts.add(q.id);
+      toastQuest(q);
+    });
+  }
 }
 function lsGet(key, def) {
   try { return JSON.parse(localStorage.getItem(key)) ?? def; } catch { return def; }
@@ -78,11 +88,12 @@ const store = {
   achievements: [],
   leaderboard: [],
   quests: [],
+  notifications: [],
   savedJobs:    {},
   applications: {},
   ui: {
     route: location.hash || '#/jobs',
-    jobSearch: { cargo: '', localidade: '', skills: [], mode: 'todos', region: 'todas', dateFilter: 'all', hideExpired: true, graduacao: '', contracts: [], levels: [], sizes: [], specialty: '', areaFilter: '' },
+    jobSearch: { cargo: '', localidade: '', skills: [], mode: 'todos', region: 'todas', dateFilter: 'all', hideExpired: true, graduacao: '', contracts: [], levels: [], sizes: [], specialty: '', areaFilter: '', subAreaFilter: '' },
     realJobsStatus: 'idle',
     rpTab: 'missoes',
     rpVoucher: false,
@@ -148,6 +159,12 @@ async function boot() {
   loadSavedJobs();
   loadApplications();
   loadRealJobs();
+  setTimeout(() => {
+    _questToastsEnabled = true;
+    store.quests.filter(q => q.done && !q.claimed).forEach(q => {
+      if (!_shownQuestToasts.has(q.id)) { _shownQuestToasts.add(q.id); toastQuest(q); }
+    });
+  }, 2500);
 }
 
 function loadProfile() {
@@ -158,6 +175,9 @@ function loadProfile() {
   if (p.coins    !== undefined) store.user.coins    = p.coins;
   if (p.streak   !== undefined) store.user.streak   = p.streak;
   if (p.lastActivity)           store.user.lastActivity = p.lastActivity;
+  if (p.name)                   store.user.name     = p.name;
+  if (p.role)                   store.user.role     = p.role;
+  if (p.tracks?.length)         store.user.tracks   = p.tracks;
   store.user.activities = p.activities || [];
 
   const savedAchs = lsGet(LS.achievements, []);
@@ -310,11 +330,90 @@ function paintUser() {
   });
 }
 
+/* ============== Notifications ============== */
+function pushNotif({ type = 'info', icon = '🔔', title, desc, action }) {
+  store.notifications.unshift({ id: Date.now(), type, icon, title, desc, action, time: Date.now(), read: false });
+  if (store.notifications.length > 30) store.notifications.pop();
+  _updateNotifBadge();
+  if (document.getElementById('notif-list') && document.getElementById('notif-panel').style.display !== 'none') {
+    renderNotifPanel();
+  }
+}
+
+function _updateNotifBadge() {
+  const unread = store.notifications.filter(n => !n.read).length;
+  const dot = $('#notif-dot');
+  const badge = $('#notif-unread-badge');
+  if (dot)   { dot.style.display   = unread > 0 ? '' : 'none'; }
+  if (badge) { badge.style.display = unread > 0 ? '' : 'none'; badge.textContent = unread; }
+}
+
+function renderNotifPanel() {
+  const list = $('#notif-list');
+  if (!list) return;
+  if (!store.notifications.length) {
+    list.innerHTML = '<div class="notif-empty">Nenhuma notificação</div>';
+    return;
+  }
+  const timeAgo = t => {
+    const m = Math.floor((Date.now()-t)/60000);
+    if (m < 1) return 'agora';
+    if (m < 60) return `${m}min atrás`;
+    const h = Math.floor(m/60);
+    if (h < 24) return `${h}h atrás`;
+    return `${Math.floor(h/24)}d atrás`;
+  };
+  list.innerHTML = store.notifications.map(n => `
+    <div class="notif-item ${n.read ? '' : 'unread'}" data-notif-id="${n.id}" ${n.action ? `data-notif-action="${n.action}"` : ''}>
+      <div class="notif-item-icon">${n.icon}</div>
+      <div class="notif-item-body">
+        <div class="notif-item-title">${escapeHtml(n.title)}</div>
+        <div class="notif-item-desc">${escapeHtml(n.desc)}</div>
+        <div class="notif-item-time">${timeAgo(n.time)}</div>
+      </div>
+    </div>`).join('');
+
+  list.querySelectorAll('[data-notif-id]').forEach(el => {
+    el.addEventListener('click', () => {
+      const n = store.notifications.find(x => x.id === +el.dataset.notifId);
+      if (n) n.read = true;
+      if (el.dataset.notifAction) {
+        const act = el.dataset.notifAction;
+        if (act.startsWith('#')) location.hash = act;
+        else if (act === 'missoes') { const t = document.querySelector('.rp-tab[data-rptab="missoes"]'); if (t) t.click(); }
+      }
+      el.classList.remove('unread');
+      _updateNotifBadge();
+      _closeNotifPanel();
+    });
+  });
+}
+
+function _closeNotifPanel() {
+  const p = $('#notif-panel');
+  if (p) p.style.display = 'none';
+}
+
+function toggleNotifPanel() {
+  const p = $('#notif-panel');
+  if (!p) return;
+  if (p.style.display === 'none') {
+    store.notifications.forEach(n => { n.read = true; });
+    _updateNotifBadge();
+    renderNotifPanel();
+    p.style.display = 'flex';
+  } else {
+    _closeNotifPanel();
+  }
+}
+
 function bindShell() {
   $$('.nav-item[data-route]').forEach(el => {
     el.addEventListener('click', e => {
       e.preventDefault();
       location.hash = el.dataset.route;
+      // Fecha sidebar no mobile ao navegar
+      document.body.classList.remove('sb-open');
     });
   });
   $('#sidebar-toggle').addEventListener('click', () => {
@@ -322,6 +421,24 @@ function bindShell() {
   });
   $('#sidebar-open')?.addEventListener('click', () => {
     document.body.classList.toggle('sb-open');
+  });
+  $('#rp-toggle')?.addEventListener('click', () => document.body.classList.add('rp-hidden'));
+  $('#rp-reopen')?.addEventListener('click', () => document.body.classList.remove('rp-hidden'));
+  // Fechar sidebar no mobile clicando no overlay
+  document.addEventListener('click', e => {
+    if (document.body.classList.contains('sb-open') && !e.target.closest('#sidebar') && !e.target.closest('#sidebar-open')) {
+      document.body.classList.remove('sb-open');
+    }
+  });
+  // Sino → painel de notificações
+  $('#notif-btn')?.addEventListener('click', e => { e.stopPropagation(); toggleNotifPanel(); });
+  document.addEventListener('click', e => {
+    if (!e.target.closest('#notif-panel') && !e.target.closest('#notif-btn')) _closeNotifPanel();
+  });
+  $('#notif-mark-read')?.addEventListener('click', () => {
+    store.notifications.forEach(n => { n.read = true; });
+    _updateNotifBadge();
+    renderNotifPanel();
   });
   const chip = $('#user-chip');
   chip.addEventListener('click', e => {
@@ -345,7 +462,7 @@ function bindShell() {
     el.addEventListener('click', e => {
       e.preventDefault();
       const action = el.dataset.action;
-      if (action === 'mensagens')     openMensagensModal();
+      if (action === 'notificacoes')  openMensagensModal();
       if (action === 'configuracoes') openConfiguracoesModal();
       if (action === 'ajuda')         location.hash = '#/docs';
     });
@@ -442,48 +559,48 @@ function renderRightPanel(searchQuery = '') {
   if (!searchQuery && !filter) {
     list.innerHTML = '';
     if (empty) empty.style.display = 'flex';
-    return;
+  } else {
+    if (empty) empty.style.display = 'none';
+    list.innerHTML = filtered.slice(0, 8).map(c => `
+      <div class="rp-cert-item">
+        <div class="rp-cert-dot" style="background:${c.color}"></div>
+        <div style="flex:1;min-width:0">
+          <div class="rp-cert-name">${escapeHtml(c.name)}</div>
+          <div class="rp-cert-issuer">${escapeHtml(c.issuer)}</div>
+        </div>
+        <div class="rp-cert-xp">+${c.xp} XP</div>
+      </div>
+    `).join('');
   }
 
-  if (empty) empty.style.display = 'none';
-  list.innerHTML = filtered.slice(0, 8).map(c => `
-    <div class="rp-cert-item">
-      <div class="rp-cert-dot" style="background:${c.color}"></div>
-      <div style="flex:1;min-width:0">
-        <div class="rp-cert-name">${escapeHtml(c.name)}</div>
-        <div class="rp-cert-issuer">${escapeHtml(c.issuer)}</div>
-      </div>
-      <div class="rp-cert-xp">+${c.xp} XP</div>
-    </div>
-  `).join('');
-
+  // Cursos — always show featured courses sorted by tier
   const coursesList = $('#rp-cursos-list');
   const coursesEmpty = $('#rp-empty-cursos');
   if (!coursesList) return;
 
-  const relatedCourses = store.courses.filter(c => {
-    const q = searchQuery.toLowerCase();
-    return c.title.toLowerCase().includes(q) ||
-           c.track.toLowerCase().includes(q) ||
-           c.skills.some(s => s.toLowerCase().includes(q));
-  }).slice(0, 6);
+  const tierOrder = { ouro: 0, prata: 1, bronze: 2 };
+  const featured = [...store.courses].sort((a, b) => {
+    const ta = tierOrder[a.tier] ?? 3, tb = tierOrder[b.tier] ?? 3;
+    return ta !== tb ? ta - tb : b.xp - a.xp;
+  }).slice(0, 5);
 
-  if (relatedCourses.length === 0) {
+  if (featured.length === 0) {
     coursesList.innerHTML = '';
     if (coursesEmpty) coursesEmpty.style.display = 'flex';
   } else {
     if (coursesEmpty) coursesEmpty.style.display = 'none';
-    coursesList.innerHTML = relatedCourses.map(c => `
-      <div class="rp-course-item">
+    coursesList.innerHTML = featured.map(c => `
+      <a class="rp-course-item" href="${escapeHtml(c.url)}" target="_blank" rel="noopener">
         <div class="rp-course-icon" style="background:${c.color}">
           <i data-lucide="${courseIcon(c.icon)}" style="width:16px;height:16px"></i>
         </div>
         <div style="flex:1;min-width:0">
           <div class="rp-course-name">${escapeHtml(c.title)}</div>
-          <div class="rp-course-meta">${escapeHtml(c.track)} · ${c.hours}h</div>
+          <div class="rp-course-meta">${escapeHtml(c.provider)} · ${c.hours}h</div>
         </div>
-      </div>
-    `).join('');
+        <span class="rp-course-tier-badge rp-tier-${c.tier}">${c.tier}</span>
+      </a>
+    `).join('') + `<a class="rp-ver-todos" href="#/courses">Ver todos →</a>`;
     if (window.lucide) lucide.createIcons();
   }
 }
@@ -671,7 +788,7 @@ function renderJobsPage() {
   `).join('');
 
   const filterBtns = (filter, opts) => opts.map(([val, label]) => {
-    const isSingle = filter === 'mode' || filter === 'region' || filter === 'dateFilter' || filter === 'specialty' || filter === 'areaFilter';
+    const isSingle = filter === 'mode' || filter === 'region' || filter === 'dateFilter' || filter === 'specialty' || filter === 'areaFilter' || filter === 'subAreaFilter';
     const active   = isSingle ? s[filter] === val : s[filter + 's'].includes(val);
     return `<button class="mode-btn ${active ? 'active' : ''}" data-filter="${filter}" data-value="${val}">${label}</button>`;
   }).join('');
@@ -752,32 +869,23 @@ function renderJobsPage() {
           <div class="inline-filter-row">
             <span class="inline-filter-label">Área:</span>
             <div class="inline-filter-opts filter-toggle-row">
-              <button class="filter-toggle-btn ${s.areaFilter ? 'has-active' : ''}"
-                      id="ftb-area" data-panel="fpl-area" type="button">
-                <span class="ftb-icon">${s.areaFilter ? '●' : '<i data-lucide="monitor" style="width:13px;height:13px;vertical-align:middle"></i>'}</span>
-                <span class="ftb-label">${s.areaFilter ? (AREA_BTN_LABELS[s.areaFilter] || 'TI') : 'TI'}</span>
-                ${s.areaFilter ? `<span class="ftb-x" data-clearfilter="areaFilter">×</span>` : ''}
-              </button>
-              <button class="filter-toggle-btn ${s.specialty ? 'has-active' : ''}"
+              ${[['dev','Dev'],['mobile','Mobile'],['dados','Dados'],['ia','IA & ML'],['devopscloud','DevOps'],['produtoqa','Produto'],['suporte','Suporte']].map(([key,lbl]) => {
+                const isActive = s.areaFilter === key || (s.subAreaFilter && s.subAreaFilter.startsWith(key + ':'));
+                const btnLabel = (s.subAreaFilter && s.subAreaFilter.startsWith(key + ':')) ? (SUBAREA_BTN_LABELS[s.subAreaFilter] || ('+ ' + lbl)) : ('+ ' + lbl);
+                return `<button class="filter-toggle-btn area-top-btn ${isActive ? 'has-active' : ''}" data-areabtn="${key}" type="button"><span class="ftb-label">${btnLabel}</span>${isActive ? `<span class="ftb-x" data-cleararea="${key}">×</span>` : ''}</button>`;
+              }).join('')}
+              <button class="filter-toggle-btn area-top-btn ${s.specialty ? 'has-active' : ''}"
                       id="ftb-security" data-panel="fpl-security" type="button">
-                <span class="ftb-icon">${s.specialty ? '●' : '<i data-lucide="shield" style="width:13px;height:13px;vertical-align:middle"></i>'}</span>
-                <span class="ftb-label">${s.specialty ? (SPEC_BTN_LABELS[s.specialty] || 'Segurança') : 'Segurança'}</span>
+                <span class="ftb-label">${s.specialty ? (SPEC_BTN_LABELS[s.specialty] || '+ Segurança') : '+ Segurança'}</span>
                 ${s.specialty ? `<span class="ftb-x" data-clearfilter="specialty">×</span>` : ''}
               </button>
             </div>
           </div>
-          <div class="filter-expand-panel" id="fpl-area"
-               style="display:${s.areaFilter ? 'flex' : 'none'}">
-            ${filterBtns('areaFilter', [
-              ['',            'Todas'],
-              ['dev',         'Dev  ·  Front / Back / Full Stack'],
-              ['mobile',      'Mobile  ·  Android / iOS / Flutter'],
-              ['dados',       'Dados  ·  BI / SQL / Analytics / DBA'],
-              ['ia',          'IA & ML  ·  Data Science / LLMs / MLOps'],
-              ['devopscloud', 'DevOps & Cloud  ·  AWS / K8s / Docker'],
-              ['produtoqa',   'Produto  ·  UX / Design / QA / Arquitetura'],
-              ['suporte',     'Suporte & Redes  ·  Help Desk / Infra / Sysadmin'],
-            ])}
+          <div class="filter-expand-panel filter-subarea-panel" id="fpl-subarea"
+               style="display:${(s.areaFilter && AREA_SUBOPTIONS[s.areaFilter]) ? 'flex' : 'none'}">
+            ${s.areaFilter && AREA_SUBOPTIONS[s.areaFilter] ? `
+              <span class="subarea-back-label">▸ ${AREA_BTN_LABELS[s.areaFilter] || s.areaFilter}</span>
+              ${buildSubPanel(s.areaFilter)}` : ''}
           </div>
           <div class="filter-expand-panel" id="fpl-security"
                style="display:${s.specialty ? 'flex' : 'none'}">
@@ -853,8 +961,9 @@ function updateJobResults() {
     return;
   }
 
-  const marketData = calcMarket(filtered);
-  const label = escapeHtml(s.cargo || s.skills[0] || s.contracts[0] || s.levels[0] || '');
+  const marketQuery = s.cargo || s.skills[0] || s.levels[0] || '';
+  const marketData  = calcMarket(filtered, marketQuery);
+  const label = escapeHtml(marketQuery || s.contracts[0] || '');
 
   el.innerHTML = `
     ${hasText ? `
@@ -865,19 +974,19 @@ function updateJobResults() {
       </div>
       <div class="market-grid">
         <div class="market-stat">
-          <div class="market-stat-label">Salário mín</div>
+          <div class="market-stat-label">Mín mensal</div>
           <div class="market-stat-value">${marketData.min}</div>
-          <div class="market-stat-sub">estimado</div>
+          <div class="market-stat-sub">${marketData.source === 'ref' ? 'referência BR' : 'estimado'}</div>
         </div>
         <div class="market-stat">
-          <div class="market-stat-label">Mediana</div>
+          <div class="market-stat-label">Média mensal</div>
           <div class="market-stat-value orange">${marketData.med}</div>
-          <div class="market-stat-sub">referência</div>
+          <div class="market-stat-sub">mercado 2025</div>
         </div>
         <div class="market-stat">
-          <div class="market-stat-label">Salário máx</div>
+          <div class="market-stat-label">Máx mensal</div>
           <div class="market-stat-value green">${marketData.max}</div>
-          <div class="market-stat-sub">estimado</div>
+          <div class="market-stat-sub">${marketData.source === 'ref' ? 'referência BR' : 'estimado'}</div>
         </div>
         <div class="market-stat">
           <div class="market-stat-label">Tendência BR</div>
@@ -956,6 +1065,30 @@ function filterJobs() {
       dba:      ['dba','database administrator','postgresql','mysql','oracle database','sql server','mongodb','banco de dados','administrador de banco','tuning de banco'],
       suporte:  ['suporte técnico','help desk','service desk','n1','n2','n3','atendimento técnico','técnico de informática','field service','suporte de campo','assistência técnica'],
       games:    ['game developer','unity','unreal engine','game design','mobile game','jogos','gameplay programmer','desenvolvedor de jogos','engine de jogo'],
+      // Sub-áreas de TI (dois níveis)
+      'dev:frontend':         ['frontend','front-end','react','vue','angular','next.js','nuxt','svelte','css','html','javascript','typescript','ui developer','desenvolvedor web','interface'],
+      'dev:backend':          ['backend','back-end','api rest','node.js','nodejs','django','spring','golang','fastapi','laravel','ruby on rails','microsserviço','microservice','servidor'],
+      'dev:fullstack':        ['fullstack','full stack','full-stack','front e back','back e front','stack completa'],
+      'mobile:android':       ['android','kotlin','jetpack compose','android studio'],
+      'mobile:ios':           ['ios','swift','xcode','objective-c','swiftui'],
+      'mobile:flutter':       ['flutter','dart'],
+      'mobile:reactnative':   ['react native','expo','react-native'],
+      'dados:analytics':      ['business intelligence','bi','tableau','power bi','looker','qlik','analytics','google analytics','relatório gerencial','analista de dados','data analyst'],
+      'dados:engenharia':     ['data engineer','engenheiro de dados','pipeline de dados','spark','dbt','airflow','bigquery','etl','data warehouse','lakehouse','data platform'],
+      'dados:dba':            ['dba','database administrator','postgresql','mysql','oracle','sql server','mongodb','administrador de banco','tuning de banco'],
+      'ia:datascience':       ['data science','cientista de dados','machine learning','deep learning','sklearn','xgboost','pytorch','tensorflow'],
+      'ia:llm':               ['llm','gpt','nlp','generative ai','langchain','openai','genai','processamento de linguagem','transformer','rag','langsmith'],
+      'ia:mlops':             ['mlops','ml engineer','model deployment','kubeflow','mlflow','vertex ai','sagemaker','feature store'],
+      'devopscloud:devops':   ['devops','sre','site reliability','ci/cd','gitops','argocd','jenkins','terraform','ansible','pipeline','github actions'],
+      'devopscloud:cloud':    ['aws','azure','gcp','google cloud','nuvem','s3','ec2','lambda','cloud architect','serverless','multicloud'],
+      'devopscloud:k8s':      ['kubernetes','k8s','docker','container','helm','istio','containerd','openshift'],
+      'produtoqa:ux':         ['ux designer','ui designer','product designer','figma','design system','experiência do usuário','protótipo','ux researcher','acessibilidade'],
+      'produtoqa:qa':         ['qa','quality assurance','automação de teste','selenium','cypress','playwright','jest','bdd','tdd','sdet','controle de qualidade'],
+      'produtoqa:pm':         ['product manager','product owner','po','scrum master','agile','roadmap','backlog','metodologia ágil'],
+      'produtoqa:arquitetura':['arquiteto','architect','tech lead','líder técnico','principal engineer','staff engineer','solution architect','sistema distribuído'],
+      'suporte:helpdesk':     ['suporte técnico','help desk','service desk','n1','n2','n3','técnico de informática','field service','atendimento técnico'],
+      'suporte:sysadmin':     ['sysadmin','linux admin','windows server','active directory','administrador de sistemas','administrador de redes','powershell'],
+      'suporte:redes':        ['redes','network engineer','firewall','vpn','cisco','ccna','infra de rede','switching','routing'],
       // Segurança
       soc:      ['soc','blue team','siem','splunk','incident response','threat hunt','dfir','forense','monitoramento de segurança'],
       pentest:  ['pentest','penetration test','red team','oscp','kali','metasploit','burp suite','exploit','ctf','ethical hack','teste de invasão'],
@@ -964,7 +1097,8 @@ function filterJobs() {
       cloudsec: ['cloud security','aws security','azure security','gcp security','iam','zero trust','cspm','cwpp','postura de segurança'],
     };
     const specMatch = !s.specialty  || (SPEC_KW[s.specialty]  || []).some(kw => text.includes(kw));
-    const areaMatch = !s.areaFilter || (SPEC_KW[s.areaFilter] || []).some(kw => text.includes(kw));
+    const areaKey   = s.subAreaFilter || s.areaFilter;
+    const areaMatch = !areaKey || (SPEC_KW[areaKey] || []).some(kw => text.includes(kw));
 
     return cargoMatch && skillsMatch && localMatch && modeMatch && contractMatch && levelMatch && sizeMatch && regionMatch && dateMatch && expiredMatch && specMatch && areaMatch;
   });
@@ -989,20 +1123,111 @@ function calcDynamicMatch(j, skills) {
   return kwords.length ? Math.round((matched / kwords.length) * 100) : j.match;
 }
 
-function calcMarket(jobs) {
-  if (!jobs.length) return { min: 'R$ —', med: 'R$ —', max: 'R$ —' };
-  const parseRange = s => {
-    const nums = (s || '').match(/[\d.]+/g);
-    if (!nums || nums.length < 2) return [0, 0];
-    return [parseInt(nums[0].replace(/\./g,'')), parseInt(nums[1].replace(/\./g,''))];
+/* Referência de salários mensais CLT em BRL — base de mercado BR (2025) */
+const SALARY_REF = {
+  // Linguagens
+  python:            { min: 4500,  med: 9000,  max: 18000 },
+  javascript:        { min: 3500,  med: 7500,  max: 15000 },
+  typescript:        { min: 4000,  med: 8500,  max: 17000 },
+  react:             { min: 4000,  med: 8000,  max: 16000 },
+  'vue':             { min: 3800,  med: 7800,  max: 15000 },
+  'node.js':         { min: 4500,  med: 9000,  max: 18000 },
+  nodejs:            { min: 4500,  med: 9000,  max: 18000 },
+  java:              { min: 4500,  med: 10000, max: 20000 },
+  golang:            { min: 6000,  med: 13000, max: 25000 },
+  go:                { min: 6000,  med: 13000, max: 25000 },
+  rust:              { min: 8000,  med: 16000, max: 30000 },
+  kotlin:            { min: 5000,  med: 11000, max: 22000 },
+  swift:             { min: 5000,  med: 11000, max: 22000 },
+  flutter:           { min: 4000,  med: 8500,  max: 17000 },
+  'c#':              { min: 4000,  med: 9000,  max: 18000 },
+  dotnet:            { min: 4000,  med: 9000,  max: 18000 },
+  php:               { min: 3000,  med: 6500,  max: 13000 },
+  ruby:              { min: 5000,  med: 11000, max: 20000 },
+  scala:             { min: 8000,  med: 15000, max: 28000 },
+  // Cloud / Infra
+  aws:               { min: 6000,  med: 13000, max: 25000 },
+  azure:             { min: 5500,  med: 12000, max: 22000 },
+  gcp:               { min: 6000,  med: 13000, max: 25000 },
+  docker:            { min: 5000,  med: 10000, max: 20000 },
+  kubernetes:        { min: 7000,  med: 15000, max: 28000 },
+  k8s:               { min: 7000,  med: 15000, max: 28000 },
+  terraform:         { min: 7000,  med: 14000, max: 26000 },
+  devops:            { min: 6000,  med: 13000, max: 25000 },
+  sre:               { min: 7000,  med: 14000, max: 28000 },
+  // Dados
+  sql:               { min: 3500,  med: 7000,  max: 14000 },
+  'power bi':        { min: 3500,  med: 7000,  max: 14000 },
+  tableau:           { min: 4000,  med: 8000,  max: 16000 },
+  spark:             { min: 7000,  med: 14000, max: 26000 },
+  dbt:               { min: 6000,  med: 12000, max: 22000 },
+  airflow:           { min: 6500,  med: 13000, max: 24000 },
+  // Segurança
+  pentest:           { min: 4000,  med: 9000,  max: 18000 },
+  soc:               { min: 3500,  med: 7000,  max: 14000 },
+  appsec:            { min: 5000,  med: 11000, max: 22000 },
+  owasp:             { min: 5000,  med: 10000, max: 20000 },
+  // Roles
+  frontend:          { min: 3500,  med: 7500,  max: 15000 },
+  'front-end':       { min: 3500,  med: 7500,  max: 15000 },
+  backend:           { min: 4000,  med: 9000,  max: 18000 },
+  'back-end':        { min: 4000,  med: 9000,  max: 18000 },
+  fullstack:         { min: 4000,  med: 8500,  max: 17000 },
+  'full stack':      { min: 4000,  med: 8500,  max: 17000 },
+  mobile:            { min: 4500,  med: 9500,  max: 19000 },
+  'data science':    { min: 5000,  med: 12000, max: 22000 },
+  'machine learning':{ min: 7000,  med: 15000, max: 28000 },
+  'data engineer':   { min: 6000,  med: 13000, max: 24000 },
+  'product manager': { min: 7000,  med: 14000, max: 26000 },
+  'product owner':   { min: 5000,  med: 10000, max: 18000 },
+  'ux designer':     { min: 3500,  med: 7500,  max: 15000 },
+  qa:                { min: 3500,  med: 7000,  max: 14000 },
+  'tech lead':       { min: 10000, med: 18000, max: 30000 },
+  // Níveis
+  'júnior':          { min: 2500,  med: 4500,  max: 7000  },
+  junior:            { min: 2500,  med: 4500,  max: 7000  },
+  pleno:             { min: 5000,  med: 9000,  max: 14000 },
+  'sênior':          { min: 9000,  med: 16000, max: 28000 },
+  senior:            { min: 9000,  med: 16000, max: 28000 },
+};
+
+function calcMarket(jobs, query) {
+  const fmtBrl = n => `R$ ${fmt(n)}`;
+
+  // 1. Referência curada por skill/cargo (fonte primária)
+  if (query) {
+    const q = query.toLowerCase().trim();
+    const key = Object.keys(SALARY_REF).find(k => q.includes(k) || k.includes(q.split(' ')[0]));
+    if (key) {
+      const r = SALARY_REF[key];
+      return { min: fmtBrl(r.min), med: fmtBrl(r.med), max: fmtBrl(r.max), source: 'ref' };
+    }
+  }
+
+  // 2. Fallback: média dos salários mensais das vagas (descarta anuais/absurdos)
+  if (!jobs.length) return { min: 'R$ —', med: 'R$ —', max: 'R$ —', source: 'empty' };
+  const parseMonthly = raw => {
+    const nums = (raw || '').match(/[\d.]+/g);
+    if (!nums) return [];
+    return nums.map(n => parseInt(n.replace(/\./g,''))).filter(n => n >= 1500 && n <= 50000);
   };
-  const mins = jobs.map(j => parseRange(j.salary)[0]).filter(n => n > 0);
-  const maxs = jobs.map(j => parseRange(j.salary)[1]).filter(n => n > 0);
-  const fmtBrl = n => n ? `R$ ${fmt(n)}` : 'R$ —';
-  const min = mins.length ? Math.min(...mins) : 0;
-  const max = maxs.length ? Math.max(...maxs) : 0;
-  const med = mins.length && maxs.length ? Math.round((min + max) / 2) : 0;
-  return { min: fmtBrl(min), med: fmtBrl(med), max: fmtBrl(max) };
+  const vals = jobs.flatMap(j => parseMonthly(j.salary)).sort((a,b) => a - b);
+  if (!vals.length) return { min: 'R$ —', med: 'R$ —', max: 'R$ —', source: 'none' };
+  const med = vals[Math.floor(vals.length / 2)];
+  const avg = Math.round(vals.reduce((s,n) => s+n, 0) / vals.length);
+  return { min: fmtBrl(Math.round(avg * 0.75)), med: fmtBrl(avg), max: fmtBrl(Math.round(avg * 1.35)), source: 'jobs' };
+}
+
+/* Retorna null se o salário da vaga parece anual ou absurdo */
+function sanitizeSalary(raw) {
+  if (!raw) return null;
+  const nums = (raw.match(/[\d.]+/g) || []).map(n => parseInt(n.replace(/\./g,'')));
+  const valid = nums.filter(n => n > 0);
+  if (!valid.length) return null;
+  const maxVal = Math.max(...valid);
+  if (maxVal > 60000) return null;  // provável anual ou moeda estrangeira
+  if (maxVal < 500)   return null;  // provavelmente erro de parse
+  return raw;
 }
 
 function jobCardV2(j, dynMatch) {
@@ -1046,9 +1271,9 @@ function jobCardV2(j, dynMatch) {
         ${{ gupy: '<span class="jcv2-badge jcv2-badge-source">GY</span>', remotive: '<span class="jcv2-badge jcv2-badge-source">RM</span>', adzuna: '<span class="jcv2-badge jcv2-badge-source">AZ</span>' }[j.source] || ''}
       </div>
       <div class="jcv2-salary">
-        ${j.salary
-          ? `<span class="jcv2-salary-icon">🔥</span>${escapeHtml(j.salary)} <span style="font-weight:500;color:var(--text-mut);font-size:11px">/mês</span>`
-          : `<span style="color:var(--text-mut);font-size:11px">Salário não informado</span>`}
+        ${sanitizeSalary(j.salary)
+          ? `<span class="jcv2-salary-icon">💰</span>${escapeHtml(sanitizeSalary(j.salary))} <span style="font-weight:500;color:var(--text-mut);font-size:11px">/mês</span>`
+          : `<span style="color:var(--text-mut);font-size:11px">Salário não divulgado</span>`}
       </div>
       <div class="jcv2-skills">
         ${j.tags.slice(0, 4).map(t => `<span class="jcv2-skill">${escapeHtml(t)}</span>`).join('')}
@@ -1058,7 +1283,7 @@ function jobCardV2(j, dynMatch) {
         ${j.externalUrl
           ? `<a class="jcv2-cta" href="${escapeHtml(j.externalUrl)}" target="_blank" rel="noopener noreferrer">Ver vaga ↗</a>`
           : `<span class="jcv2-cta jcv2-cta-disabled">Indisponível</span>`}
-        <span class="jcv2-date ${dateAgeCls}" style="flex:1;text-align:center">${escapeHtml(j.posted || 'recente')}</span>
+        <span class="jcv2-date ${dateAgeCls}">${escapeHtml(j.posted || 'recente')}</span>
         ${store.applications[j.id]
           ? `<button class="btn-apply-job applied" data-job-id="${escapeHtml(j.id)}" title="Ver no kanban">
                ${STAGE_LABELS[store.applications[j.id].stage] || 'Candidatado'} ✓
@@ -1096,6 +1321,34 @@ const AREA_BTN_LABELS = {
 const SPEC_BTN_LABELS = {
   soc:'SOC / Blue', pentest:'Pentest', grc:'GRC', appsec:'AppSec', cloudsec:'Cloud Sec',
 };
+
+const AREA_SUBOPTIONS = {
+  dev:         [['dev:frontend','Frontend'], ['dev:backend','Backend'], ['dev:fullstack','Full Stack']],
+  mobile:      [['mobile:android','Android'], ['mobile:ios','iOS'], ['mobile:flutter','Flutter / Dart'], ['mobile:reactnative','React Native']],
+  dados:       [['dados:analytics','Analytics / BI'], ['dados:engenharia','Eng. de Dados'], ['dados:dba','DBA']],
+  ia:          [['ia:datascience','Data Science'], ['ia:llm','LLMs / GenAI'], ['ia:mlops','MLOps']],
+  devopscloud: [['devopscloud:devops','DevOps / SRE'], ['devopscloud:cloud','Cloud'], ['devopscloud:k8s','Kubernetes / Docker']],
+  produtoqa:   [['produtoqa:ux','UX / UI'], ['produtoqa:qa','QA / Testes'], ['produtoqa:pm','Product Manager'], ['produtoqa:arquitetura','Arquitetura']],
+  suporte:     [['suporte:helpdesk','Help Desk'], ['suporte:sysadmin','Sysadmin'], ['suporte:redes','Redes']],
+};
+
+const SUBAREA_BTN_LABELS = {
+  'dev:frontend':'Dev · Frontend', 'dev:backend':'Dev · Backend', 'dev:fullstack':'Dev · Full Stack',
+  'mobile:android':'Mobile · Android', 'mobile:ios':'Mobile · iOS', 'mobile:flutter':'Mobile · Flutter', 'mobile:reactnative':'Mobile · RN',
+  'dados:analytics':'Dados · Analytics', 'dados:engenharia':'Dados · Eng. Dados', 'dados:dba':'Dados · DBA',
+  'ia:datascience':'IA · Data Science', 'ia:llm':'IA · LLMs', 'ia:mlops':'IA · MLOps',
+  'devopscloud:devops':'DevOps · SRE', 'devopscloud:cloud':'DevOps · Cloud', 'devopscloud:k8s':'DevOps · K8s',
+  'produtoqa:ux':'Produto · UX/UI', 'produtoqa:qa':'Produto · QA', 'produtoqa:pm':'Produto · PM', 'produtoqa:arquitetura':'Produto · Arq.',
+  'suporte:helpdesk':'Suporte · Help Desk', 'suporte:sysadmin':'Suporte · Sysadmin', 'suporte:redes':'Suporte · Redes',
+};
+
+function buildSubPanel(areaVal) {
+  const s = store.ui.jobSearch;
+  const opts = [['', 'Todas'], ...(AREA_SUBOPTIONS[areaVal] || [])];
+  return opts.map(([v, l]) =>
+    `<button class="mode-btn sub-mode-btn ${s.subAreaFilter === v ? 'active' : ''}" data-filter="subAreaFilter" data-value="${v}">${l}</button>`
+  ).join('');
+}
 
 const STAGES = ['applied','reviewing','interview','offer','rejected'];
 const STAGE_LABELS = {
@@ -1193,74 +1446,126 @@ function renderKanban() {
 }
 
 function _refreshFilterToggle(filterName, value) {
-  const isArea = filterName === 'areaFilter';
-  const btnId  = isArea ? 'ftb-area' : 'ftb-security';
-  const btn    = $('#' + btnId);
+  if (filterName === 'areaFilter') return; // área agora usa _refreshAreaBtn por botão
+  const btn = $('#ftb-security');
   if (!btn) return;
-  const icon   = btn.querySelector('.ftb-icon');
-  const label  = btn.querySelector('.ftb-label');
-  const xBtn   = btn.querySelector('.ftb-x');
-  const labels = isArea ? AREA_BTN_LABELS : SPEC_BTN_LABELS;
-  const defaultLabel = isArea ? 'TI' : 'Segurança';
-
-  const iconName = isArea ? 'monitor' : 'shield';
+  const label = btn.querySelector('.ftb-label');
+  const xBtn  = btn.querySelector('.ftb-x');
+  const displayLabel = value ? (SPEC_BTN_LABELS[value] || '+ Segurança') : '+ Segurança';
   if (value) {
     btn.classList.add('has-active');
-    if (icon)  icon.textContent = '●';
-    if (label) label.textContent = labels[value] || defaultLabel;
+    if (label) label.textContent = displayLabel;
     if (!xBtn) {
       const x = document.createElement('span');
-      x.className = 'ftb-x';
-      x.dataset.clearfilter = filterName;
-      x.textContent = '×';
+      x.className = 'ftb-x'; x.dataset.clearfilter = filterName; x.textContent = '×';
       btn.appendChild(x);
     }
   } else {
     btn.classList.remove('has-active');
-    if (icon)  { icon.innerHTML = `<i data-lucide="${iconName}" style="width:13px;height:13px;vertical-align:middle"></i>`; if (window.lucide) lucide.createIcons(); }
-    if (label) label.textContent = defaultLabel;
+    if (label) label.textContent = '+ Segurança';
     xBtn?.remove();
+  }
+}
+
+let _openAreaKey = '';
+
+function _refreshAreaBtn(key) {
+  const btn = document.querySelector(`[data-areabtn="${key}"]`);
+  if (!btn) return;
+  const s = store.ui.jobSearch;
+  const isActive = s.areaFilter === key || (s.subAreaFilter && s.subAreaFilter.startsWith(key + ':'));
+  const labelEl = btn.querySelector('.ftb-label');
+  const xEl = btn.querySelector('.ftb-x');
+  const lbl = AREA_BTN_LABELS[key] || key;
+  const subLabel = s.subAreaFilter && s.subAreaFilter.startsWith(key + ':') ? SUBAREA_BTN_LABELS[s.subAreaFilter] : null;
+  if (isActive) {
+    btn.classList.add('has-active');
+    if (labelEl) labelEl.textContent = subLabel || ('+ ' + lbl);
+    if (!xEl) {
+      const x = document.createElement('span');
+      x.className = 'ftb-x'; x.dataset.cleararea = key; x.textContent = '×';
+      btn.appendChild(x);
+    }
+  } else {
+    btn.classList.remove('has-active');
+    if (labelEl) labelEl.textContent = '+ ' + lbl;
+    xEl?.remove();
   }
 }
 
 function bindJobsPageEvents() {
   const s = store.ui.jobSearch;
 
-  // Chip pill toggle buttons (Área / Segurança)
+  // Chip pill toggle buttons (área individual + segurança)
   $('.filter-toggle-row')?.addEventListener('click', e => {
-    const clearBtn = e.target.closest('.ftb-x');
-    if (clearBtn) {
-      const filter = clearBtn.dataset.clearfilter;
-      s[filter] = '';
-      _refreshFilterToggle(filter, '');
-      const toggleBtn = clearBtn.closest('.filter-toggle-btn');
-      if (toggleBtn) {
-        const panel = $('#' + toggleBtn.dataset.panel);
-        if (panel) panel.style.display = 'none';
-        toggleBtn.classList.remove('open');
-      }
+    // × em botão de área individual
+    const clearAreaX = e.target.closest('[data-cleararea]');
+    if (clearAreaX) {
+      const key = clearAreaX.dataset.cleararea;
+      s.areaFilter = ''; s.subAreaFilter = ''; _openAreaKey = '';
+      const subPanel = $('#fpl-subarea');
+      if (subPanel) subPanel.style.display = 'none';
+      _refreshAreaBtn(key);
       updateJobResults();
       return;
     }
-    const toggleBtn = e.target.closest('.filter-toggle-btn');
+    // × em botão de segurança
+    const clearSecX = e.target.closest('[data-clearfilter]');
+    if (clearSecX) {
+      const filter = clearSecX.dataset.clearfilter;
+      s[filter] = '';
+      _refreshFilterToggle(filter, '');
+      const secBtn = clearSecX.closest('.filter-toggle-btn');
+      if (secBtn) { const p = $('#' + secBtn.dataset.panel); if (p) p.style.display = 'none'; secBtn.classList.remove('open'); }
+      updateJobResults();
+      return;
+    }
+    // Clique em botão de área individual
+    const areaBtn = e.target.closest('[data-areabtn]');
+    if (areaBtn) {
+      const key = areaBtn.dataset.areabtn;
+      const subPanel = $('#fpl-subarea');
+      // Fechar painel de segurança se aberto
+      const secPanel = $('#fpl-security'); const secBtn2 = $('#ftb-security');
+      if (secPanel) secPanel.style.display = 'none'; if (secBtn2) secBtn2.classList.remove('open');
+      if (_openAreaKey === key && subPanel?.style.display !== 'none') {
+        // Fechar sub-painel ao clicar no mesmo botão
+        if (subPanel) subPanel.style.display = 'none';
+        areaBtn.classList.remove('open');
+        _openAreaKey = '';
+      } else {
+        // Fechar sub-painel de outra área
+        if (_openAreaKey && _openAreaKey !== key) {
+          const prev = document.querySelector(`[data-areabtn="${_openAreaKey}"]`);
+          if (prev) prev.classList.remove('open');
+        }
+        _openAreaKey = key;
+        if (!s.subAreaFilter?.startsWith(key + ':')) s.subAreaFilter = '';
+        s.areaFilter = key;
+        if (subPanel && AREA_SUBOPTIONS[key]) {
+          subPanel.innerHTML = `<span class="subarea-back-label">▸ ${AREA_BTN_LABELS[key] || key}</span>${buildSubPanel(key)}`;
+          subPanel.style.display = 'flex';
+        }
+        areaBtn.classList.add('open');
+        _refreshAreaBtn(key);
+        updateJobResults();
+      }
+      return;
+    }
+    // Botão de segurança (data-panel)
+    const toggleBtn = e.target.closest('[data-panel]');
     if (!toggleBtn) return;
     const panelId = toggleBtn.dataset.panel;
     const panel   = $('#' + panelId);
     if (!panel) return;
-    const isOpen = panel.style.display !== 'none';
-    if (isOpen) {
-      panel.style.display = 'none';
-      toggleBtn.classList.remove('open');
+    if (panel.style.display !== 'none') {
+      panel.style.display = 'none'; toggleBtn.classList.remove('open');
     } else {
-      // Fechar o outro painel antes de abrir este
-      const otherPanelId = panelId === 'fpl-area' ? 'fpl-security' : 'fpl-area';
-      const otherBtnId   = panelId === 'fpl-area' ? 'ftb-security' : 'ftb-area';
-      const otherPanel   = $('#' + otherPanelId);
-      const otherBtn     = $('#' + otherBtnId);
-      if (otherPanel) otherPanel.style.display = 'none';
-      if (otherBtn)   otherBtn.classList.remove('open');
-      panel.style.display = 'flex';
-      toggleBtn.classList.add('open');
+      // Fechar sub-painéis de área
+      const subPanel = $('#fpl-subarea');
+      if (subPanel) subPanel.style.display = 'none';
+      if (_openAreaKey) { const p = document.querySelector(`[data-areabtn="${_openAreaKey}"]`); if (p) p.classList.remove('open'); _openAreaKey = ''; }
+      panel.style.display = 'flex'; toggleBtn.classList.add('open');
     }
   });
 
@@ -1331,15 +1636,32 @@ function bindJobsPageEvents() {
     if (!btn) return;
     const filter = btn.dataset.filter;
     const value  = btn.dataset.value;
-    if (filter === 'mode' || filter === 'region' || filter === 'dateFilter' || filter === 'specialty' || filter === 'areaFilter') {
+    if (filter === 'areaFilter') {
+      // handler legado (sem botões fpl-area, mas mantido por segurança)
+      s.areaFilter = value; s.subAreaFilter = '';
+      updateJobResults();
+      return;
+    }
+    if (filter === 'subAreaFilter') {
+      s.subAreaFilter = value;
+      const subPanel = $('#fpl-subarea');
+      if (subPanel) subPanel.style.display = 'none';
+      if (_openAreaKey) {
+        document.querySelector(`[data-areabtn="${_openAreaKey}"]`)?.classList.remove('open');
+        _openAreaKey = '';
+      }
+      if (s.areaFilter) _refreshAreaBtn(s.areaFilter);
+      updateJobResults();
+      return;
+    }
+    if (filter === 'mode' || filter === 'region' || filter === 'dateFilter' || filter === 'specialty') {
       s[filter] = value;
       $$(`[data-filter="${filter}"]`).forEach(b => b.classList.toggle('active', b.dataset.value === value));
-      if (filter === 'areaFilter' || filter === 'specialty') {
+      if (filter === 'specialty') {
         _refreshFilterToggle(filter, value);
         if (value) {
-          const panelId = filter === 'areaFilter' ? 'fpl-area' : 'fpl-security';
-          const panel   = $('#' + panelId);
-          const btn     = $(`[data-panel="${panelId}"]`);
+          const panel = $('#fpl-security');
+          const btn   = $(`[data-panel="fpl-security"]`);
           if (panel) panel.style.display = 'none';
           if (btn)   btn.classList.remove('open');
         }
@@ -1359,7 +1681,7 @@ function bindJobsPageEvents() {
 
   $('#ms-clear')?.addEventListener('click', () => {
     s.cargo = ''; s.localidade = ''; s.skills = []; s.mode = 'todos'; s.region = 'todas';
-    s.dateFilter = 'all'; s.hideExpired = true; s.graduacao = ''; s.specialty = ''; s.areaFilter = '';
+    s.dateFilter = 'all'; s.hideExpired = true; s.graduacao = ''; s.specialty = ''; s.areaFilter = ''; s.subAreaFilter = '';
     s.contracts = []; s.levels = []; s.sizes = [];
     renderJobsPage();
   });
@@ -1724,7 +2046,7 @@ function renderAchievements() {
   `;
 }
 function achIcon(n) {
-  const m = { sword:'swords', check:'check', shield:'shield', flame:'flame', key:'key-round', cloud:'cloud', trophy:'trophy', crown:'crown', fingerprint:'fingerprint', lock:'lock' };
+  const m = { sword:'swords', check:'check', shield:'shield', flame:'flame', key:'key-round', cloud:'cloud', trophy:'trophy', crown:'crown', fingerprint:'fingerprint', lock:'lock', briefcase:'briefcase', target:'target', bookmark:'bookmark', 'message-square':'message-square' };
   return m[n] || 'star';
 }
 
@@ -1748,7 +2070,7 @@ function renderLeaderboard() {
           <div class="podium-item ${cls}">
             <span class="crown pixel">${label}</span>
             <div class="avatar" style="margin-top:8px">${initials(r.name)}</div>
-            <div class="pname">${escapeHtml(r.name)}</div>
+            <div class="pname">${escapeHtml(r.name)}${r.npc ? ' <span class="lb-npc-tag">NPC</span>' : ''}</div>
             <div class="pxp">${fmt(r.xp)} XP · LV ${r.level}</div>
             <div class="chip chip-royal" style="margin-top:8px">${escapeHtml(r.track)}</div>
           </div>
@@ -1766,7 +2088,7 @@ function renderLeaderboard() {
               <td style="display:flex;align-items:center;gap:10px">
                 <div class="avatar" style="width:32px;height:32px;font-size:11px">${initials(r.name)}</div>
                 <div>
-                  <div style="font-weight:700;color:var(--text)">${escapeHtml(r.name)}</div>
+                  <div style="font-weight:700;color:var(--text)">${escapeHtml(r.name)}${r.npc ? ' <span class="lb-npc-tag">NPC</span>' : ''}</div>
                   <div style="font-size:11px;color:var(--text-mut)">${escapeHtml(r.handle)}</div>
                 </div>
               </td>
@@ -1893,6 +2215,8 @@ function renderProfile() {
         if (name) store.user.name = name;
         if (role) store.user.role = role;
         if (tracks?.length) store.user.tracks = tracks;
+        lsSet(LS.profile, { ...lsGet(LS.profile, {}), name: store.user.name, role: store.user.role, tracks: store.user.tracks });
+        store.leaderboard = buildLeaderboard(store.leaderboard.filter(r => !r.isMe));
         paintUser();
         renderProfile();
         toast('Perfil atualizado!');
@@ -2029,6 +2353,12 @@ function checkAchievements() {
     { id: 'a-010', ok: () => u.level >= 30 },
     { id: 'a-011', ok: () => started('forens') },
     { id: 'a-012', ok: () => completed('zero trust') },
+    { id: 'a-013', ok: () => applied >= 10 },
+    { id: 'a-014', ok: () => applied >= 25 },
+    { id: 'a-015', ok: () => applied >= 50 },
+    { id: 'a-016', ok: () => store.courses.some(c => c.progress === 100) },
+    { id: 'a-017', ok: () => Object.keys(store.savedJobs).length >= 10 },
+    { id: 'a-018', ok: () => inInterview >= 3 },
   ];
 
   const savedAchs = lsGet(LS.achievements, []);
@@ -2208,8 +2538,36 @@ function toast(msg, levelUp = false) {
   }, 3200);
 }
 
+function toastQuest(quest) {
+  pushNotif({ type: 'quest', icon: '⚔', title: 'Quest pronta!', desc: `${quest.title} · +${quest.xp} XP disponível`, action: 'missoes' });
+  const root = $('#toast-root');
+  const el = document.createElement('div');
+  el.className = 'toast toast-quest';
+  el.innerHTML = `
+    <i data-lucide="target" style="color:#FACC15;flex-shrink:0"></i>
+    <div style="flex:1">
+      <div class="pixel" style="color:#FACC15;font-size:9px">QUEST PRONTA!</div>
+      <div class="msg" style="font-weight:700">${escapeHtml(quest.title)}</div>
+      <div class="msg" style="font-size:11px;opacity:.8">+${quest.xp} XP · Clique para resgatar</div>
+    </div>`;
+  el.addEventListener('click', () => {
+    const tab = document.querySelector('.rp-tab[data-rptab="missoes"]');
+    if (tab) tab.click();
+    el.remove();
+  });
+  root.appendChild(el);
+  if (window.lucide) lucide.createIcons();
+  requestAnimationFrame(() => el.classList.add('in'));
+  setTimeout(() => {
+    el.style.transform = 'translateX(120%)';
+    setTimeout(() => el.remove(), 400);
+  }, 6000);
+}
+
 const RARITY_COLOR = { bronze: '#cd7f32', prata: '#94a3b8', ouro: '#FACC15', diamante: '#38bdf8' };
+const RARITY_ICON  = { bronze: '🥉', prata: '🥈', ouro: '🥇', diamante: '💎' };
 function toastAch(ach) {
+  pushNotif({ type: 'achievement', icon: RARITY_ICON[ach.rarity] || '🏆', title: `Conquista: ${ach.name}`, desc: `${ach.desc} · +${ach.xp} XP` });
   const root  = $('#toast-root');
   const color = RARITY_COLOR[ach.rarity] || '#FACC15';
   const el = document.createElement('div');
