@@ -1105,7 +1105,7 @@ h3 { font-size: 16px; font-weight: 700; }
 .hud-xp-nums  { font-size: 9px; color: var(--snes-royal); letter-spacing: .3px; }
 .hud-pts-txt  { font-size: 9px; color: var(--xp-gold); letter-spacing: .3px; }
 .hud-bar-row  { display: flex; align-items: center; gap: 8px; }
-.hud-bar-row .hud-xpbar-outer { flex: 1; }
+.hud-bar-col .hud-xpbar-outer { width: 100%; }
 .hud-coin-wrap { display: flex; align-items: center; gap: 5px; flex-shrink: 0; margin-left: 14px; }
 .pixel-coin { display: block; image-rendering: pixelated; }
 
