@@ -93,7 +93,7 @@ const store = {
   applications: {},
   ui: {
     route: location.hash || '#/jobs',
-    jobSearch: { cargo: '', localidade: '', skills: [], mode: 'todos', region: 'todas', dateFilter: 'all', hideExpired: true, graduacao: '', contracts: [], levels: [], sizes: [], specialty: '', areaFilter: '', subAreaFilter: '' },
+    jobSearch: { cargo: '', localidade: '', skills: [], mode: 'todos', region: 'todas', dateFilter: 'all', hideExpired: true, hidePcd: true, graduacao: '', contracts: [], levels: [], sizes: [], specs: [], areaFilter: '', subAreaFilters: [] },
     realJobsStatus: 'idle',
     rpTab: 'missoes',
     rpVoucher: false,
@@ -788,7 +788,7 @@ function renderJobsPage() {
   `).join('');
 
   const filterBtns = (filter, opts) => opts.map(([val, label]) => {
-    const isSingle = filter === 'mode' || filter === 'region' || filter === 'dateFilter' || filter === 'specialty' || filter === 'areaFilter' || filter === 'subAreaFilter';
+    const isSingle = filter === 'mode' || filter === 'region' || filter === 'dateFilter' || filter === 'areaFilter';
     const active   = isSingle ? s[filter] === val : s[filter + 's'].includes(val);
     return `<button class="mode-btn ${active ? 'active' : ''}" data-filter="${filter}" data-value="${val}">${label}</button>`;
   }).join('');
@@ -860,25 +860,34 @@ function renderJobsPage() {
               ${filterBtns('region', [['todas','Todas'],['br','Brasil 🇧🇷'],['internacional','Internacional 🌎']])}
             </div>
           </div>
-          <div class="inline-filter-row">
+          <div class="inline-filter-row" style="grid-column:1/-1">
             <span class="inline-filter-label">Publicação:</span>
             <div class="inline-filter-opts">
               ${filterBtns('dateFilter', [['all','Todas'],['1d','Hoje'],['7d','7 dias'],['30d','30 dias']])}
             </div>
           </div>
-          <div class="inline-filter-row">
+          <div class="inline-filter-row" style="grid-column:1/-1">
             <span class="inline-filter-label">Área:</span>
             <div class="inline-filter-opts filter-toggle-row">
               ${[['dev','Dev'],['mobile','Mobile'],['dados','Dados'],['ia','IA & ML'],['devopscloud','DevOps'],['produtoqa','Produto'],['suporte','Suporte']].map(([key,lbl]) => {
-                const isActive = s.areaFilter === key || (s.subAreaFilter && s.subAreaFilter.startsWith(key + ':'));
-                const btnLabel = (s.subAreaFilter && s.subAreaFilter.startsWith(key + ':')) ? (SUBAREA_BTN_LABELS[s.subAreaFilter] || ('+ ' + lbl)) : ('+ ' + lbl);
+                const active = s.subAreaFilters.filter(v => v.startsWith(key + ':'));
+                const isActive = active.length > 0;
+                const btnLabel = active.length === 1
+                  ? (SUBAREA_BTN_LABELS[active[0]] || ('+ ' + lbl))
+                  : active.length > 1 ? `+ ${lbl} (${active.length})` : ('+ ' + lbl);
                 return `<button class="filter-toggle-btn area-top-btn ${isActive ? 'has-active' : ''}" data-areabtn="${key}" type="button"><span class="ftb-label">${btnLabel}</span>${isActive ? `<span class="ftb-x" data-cleararea="${key}">×</span>` : ''}</button>`;
               }).join('')}
-              <button class="filter-toggle-btn area-top-btn ${s.specialty ? 'has-active' : ''}"
+              ${(() => {
+                const hasSpecs  = s.specs.length > 0;
+                const specLabel = hasSpecs
+                  ? (s.specs.length === 1 ? (SPEC_BTN_LABELS[s.specs[0]] || '+ Segurança') : `+ Segurança (${s.specs.length})`)
+                  : '+ Segurança';
+                return `<button class="filter-toggle-btn area-top-btn ${hasSpecs ? 'has-active' : ''}"
                       id="ftb-security" data-panel="fpl-security" type="button">
-                <span class="ftb-label">${s.specialty ? (SPEC_BTN_LABELS[s.specialty] || '+ Segurança') : '+ Segurança'}</span>
-                ${s.specialty ? `<span class="ftb-x" data-clearfilter="specialty">×</span>` : ''}
-              </button>
+                  <span class="ftb-label">${specLabel}</span>
+                  ${hasSpecs ? `<span class="ftb-x" data-clearfilter="specs">×</span>` : ''}
+                </button>`;
+              })()}
             </div>
           </div>
           <div class="filter-expand-panel filter-subarea-panel" id="fpl-subarea"
@@ -887,20 +896,20 @@ function renderJobsPage() {
               <span class="subarea-back-label">▸ ${AREA_BTN_LABELS[s.areaFilter] || s.areaFilter}</span>
               ${buildSubPanel(s.areaFilter)}` : ''}
           </div>
-          <div class="filter-expand-panel" id="fpl-security"
-               style="display:${s.specialty ? 'flex' : 'none'}">
-            ${filterBtns('specialty', [
-              ['',        'Todas'],
-              ['soc',     'SOC / Blue Team'],
-              ['pentest', 'Pentest / Red Team'],
-              ['grc',     'GRC'],
-              ['appsec',  'AppSec'],
-              ['cloudsec','Cloud Security'],
-            ])}
+          <div class="filter-expand-panel filter-subarea-panel" id="fpl-security" style="display:none">
+            <span class="subarea-back-label">▸ Segurança</span>
+            ${[['','Todas'],['soc','SOC / Blue Team'],['pentest','Pentest / Red Team'],['grc','GRC'],['appsec','AppSec'],['cloudsec','Cloud Security']].map(([val,lbl]) => {
+              const active = val === '' ? s.specs.length === 0 : s.specs.includes(val);
+              return `<button class="mode-btn sub-mode-btn ${active ? 'active' : ''}" data-filter="spec" data-value="${val}">${lbl}</button>`;
+            }).join('')}
           </div>
         </div>
 
         <div class="mission-footer">
+          <label class="toggle-expired-label">
+            <input type="checkbox" id="ms-hide-pcd" ${s.hidePcd ? 'checked' : ''}>
+            <span>Ocultar vagas PCD</span>
+          </label>
           <label class="toggle-expired-label">
             <input type="checkbox" id="ms-hide-expired" ${s.hideExpired ? 'checked' : ''}>
             <span>Ocultar vagas encerradas</span>
@@ -945,7 +954,7 @@ function updateJobResults() {
     : `${store.jobs.length} vagas disponíveis`;
 
   const filtered   = filterJobs();
-  const hasFilters = s.contracts.length || s.levels.length || s.sizes.length || s.mode !== 'todos' || s.dateFilter !== 'all';
+  const hasFilters = s.contracts.length || s.levels.length || s.sizes.length || s.specs.length || s.mode !== 'todos' || s.dateFilter !== 'all';
   const hasText    = !!(s.cargo || s.skills.length || s.localidade || s.graduacao);
   const ranked     = filtered
     .map(j => ({ j, m: calcDynamicMatch(j, s.skills) }))
@@ -1076,7 +1085,7 @@ function filterJobs() {
       'dados:analytics':      ['business intelligence','bi','tableau','power bi','looker','qlik','analytics','google analytics','relatório gerencial','analista de dados','data analyst'],
       'dados:engenharia':     ['data engineer','engenheiro de dados','pipeline de dados','spark','dbt','airflow','bigquery','etl','data warehouse','lakehouse','data platform'],
       'dados:dba':            ['dba','database administrator','postgresql','mysql','oracle','sql server','mongodb','administrador de banco','tuning de banco'],
-      'ia:datascience':       ['data science','cientista de dados','machine learning','deep learning','sklearn','xgboost','pytorch','tensorflow'],
+      'dados:datascience':    ['data science','cientista de dados','machine learning','deep learning','sklearn','xgboost','pytorch','tensorflow','analista de dados sênior'],
       'ia:llm':               ['llm','gpt','nlp','generative ai','langchain','openai','genai','processamento de linguagem','transformer','rag','langsmith'],
       'ia:mlops':             ['mlops','ml engineer','model deployment','kubeflow','mlflow','vertex ai','sagemaker','feature store'],
       'devopscloud:devops':   ['devops','sre','site reliability','ci/cd','gitops','argocd','jenkins','terraform','ansible','pipeline','github actions'],
@@ -1096,11 +1105,12 @@ function filterJobs() {
       appsec:   ['appsec','owasp','sast','dast','devsecops','secure coding','application security','segurança de aplicação','threat modeling','bug bounty'],
       cloudsec: ['cloud security','aws security','azure security','gcp security','iam','zero trust','cspm','cwpp','postura de segurança'],
     };
-    const specMatch = !s.specialty  || (SPEC_KW[s.specialty]  || []).some(kw => text.includes(kw));
-    const areaKey   = s.subAreaFilter || s.areaFilter;
-    const areaMatch = !areaKey || (SPEC_KW[areaKey] || []).some(kw => text.includes(kw));
+    const specMatch = !s.specs.length || s.specs.some(sp => (SPEC_KW[sp] || []).some(kw => text.includes(kw)));
+    const areaMatch = !s.subAreaFilters.length || s.subAreaFilters.some(f => (SPEC_KW[f] || []).some(kw => text.includes(kw)));
+    const pcdKw     = ['pcd', 'pessoa com deficiência', 'portador de deficiência', 'deficiência', 'reabilitado', 'necessidade especial'];
+    const pcdMatch  = !s.hidePcd || !pcdKw.some(kw => text.includes(kw));
 
-    return cargoMatch && skillsMatch && localMatch && modeMatch && contractMatch && levelMatch && sizeMatch && regionMatch && dateMatch && expiredMatch && specMatch && areaMatch;
+    return cargoMatch && skillsMatch && localMatch && modeMatch && contractMatch && levelMatch && sizeMatch && regionMatch && dateMatch && expiredMatch && pcdMatch && specMatch && areaMatch;
   });
 }
 
@@ -1325,8 +1335,8 @@ const SPEC_BTN_LABELS = {
 const AREA_SUBOPTIONS = {
   dev:         [['dev:frontend','Frontend'], ['dev:backend','Backend'], ['dev:fullstack','Full Stack']],
   mobile:      [['mobile:android','Android'], ['mobile:ios','iOS'], ['mobile:flutter','Flutter / Dart'], ['mobile:reactnative','React Native']],
-  dados:       [['dados:analytics','Analytics / BI'], ['dados:engenharia','Eng. de Dados'], ['dados:dba','DBA']],
-  ia:          [['ia:datascience','Data Science'], ['ia:llm','LLMs / GenAI'], ['ia:mlops','MLOps']],
+  dados:       [['dados:analytics','Analytics / BI'], ['dados:engenharia','Eng. de Dados'], ['dados:dba','DBA'], ['dados:datascience','Data Science']],
+  ia:          [['ia:llm','LLMs / GenAI'], ['ia:mlops','MLOps']],
   devopscloud: [['devopscloud:devops','DevOps / SRE'], ['devopscloud:cloud','Cloud'], ['devopscloud:k8s','Kubernetes / Docker']],
   produtoqa:   [['produtoqa:ux','UX / UI'], ['produtoqa:qa','QA / Testes'], ['produtoqa:pm','Product Manager'], ['produtoqa:arquitetura','Arquitetura']],
   suporte:     [['suporte:helpdesk','Help Desk'], ['suporte:sysadmin','Sysadmin'], ['suporte:redes','Redes']],
@@ -1335,8 +1345,8 @@ const AREA_SUBOPTIONS = {
 const SUBAREA_BTN_LABELS = {
   'dev:frontend':'Dev · Frontend', 'dev:backend':'Dev · Backend', 'dev:fullstack':'Dev · Full Stack',
   'mobile:android':'Mobile · Android', 'mobile:ios':'Mobile · iOS', 'mobile:flutter':'Mobile · Flutter', 'mobile:reactnative':'Mobile · RN',
-  'dados:analytics':'Dados · Analytics', 'dados:engenharia':'Dados · Eng. Dados', 'dados:dba':'Dados · DBA',
-  'ia:datascience':'IA · Data Science', 'ia:llm':'IA · LLMs', 'ia:mlops':'IA · MLOps',
+  'dados:analytics':'Dados · Analytics', 'dados:engenharia':'Dados · Eng. Dados', 'dados:dba':'Dados · DBA', 'dados:datascience':'Dados · Data Science',
+  'ia:llm':'IA · LLMs', 'ia:mlops':'IA · MLOps',
   'devopscloud:devops':'DevOps · SRE', 'devopscloud:cloud':'DevOps · Cloud', 'devopscloud:k8s':'DevOps · K8s',
   'produtoqa:ux':'Produto · UX/UI', 'produtoqa:qa':'Produto · QA', 'produtoqa:pm':'Produto · PM', 'produtoqa:arquitetura':'Produto · Arq.',
   'suporte:helpdesk':'Suporte · Help Desk', 'suporte:sysadmin':'Suporte · Sysadmin', 'suporte:redes':'Suporte · Redes',
@@ -1344,10 +1354,12 @@ const SUBAREA_BTN_LABELS = {
 
 function buildSubPanel(areaVal) {
   const s = store.ui.jobSearch;
+  const activeForArea = s.subAreaFilters.filter(v => v.startsWith(areaVal + ':'));
   const opts = [['', 'Todas'], ...(AREA_SUBOPTIONS[areaVal] || [])];
-  return opts.map(([v, l]) =>
-    `<button class="mode-btn sub-mode-btn ${s.subAreaFilter === v ? 'active' : ''}" data-filter="subAreaFilter" data-value="${v}">${l}</button>`
-  ).join('');
+  return opts.map(([v, l]) => {
+    const active = v === '' ? activeForArea.length === 0 : s.subAreaFilters.includes(v);
+    return `<button class="mode-btn sub-mode-btn ${active ? 'active' : ''}" data-filter="subAreaFilter" data-value="${v}">${l}</button>`;
+  }).join('');
 }
 
 const STAGES = ['applied','reviewing','interview','offer','rejected'];
@@ -1445,23 +1457,27 @@ function renderKanban() {
   });
 }
 
-function _refreshFilterToggle(filterName, value) {
-  if (filterName === 'areaFilter') return; // área agora usa _refreshAreaBtn por botão
+function _refreshFilterToggle() {
   const btn = $('#ftb-security');
   if (!btn) return;
+  const s     = store.ui.jobSearch;
   const label = btn.querySelector('.ftb-label');
   const xBtn  = btn.querySelector('.ftb-x');
-  const displayLabel = value ? (SPEC_BTN_LABELS[value] || '+ Segurança') : '+ Segurança';
-  if (value) {
+  const count = s.specs.length;
+  if (count > 0) {
     btn.classList.add('has-active');
+    const displayLabel = count === 1
+      ? (SPEC_BTN_LABELS[s.specs[0]] || '+ Segurança')
+      : `+ Segurança (${count})`;
     if (label) label.textContent = displayLabel;
     if (!xBtn) {
       const x = document.createElement('span');
-      x.className = 'ftb-x'; x.dataset.clearfilter = filterName; x.textContent = '×';
+      x.className = 'ftb-x'; x.dataset.clearfilter = 'specs'; x.textContent = '×';
       btn.appendChild(x);
     }
   } else {
-    btn.classList.remove('has-active');
+    const panelOpen = $('#fpl-security')?.style.display !== 'none';
+    if (!panelOpen) btn.classList.remove('has-active');
     if (label) label.textContent = '+ Segurança';
     xBtn?.remove();
   }
@@ -1473,14 +1489,17 @@ function _refreshAreaBtn(key) {
   const btn = document.querySelector(`[data-areabtn="${key}"]`);
   if (!btn) return;
   const s = store.ui.jobSearch;
-  const isActive = s.areaFilter === key || (s.subAreaFilter && s.subAreaFilter.startsWith(key + ':'));
+  const active = s.subAreaFilters.filter(v => v.startsWith(key + ':'));
+  const isActive = active.length > 0;
   const labelEl = btn.querySelector('.ftb-label');
   const xEl = btn.querySelector('.ftb-x');
   const lbl = AREA_BTN_LABELS[key] || key;
-  const subLabel = s.subAreaFilter && s.subAreaFilter.startsWith(key + ':') ? SUBAREA_BTN_LABELS[s.subAreaFilter] : null;
   if (isActive) {
     btn.classList.add('has-active');
-    if (labelEl) labelEl.textContent = subLabel || ('+ ' + lbl);
+    const displayLabel = active.length === 1
+      ? (SUBAREA_BTN_LABELS[active[0]] || ('+ ' + lbl))
+      : `+ ${lbl} (${active.length})`;
+    if (labelEl) labelEl.textContent = displayLabel;
     if (!xEl) {
       const x = document.createElement('span');
       x.className = 'ftb-x'; x.dataset.cleararea = key; x.textContent = '×';
@@ -1502,9 +1521,12 @@ function bindJobsPageEvents() {
     const clearAreaX = e.target.closest('[data-cleararea]');
     if (clearAreaX) {
       const key = clearAreaX.dataset.cleararea;
-      s.areaFilter = ''; s.subAreaFilter = ''; _openAreaKey = '';
-      const subPanel = $('#fpl-subarea');
-      if (subPanel) subPanel.style.display = 'none';
+      s.subAreaFilters = s.subAreaFilters.filter(v => !v.startsWith(key + ':'));
+      if (!s.subAreaFilters.length) s.areaFilter = '';
+      if (_openAreaKey === key) {
+        const subPanel = $('#fpl-subarea');
+        if (subPanel) subPanel.innerHTML = `<span class="subarea-back-label">▸ ${AREA_BTN_LABELS[key] || key}</span>${buildSubPanel(key)}`;
+      }
       _refreshAreaBtn(key);
       updateJobResults();
       return;
@@ -1513,10 +1535,10 @@ function bindJobsPageEvents() {
     const clearSecX = e.target.closest('[data-clearfilter]');
     if (clearSecX) {
       const filter = clearSecX.dataset.clearfilter;
-      s[filter] = '';
-      _refreshFilterToggle(filter, '');
+      if (Array.isArray(s[filter])) s[filter] = []; else s[filter] = '';
+      _refreshFilterToggle();
       const secBtn = clearSecX.closest('.filter-toggle-btn');
-      if (secBtn) { const p = $('#' + secBtn.dataset.panel); if (p) p.style.display = 'none'; secBtn.classList.remove('open'); }
+      if (secBtn) { const p = $('#' + secBtn.dataset.panel); if (p) p.style.display = 'none'; secBtn.classList.remove('open', 'has-active'); }
       updateJobResults();
       return;
     }
@@ -1527,7 +1549,8 @@ function bindJobsPageEvents() {
       const subPanel = $('#fpl-subarea');
       // Fechar painel de segurança se aberto
       const secPanel = $('#fpl-security'); const secBtn2 = $('#ftb-security');
-      if (secPanel) secPanel.style.display = 'none'; if (secBtn2) secBtn2.classList.remove('open');
+      if (secPanel) secPanel.style.display = 'none';
+      if (secBtn2) { secBtn2.classList.remove('open'); if (!store.ui.jobSearch.specs.length) secBtn2.classList.remove('has-active'); }
       if (_openAreaKey === key && subPanel?.style.display !== 'none') {
         // Fechar sub-painel ao clicar no mesmo botão
         if (subPanel) subPanel.style.display = 'none';
@@ -1540,15 +1563,11 @@ function bindJobsPageEvents() {
           if (prev) prev.classList.remove('open');
         }
         _openAreaKey = key;
-        if (!s.subAreaFilter?.startsWith(key + ':')) s.subAreaFilter = '';
-        s.areaFilter = key;
         if (subPanel && AREA_SUBOPTIONS[key]) {
           subPanel.innerHTML = `<span class="subarea-back-label">▸ ${AREA_BTN_LABELS[key] || key}</span>${buildSubPanel(key)}`;
           subPanel.style.display = 'flex';
         }
         areaBtn.classList.add('open');
-        _refreshAreaBtn(key);
-        updateJobResults();
       }
       return;
     }
@@ -1560,12 +1579,14 @@ function bindJobsPageEvents() {
     if (!panel) return;
     if (panel.style.display !== 'none') {
       panel.style.display = 'none'; toggleBtn.classList.remove('open');
+      if (!store.ui.jobSearch.specs.length) toggleBtn.classList.remove('has-active');
     } else {
       // Fechar sub-painéis de área
       const subPanel = $('#fpl-subarea');
       if (subPanel) subPanel.style.display = 'none';
       if (_openAreaKey) { const p = document.querySelector(`[data-areabtn="${_openAreaKey}"]`); if (p) p.classList.remove('open'); _openAreaKey = ''; }
       panel.style.display = 'flex'; toggleBtn.classList.add('open');
+      toggleBtn.classList.add('has-active');
     }
   });
 
@@ -1643,29 +1664,48 @@ function bindJobsPageEvents() {
       return;
     }
     if (filter === 'subAreaFilter') {
-      s.subAreaFilter = value;
-      const subPanel = $('#fpl-subarea');
-      if (subPanel) subPanel.style.display = 'none';
-      if (_openAreaKey) {
-        document.querySelector(`[data-areabtn="${_openAreaKey}"]`)?.classList.remove('open');
-        _openAreaKey = '';
+      const areaKey = _openAreaKey || (value && value.split(':')[0]);
+      if (value === '') {
+        // Todas: limpa sub-filtros da área atual
+        s.subAreaFilters = s.subAreaFilters.filter(v => !v.startsWith(areaKey + ':'));
+        document.querySelectorAll('[data-filter="subAreaFilter"]').forEach(b =>
+          b.classList.toggle('active', b.dataset.value === ''));
+      } else {
+        if (s.subAreaFilters.includes(value)) {
+          s.subAreaFilters = s.subAreaFilters.filter(v => v !== value);
+          btn.classList.remove('active');
+        } else {
+          s.subAreaFilters.push(value);
+          btn.classList.add('active');
+        }
+        const activeForArea = s.subAreaFilters.filter(v => v.startsWith(areaKey + ':'));
+        document.querySelector('[data-filter="subAreaFilter"][data-value=""]')
+          ?.classList.toggle('active', activeForArea.length === 0);
       }
-      if (s.areaFilter) _refreshAreaBtn(s.areaFilter);
+      s.areaFilter = areaKey;
+      if (areaKey) _refreshAreaBtn(areaKey);
       updateJobResults();
       return;
     }
-    if (filter === 'mode' || filter === 'region' || filter === 'dateFilter' || filter === 'specialty') {
+    if (filter === 'mode' || filter === 'region' || filter === 'dateFilter') {
       s[filter] = value;
       $$(`[data-filter="${filter}"]`).forEach(b => b.classList.toggle('active', b.dataset.value === value));
-      if (filter === 'specialty') {
-        _refreshFilterToggle(filter, value);
-        if (value) {
-          const panel = $('#fpl-security');
-          const btn   = $(`[data-panel="fpl-security"]`);
-          if (panel) panel.style.display = 'none';
-          if (btn)   btn.classList.remove('open');
+    } else if (filter === 'spec') {
+      if (value === '') {
+        s.specs = [];
+        document.querySelectorAll('[data-filter="spec"]').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+      } else {
+        if (s.specs.includes(value)) {
+          s.specs = s.specs.filter(v => v !== value);
+          btn.classList.remove('active');
+        } else {
+          s.specs.push(value);
+          btn.classList.add('active');
         }
+        document.querySelector('[data-filter="spec"][data-value=""]')?.classList.toggle('active', s.specs.length === 0);
       }
+      _refreshFilterToggle();
     } else {
       const key = filter + 's';
       if (s[key].includes(value)) {
@@ -1681,11 +1721,15 @@ function bindJobsPageEvents() {
 
   $('#ms-clear')?.addEventListener('click', () => {
     s.cargo = ''; s.localidade = ''; s.skills = []; s.mode = 'todos'; s.region = 'todas';
-    s.dateFilter = 'all'; s.hideExpired = true; s.graduacao = ''; s.specialty = ''; s.areaFilter = ''; s.subAreaFilter = '';
+    s.dateFilter = 'all'; s.hideExpired = true; s.hidePcd = true; s.graduacao = ''; s.specs = []; s.areaFilter = ''; s.subAreaFilters = [];
     s.contracts = []; s.levels = []; s.sizes = [];
     renderJobsPage();
   });
 
+  $('#ms-hide-pcd')?.addEventListener('change', e => {
+    s.hidePcd = e.target.checked;
+    updateJobResults();
+  });
   $('#ms-hide-expired')?.addEventListener('change', e => {
     s.hideExpired = e.target.checked;
     updateJobResults();
