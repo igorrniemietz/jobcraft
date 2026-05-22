@@ -932,7 +932,12 @@ function renderJobsPage() {
   renderRightPanel(s.cargo || s.skills.join(' '));
 }
 
+let _updateJobTimer = null;
 function updateJobResults() {
+  clearTimeout(_updateJobTimer);
+  _updateJobTimer = setTimeout(_doUpdateJobResults, 40);
+}
+function _doUpdateJobResults() {
   const el = $('#jobs-results');
   if (!el) return;
   const s      = store.ui.jobSearch;
@@ -1011,104 +1016,104 @@ function updateJobResults() {
       ${ranked.map(({ j, m }) => jobCardV2(j, m)).join('')}
     </div>`;
 
-  if (window.lucide) lucide.createIcons();
+  if (window.lucide) lucide.createIcons({ nodes: [el] });
 }
 
+// Constantes de filtro — definidas uma vez, fora de qualquer loop
+const _BR_SOURCES  = new Set(['gupy','adzuna','vagas','greenhouse','lever','remotar','trampos']);
+const _DATE_MS     = { '1d': 86400000, '7d': 604800000, '30d': 2592000000 };
+const _SOURCE_TTL  = { remotar: 45, greenhouse: 30, lever: 30, vagas: 21, gupy: 30 };
+const _PCD_KW      = ['pcd', 'pessoa com deficiência', 'portador de deficiência', 'deficiência', 'reabilitado', 'necessidade especial'];
+const SPEC_KW = {
+  // Desenvolvimento
+  backend:  ['backend','back-end','back end','api rest','node.js','nodejs','django','spring','golang','microsserviço','microservice','servidor','fastapi','laravel','ruby on rails'],
+  frontend: ['frontend','front-end','front end','react','vue','angular','next.js','nuxt','svelte','css','html','javascript','typescript','interface','ui developer','desenvolvedor web'],
+  fullstack:['fullstack','full stack','full-stack','front e back','back e front','stack completa','desenvolvedor full'],
+  mobile:   ['mobile','android','ios','react native','flutter','kotlin','swift','xcode','jetpack','app móvel','aplicativo'],
+  data:     ['machine learning','deep learning','mlops','cientista de dados','inteligência artificial','llm','nlp','databricks','data science','ai engineer','engenheiro de ia','researcher'],
+  dados:    ['data engineer','engenheiro de dados','analista de dados','pipeline de dados','spark','dbt','airflow','bigquery','data analyst','etl','data warehouse','lakehouse','data platform','sql','snowflake','business intelligence','bi','tableau','power bi','qlik','looker','analytics','relatório gerencial','dashboard','dba','database administrator','postgresql','mysql','oracle database','sql server','mongodb','administrador de banco','tuning de banco'],
+  // Grupos TI para o painel de filtro
+  dev:          ['backend','back-end','api rest','node.js','nodejs','django','spring','golang','fastapi','laravel','ruby on rails','frontend','front-end','react','vue','angular','next.js','nuxt','svelte','css','html','javascript','typescript','fullstack','full stack','full-stack','desenvolvedor','software engineer','engenheiro de software'],
+  ia:           ['machine learning','deep learning','mlops','llm','nlp','gpt','inteligência artificial','ai engineer','engenheiro de ia','data science','cientista de dados','databricks','researcher','computer vision','processamento de linguagem natural'],
+  dadosai:      ['data engineer','engenheiro de dados','analista de dados','pipeline de dados','spark','dbt','airflow','bigquery','data analyst','etl','data warehouse','business intelligence','bi','tableau','power bi','analytics','dba','database administrator','postgresql','mysql'],
+  devopscloud:  ['devops','sre','platform engineer','site reliability','kubernetes','k8s','docker','terraform','ansible','ci/cd','gitops','argocd','aws','azure','gcp','google cloud','cloud','nuvem','serverless','cloud architect','multicloud','helm','observabilidade'],
+  produtoqa:    ['ux designer','ui designer','product designer','product manager','product owner','figma','design system','qa','quality assurance','automação de teste','selenium','cypress','playwright','jest','bdd','tdd','arquiteto','architect','tech lead','líder técnico','principal engineer','staff engineer','solution architect'],
+  suporte:      ['infraestrutura','redes','sysadmin','linux admin','windows server','firewall','network engineer','vpn','active directory','administrador de redes','suporte técnico','help desk','service desk','n1','n2','n3','técnico de informática','field service','suporte de campo','assistência técnica','unity','unreal engine','game developer','game design','mobile game','jogos'],
+  infraredes:   ['infraestrutura','redes','sysadmin','linux admin','windows server','firewall','network engineer','vpn','active directory','administrador de redes','dba','database administrator','postgresql','mysql','oracle database','sql server','mongodb','administrador de banco','suporte técnico','help desk','service desk','n1','n2','n3','técnico de informática','field service'],
+  devops:   ['devops','sre','platform engineer','site reliability','infraestrutura','kubernetes','k8s','docker','terraform','ansible','ci/cd','observabilidade','helm','gitops','argocd'],
+  cloud:    ['cloud','aws','azure','gcp','google cloud','nuvem','s3','ec2','lambda','cloud architect','serverless','multicloud'],
+  arqtech:  ['arquiteto','architect','tech lead','líder técnico','principal engineer','staff engineer','engineering manager','solution architect','sistema distribuído'],
+  qa:       ['qa','quality assurance','teste','tester','automação de teste','selenium','cypress','playwright','jest','pytest','bdd','tdd','controle de qualidade','sdet'],
+  ux:       ['ux designer','ui designer','product designer','product manager','product owner','ux researcher','figma','design system','experiência do usuário','designer de produto','protótipo'],
+  bi:       ['business intelligence','bi','tableau','power bi','qlik','looker','analytics','relatório gerencial','dashboard','dados de negócio','analista de dados de negócio'],
+  infra:    ['infraestrutura','redes','sysadmin','linux admin','windows server','firewall','network engineer','vpn','active directory','administrador de redes','administrador de sistemas'],
+  dba:      ['dba','database administrator','postgresql','mysql','oracle database','sql server','mongodb','banco de dados','administrador de banco','tuning de banco'],
+  games:    ['game developer','unity','unreal engine','game design','mobile game','jogos','gameplay programmer','desenvolvedor de jogos','engine de jogo'],
+  // Sub-áreas de TI (dois níveis)
+  'dev:frontend':         ['frontend','front-end','react','vue','angular','next.js','nuxt','svelte','css','html','javascript','typescript','ui developer','desenvolvedor web','interface'],
+  'dev:backend':          ['backend','back-end','api rest','node.js','nodejs','django','spring','golang','fastapi','laravel','ruby on rails','microsserviço','microservice','servidor'],
+  'dev:fullstack':        ['fullstack','full stack','full-stack','front e back','back e front','stack completa'],
+  'mobile:android':       ['android','kotlin','jetpack compose','android studio'],
+  'mobile:ios':           ['ios','swift','xcode','objective-c','swiftui'],
+  'mobile:flutter':       ['flutter','dart'],
+  'mobile:reactnative':   ['react native','expo','react-native'],
+  'dados:analytics':      ['business intelligence','bi','tableau','power bi','looker','qlik','analytics','google analytics','relatório gerencial','analista de dados','data analyst'],
+  'dados:engenharia':     ['data engineer','engenheiro de dados','pipeline de dados','spark','dbt','airflow','bigquery','etl','data warehouse','lakehouse','data platform'],
+  'dados:dba':            ['dba','database administrator','postgresql','mysql','oracle','sql server','mongodb','administrador de banco','tuning de banco'],
+  'dados:datascience':    ['data science','cientista de dados','machine learning','deep learning','sklearn','xgboost','pytorch','tensorflow','analista de dados sênior'],
+  'ia:llm':               ['llm','gpt','nlp','generative ai','langchain','openai','genai','processamento de linguagem','transformer','rag','langsmith'],
+  'ia:mlops':             ['mlops','ml engineer','model deployment','kubeflow','mlflow','vertex ai','sagemaker','feature store'],
+  'devopscloud:devops':   ['devops','sre','site reliability','ci/cd','gitops','argocd','jenkins','terraform','ansible','pipeline','github actions'],
+  'devopscloud:cloud':    ['aws','azure','gcp','google cloud','nuvem','s3','ec2','lambda','cloud architect','serverless','multicloud'],
+  'devopscloud:k8s':      ['kubernetes','k8s','docker','container','helm','istio','containerd','openshift'],
+  'produtoqa:ux':         ['ux designer','ui designer','product designer','figma','design system','experiência do usuário','protótipo','ux researcher','acessibilidade'],
+  'produtoqa:qa':         ['qa','quality assurance','automação de teste','selenium','cypress','playwright','jest','bdd','tdd','sdet','controle de qualidade'],
+  'produtoqa:pm':         ['product manager','product owner','po','scrum master','agile','roadmap','backlog','metodologia ágil'],
+  'produtoqa:arquitetura':['arquiteto','architect','tech lead','líder técnico','principal engineer','staff engineer','solution architect','sistema distribuído'],
+  'suporte:helpdesk':     ['suporte técnico','help desk','service desk','n1','n2','n3','técnico de informática','field service','atendimento técnico'],
+  'suporte:sysadmin':     ['sysadmin','linux admin','windows server','active directory','administrador de sistemas','administrador de redes','powershell'],
+  'suporte:redes':        ['redes','network engineer','firewall','vpn','cisco','ccna','infra de rede','switching','routing'],
+  // Segurança
+  soc:      ['soc','blue team','siem','splunk','incident response','threat hunt','dfir','forense','monitoramento de segurança'],
+  pentest:  ['pentest','penetration test','red team','oscp','kali','metasploit','burp suite','exploit','ctf','ethical hack','teste de invasão'],
+  grc:      ['grc','compliance','iso 27001','lgpd','gdpr','auditoria','risco','governance','nist','gestão de risco','política de segurança'],
+  appsec:   ['appsec','owasp','sast','dast','devsecops','secure coding','application security','segurança de aplicação','threat modeling','bug bounty'],
+  cloudsec: ['cloud security','aws security','azure security','gcp security','iam','zero trust','cspm','cwpp','postura de segurança'],
+};
+
 function filterJobs() {
-  const s = store.ui.jobSearch;
+  const s        = store.ui.jobSearch;
+  const now      = Date.now();
+  const cargoLc  = s.cargo.toLowerCase();
+  const localLc  = s.localidade.toLowerCase();
+  const skillsLc = s.skills.map(sk => sk.toLowerCase());
+  const dateCutoff = _DATE_MS[s.dateFilter];
+
   return store.jobs.filter(j => {
     const text = (j.title + ' ' + j.company + ' ' + j.tags.join(' ')).toLowerCase();
-    const cargoMatch    = !s.cargo || text.includes(s.cargo.toLowerCase());
-    const skillsMatch   = s.skills.length === 0 || s.skills.some(sk => text.includes(sk.toLowerCase()));
-    const localMatch    = !s.localidade || j.location.toLowerCase().includes(s.localidade.toLowerCase());
-    const modeMap    = { todos: null, remoto: 'Remoto', híbrido: 'Híbrido' };
-    const modeTarget = modeMap[s.mode];
-    const loc        = j.location.toLowerCase();
-    const modeMatch  = s.mode === 'todos' ? true
+    const cargoMatch    = !cargoLc || text.includes(cargoLc);
+    const skillsMatch   = skillsLc.length === 0 || skillsLc.some(sk => text.includes(sk));
+    const localMatch    = !localLc || j.location.toLowerCase().includes(localLc);
+    const loc           = j.location.toLowerCase();
+    const modeMatch     = s.mode === 'todos' ? true
       : s.mode === 'presencial' ? (!loc.includes('remoto') && !loc.includes('híbrido'))
-      : modeTarget ? loc.includes(modeTarget.toLowerCase())
-      : true;
+      : loc.includes(s.mode);
     const contractMatch = s.contracts.length === 0 || s.contracts.includes(j.contract);
     const levelMatch    = s.levels.length === 0    || s.levels.includes(j.level);
     const sizeMatch     = s.sizes.length === 0     || s.sizes.includes(j.companySize);
-    const BR_SOURCES = ['gupy','adzuna','vagas','greenhouse','lever','remotar','trampos'];
     const regionMatch   = s.region === 'todas'
-      || (s.region === 'br'            && BR_SOURCES.includes(j.source))
+      || (s.region === 'br'            && _BR_SOURCES.has(j.source))
       || (s.region === 'internacional' && j.source === 'remotive');
-
-    const DATE_MS = { '1d': 86400000, '7d': 7*86400000, '30d': 30*86400000 };
-    const dateCutoff = DATE_MS[s.dateFilter];
-    const dateMatch  = !dateCutoff || (j.postedAt && (Date.now() - new Date(j.postedAt)) < dateCutoff);
-
-    const SOURCE_TTL = { remotar: 45, greenhouse: 30, lever: 30, vagas: 21, gupy: 30 };
-    const ttlDays    = SOURCE_TTL[j.source] || 30;
-    const ageDays    = j.postedAt ? (Date.now() - new Date(j.postedAt)) / 86400000 : 0;
-    const jobExpired = j.expiredBySource
-      || (j.expiresAt && new Date(j.expiresAt) < new Date())
+    const dateMatch     = !dateCutoff || (j.postedAt && (now - new Date(j.postedAt)) < dateCutoff);
+    const ttlDays       = _SOURCE_TTL[j.source] || 30;
+    const ageDays       = j.postedAt ? (now - new Date(j.postedAt)) / 86400000 : 0;
+    const jobExpired    = j.expiredBySource
+      || (j.expiresAt && new Date(j.expiresAt) < now)
       || (j.postedAt && ageDays > ttlDays);
-    const expiredMatch = !s.hideExpired || !jobExpired;
-
-    const SPEC_KW = {
-      // Desenvolvimento
-      backend:  ['backend','back-end','back end','api rest','node.js','nodejs','django','spring','golang','microsserviço','microservice','servidor','fastapi','laravel','ruby on rails'],
-      frontend: ['frontend','front-end','front end','react','vue','angular','next.js','nuxt','svelte','css','html','javascript','typescript','interface','ui developer','desenvolvedor web'],
-      fullstack:['fullstack','full stack','full-stack','front e back','back e front','stack completa','desenvolvedor full'],
-      mobile:   ['mobile','android','ios','react native','flutter','kotlin','swift','xcode','jetpack','app móvel','aplicativo'],
-      data:     ['machine learning','deep learning','mlops','cientista de dados','inteligência artificial','llm','nlp','databricks','data science','ai engineer','engenheiro de ia','researcher'],
-      dados:    ['data engineer','engenheiro de dados','analista de dados','pipeline de dados','spark','dbt','airflow','bigquery','data analyst','etl','data warehouse','lakehouse','data platform','sql','snowflake','business intelligence','bi','tableau','power bi','qlik','looker','analytics','relatório gerencial','dashboard','dba','database administrator','postgresql','mysql','oracle database','sql server','mongodb','administrador de banco','tuning de banco'],
-      // Grupos TI para o painel de filtro
-      dev:          ['backend','back-end','api rest','node.js','nodejs','django','spring','golang','fastapi','laravel','ruby on rails','frontend','front-end','react','vue','angular','next.js','nuxt','svelte','css','html','javascript','typescript','fullstack','full stack','full-stack','desenvolvedor','software engineer','engenheiro de software'],
-      ia:           ['machine learning','deep learning','mlops','llm','nlp','gpt','inteligência artificial','ai engineer','engenheiro de ia','data science','cientista de dados','databricks','researcher','computer vision','processamento de linguagem natural'],
-      dadosai:      ['data engineer','engenheiro de dados','analista de dados','pipeline de dados','spark','dbt','airflow','bigquery','data analyst','etl','data warehouse','business intelligence','bi','tableau','power bi','analytics','dba','database administrator','postgresql','mysql'],
-      devopscloud:  ['devops','sre','platform engineer','site reliability','kubernetes','k8s','docker','terraform','ansible','ci/cd','gitops','argocd','aws','azure','gcp','google cloud','cloud','nuvem','serverless','cloud architect','multicloud','helm','observabilidade'],
-      produtoqa:    ['ux designer','ui designer','product designer','product manager','product owner','figma','design system','qa','quality assurance','automação de teste','selenium','cypress','playwright','jest','bdd','tdd','arquiteto','architect','tech lead','líder técnico','principal engineer','staff engineer','solution architect'],
-      suporte:      ['infraestrutura','redes','sysadmin','linux admin','windows server','firewall','network engineer','vpn','active directory','administrador de redes','suporte técnico','help desk','service desk','n1','n2','n3','técnico de informática','field service','suporte de campo','assistência técnica','unity','unreal engine','game developer','game design','mobile game','jogos'],
-      infraredes:   ['infraestrutura','redes','sysadmin','linux admin','windows server','firewall','network engineer','vpn','active directory','administrador de redes','dba','database administrator','postgresql','mysql','oracle database','sql server','mongodb','administrador de banco','suporte técnico','help desk','service desk','n1','n2','n3','técnico de informática','field service'],
-      devops:   ['devops','sre','platform engineer','site reliability','infraestrutura','kubernetes','k8s','docker','terraform','ansible','ci/cd','observabilidade','helm','gitops','argocd'],
-      cloud:    ['cloud','aws','azure','gcp','google cloud','nuvem','s3','ec2','lambda','cloud architect','serverless','multicloud'],
-      arqtech:  ['arquiteto','architect','tech lead','líder técnico','principal engineer','staff engineer','engineering manager','solution architect','sistema distribuído'],
-      qa:       ['qa','quality assurance','teste','tester','automação de teste','selenium','cypress','playwright','jest','pytest','bdd','tdd','controle de qualidade','sdet'],
-      ux:       ['ux designer','ui designer','product designer','product manager','product owner','ux researcher','figma','design system','experiência do usuário','designer de produto','protótipo'],
-      bi:       ['business intelligence','bi','tableau','power bi','qlik','looker','analytics','relatório gerencial','dashboard','dados de negócio','analista de dados de negócio'],
-      infra:    ['infraestrutura','redes','sysadmin','linux admin','windows server','firewall','network engineer','vpn','active directory','administrador de redes','administrador de sistemas'],
-      dba:      ['dba','database administrator','postgresql','mysql','oracle database','sql server','mongodb','banco de dados','administrador de banco','tuning de banco'],
-      suporte:  ['suporte técnico','help desk','service desk','n1','n2','n3','atendimento técnico','técnico de informática','field service','suporte de campo','assistência técnica'],
-      games:    ['game developer','unity','unreal engine','game design','mobile game','jogos','gameplay programmer','desenvolvedor de jogos','engine de jogo'],
-      // Sub-áreas de TI (dois níveis)
-      'dev:frontend':         ['frontend','front-end','react','vue','angular','next.js','nuxt','svelte','css','html','javascript','typescript','ui developer','desenvolvedor web','interface'],
-      'dev:backend':          ['backend','back-end','api rest','node.js','nodejs','django','spring','golang','fastapi','laravel','ruby on rails','microsserviço','microservice','servidor'],
-      'dev:fullstack':        ['fullstack','full stack','full-stack','front e back','back e front','stack completa'],
-      'mobile:android':       ['android','kotlin','jetpack compose','android studio'],
-      'mobile:ios':           ['ios','swift','xcode','objective-c','swiftui'],
-      'mobile:flutter':       ['flutter','dart'],
-      'mobile:reactnative':   ['react native','expo','react-native'],
-      'dados:analytics':      ['business intelligence','bi','tableau','power bi','looker','qlik','analytics','google analytics','relatório gerencial','analista de dados','data analyst'],
-      'dados:engenharia':     ['data engineer','engenheiro de dados','pipeline de dados','spark','dbt','airflow','bigquery','etl','data warehouse','lakehouse','data platform'],
-      'dados:dba':            ['dba','database administrator','postgresql','mysql','oracle','sql server','mongodb','administrador de banco','tuning de banco'],
-      'dados:datascience':    ['data science','cientista de dados','machine learning','deep learning','sklearn','xgboost','pytorch','tensorflow','analista de dados sênior'],
-      'ia:llm':               ['llm','gpt','nlp','generative ai','langchain','openai','genai','processamento de linguagem','transformer','rag','langsmith'],
-      'ia:mlops':             ['mlops','ml engineer','model deployment','kubeflow','mlflow','vertex ai','sagemaker','feature store'],
-      'devopscloud:devops':   ['devops','sre','site reliability','ci/cd','gitops','argocd','jenkins','terraform','ansible','pipeline','github actions'],
-      'devopscloud:cloud':    ['aws','azure','gcp','google cloud','nuvem','s3','ec2','lambda','cloud architect','serverless','multicloud'],
-      'devopscloud:k8s':      ['kubernetes','k8s','docker','container','helm','istio','containerd','openshift'],
-      'produtoqa:ux':         ['ux designer','ui designer','product designer','figma','design system','experiência do usuário','protótipo','ux researcher','acessibilidade'],
-      'produtoqa:qa':         ['qa','quality assurance','automação de teste','selenium','cypress','playwright','jest','bdd','tdd','sdet','controle de qualidade'],
-      'produtoqa:pm':         ['product manager','product owner','po','scrum master','agile','roadmap','backlog','metodologia ágil'],
-      'produtoqa:arquitetura':['arquiteto','architect','tech lead','líder técnico','principal engineer','staff engineer','solution architect','sistema distribuído'],
-      'suporte:helpdesk':     ['suporte técnico','help desk','service desk','n1','n2','n3','técnico de informática','field service','atendimento técnico'],
-      'suporte:sysadmin':     ['sysadmin','linux admin','windows server','active directory','administrador de sistemas','administrador de redes','powershell'],
-      'suporte:redes':        ['redes','network engineer','firewall','vpn','cisco','ccna','infra de rede','switching','routing'],
-      // Segurança
-      soc:      ['soc','blue team','siem','splunk','incident response','threat hunt','dfir','forense','monitoramento de segurança'],
-      pentest:  ['pentest','penetration test','red team','oscp','kali','metasploit','burp suite','exploit','ctf','ethical hack','teste de invasão'],
-      grc:      ['grc','compliance','iso 27001','lgpd','gdpr','auditoria','risco','governance','nist','gestão de risco','política de segurança'],
-      appsec:   ['appsec','owasp','sast','dast','devsecops','secure coding','application security','segurança de aplicação','threat modeling','bug bounty'],
-      cloudsec: ['cloud security','aws security','azure security','gcp security','iam','zero trust','cspm','cwpp','postura de segurança'],
-    };
-    const specMatch = !s.specs.length || s.specs.some(sp => (SPEC_KW[sp] || []).some(kw => text.includes(kw)));
-    const areaMatch = !s.subAreaFilters.length || s.subAreaFilters.some(f => (SPEC_KW[f] || []).some(kw => text.includes(kw)));
-    const pcdKw     = ['pcd', 'pessoa com deficiência', 'portador de deficiência', 'deficiência', 'reabilitado', 'necessidade especial'];
-    const pcdMatch  = !s.hidePcd || !pcdKw.some(kw => text.includes(kw));
+    const expiredMatch  = !s.hideExpired || !jobExpired;
+    const specMatch     = !s.specs.length || s.specs.some(sp => (SPEC_KW[sp] || []).some(kw => text.includes(kw)));
+    const areaMatch     = !s.subAreaFilters.length || s.subAreaFilters.some(f => (SPEC_KW[f] || []).some(kw => text.includes(kw)));
+    const pcdMatch      = !s.hidePcd || !_PCD_KW.some(kw => text.includes(kw));
 
     return cargoMatch && skillsMatch && localMatch && modeMatch && contractMatch && levelMatch && sizeMatch && regionMatch && dateMatch && expiredMatch && pcdMatch && specMatch && areaMatch;
   });
