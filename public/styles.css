@@ -1595,6 +1595,80 @@ body.rp-hidden .rp-reopen-tab { transform: translateY(-50%) translateX(0); }
 }
 @media (max-width: 700px) { .mission-filters { grid-template-columns: 1fr; } }
 
+/* ── Drilldown filter bar ─────────────────────────────────── */
+.drill-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 10px 0 6px;
+  border-top: 1px solid var(--border);
+}
+
+.drill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-body);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 0;
+  transition: all .15s var(--ease);
+}
+.drill-btn:hover { border-color: var(--snes-royal-light); color: var(--snes-royal); }
+.drill-btn.has-active { border-color: var(--snes-royal); color: var(--snes-royal); }
+.drill-btn.open {
+  background: var(--snes-royal); color: #fff;
+  border-color: var(--snes-royal-deep);
+  box-shadow: 3px 3px 0 var(--snes-royal-deep);
+}
+.drill-btn.open.has-active { border-color: var(--snes-royal-deep); color: #fff; }
+
+.drill-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--snes-royal); color: #fff;
+  font-size: 9px; font-weight: 700;
+  min-width: 16px; height: 16px; padding: 0 4px;
+  border-radius: 8px;
+}
+.drill-btn.open .drill-badge { background: #fff; color: var(--snes-royal); }
+
+.drill-panel {
+  flex-wrap: wrap;
+  gap: 5px;
+  align-items: center;
+  padding: 10px 0 8px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+  animation: drill-in .12s ease;
+}
+@keyframes drill-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.drill-panel-label {
+  font-size: 9px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .8px;
+  color: var(--text-mut); margin-right: 4px; flex-shrink: 0;
+}
+
+.drill-back {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  background: var(--surface); color: var(--text-body);
+  font-size: 11px; font-weight: 600;
+  cursor: pointer; border-radius: 0;
+  transition: all .15s var(--ease);
+  margin-right: 6px;
+}
+.drill-back:hover { border-color: var(--snes-royal-light); color: var(--snes-royal); }
+
+/* ── Legacy inline rows (mantidos para CSS coverage) ─────── */
 .inline-filter-row {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
 }
