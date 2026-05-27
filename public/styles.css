@@ -1595,13 +1595,28 @@ body.rp-hidden .rp-reopen-tab { transform: translateY(-50%) translateX(0); }
 }
 @media (max-width: 700px) { .mission-filters { grid-template-columns: 1fr; } }
 
+/* ── Filtros avançados toggle ─────────────────────────────── */
+.adv-toggle-row {
+  padding: 8px 0 2px;
+  border-top: 1px solid var(--border);
+}
+.btn-adv-toggle {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 0;
+  background: none; border: none;
+  color: var(--text-mut);
+  font-size: 11px; font-weight: 600; letter-spacing: .3px;
+  cursor: pointer; transition: color .15s var(--ease);
+}
+.btn-adv-toggle:hover { color: var(--snes-royal); }
+.adv-arrow { font-size: 9px; }
+
 /* ── Drilldown filter bar ─────────────────────────────────── */
 .drill-bar {
   display: flex;
   flex-wrap: wrap;
   gap: 5px;
-  padding: 10px 0 6px;
-  border-top: 1px solid var(--border);
+  padding: 6px 0 6px;
 }
 
 .drill-btn {

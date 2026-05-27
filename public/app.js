@@ -779,7 +779,7 @@ function jobMini(j, dynMatch) {
 /* ============== Jobs — Nova Missão ============== */
 function renderJobsPage() {
   markJobsVisited();
-  _drillOpen = ''; _openAreaKey = ''; _drillAreaLevel = 1;
+  _drillOpen = ''; _openAreaKey = ''; _drillAreaLevel = 1; _drillBarVisible = false;
   const s = store.ui.jobSearch;
   const skillsHtml = s.skills.map(sk => `
     <span class="mission-skill-tag" data-skill="${escapeHtml(sk)}">
@@ -836,7 +836,14 @@ function renderJobsPage() {
           </div>
         </div>
 
-        <div class="drill-bar" id="drill-bar">
+        <div class="adv-toggle-row">
+          <button class="btn-adv-toggle" id="btn-adv-toggle" type="button">
+            <span class="adv-arrow">${_drillBarVisible ? '▲' : '▼'}</span>
+            Filtros avançados
+            ${_countActiveFilters() > 0 ? `<span class="drill-badge">${_countActiveFilters()}</span>` : ''}
+          </button>
+        </div>
+        <div class="drill-bar" id="drill-bar" style="${_drillBarVisible ? '' : 'display:none'}">
           ${_buildDrillBarHTML()}
         </div>
         <div class="drill-panel" id="drill-panel" style="display:none"></div>
@@ -1427,18 +1434,24 @@ function _refreshFilterToggle() {
 let _openAreaKey = '';
 let _drillOpen = '';
 let _drillAreaLevel = 1;
+let _drillBarVisible = false;
+
+function _countActiveFilters() {
+  const s = store.ui.jobSearch;
+  return s.contracts.length + s.levels.length + s.subAreaFilters.length + s.specs.length +
+    (s.mode !== 'todos' ? 1 : 0) + (s.region !== 'todas' ? 1 : 0) + (s.dateFilter !== 'all' ? 1 : 0);
+}
 
 /* ── Drilldown filter bar helpers ── */
 function _buildDrillBarHTML() {
   const s = store.ui.jobSearch;
   const cats = [
-    { key: 'contract', label: 'Contrato',  count: s.contracts.length },
-    { key: 'level',    label: 'Nível',     count: s.levels.length },
-    { key: 'mode',     label: 'Regime',    count: s.mode !== 'todos' ? 1 : 0 },
-    { key: 'region',   label: 'Região',    count: s.region !== 'todas' ? 1 : 0 },
-    { key: 'date',     label: 'Data',      count: s.dateFilter !== 'all' ? 1 : 0 },
-    { key: 'area',     label: 'Área',      count: s.subAreaFilters.length },
-    { key: 'security', label: 'Segurança', count: s.specs.length },
+    { key: 'contract', label: 'Contrato', count: s.contracts.length },
+    { key: 'level',    label: 'Nível',    count: s.levels.length },
+    { key: 'mode',     label: 'Regime',   count: s.mode !== 'todos' ? 1 : 0 },
+    { key: 'region',   label: 'Região',   count: s.region !== 'todas' ? 1 : 0 },
+    { key: 'date',     label: 'Data',     count: s.dateFilter !== 'all' ? 1 : 0 },
+    { key: 'area',     label: 'Área',     count: s.subAreaFilters.length + s.specs.length },
   ];
   return cats.map(c => {
     const open = _drillOpen === c.key ? ' open' : '';
@@ -1471,14 +1484,16 @@ function _buildDrillPanelHTML(cat) {
     case 'date':
       return label('Publicação') +
         [['all','Todas'],['1d','Hoje'],['7d','7 dias'],['30d','30 dias']].map(([v,l]) => modeBtn('dateFilter', v, l, true)).join('');
-    case 'security':
-      return label('Segurança') +
-        [['','Todas'],['soc','SOC / Blue Team'],['pentest','Pentest'],['grc','GRC'],['appsec','AppSec'],['cloudsec','Cloud Sec']].map(([v,l]) => {
-          const active = v === '' ? s.specs.length === 0 : s.specs.includes(v);
-          return `<button class="mode-btn ${active ? 'active' : ''}" data-filter="spec" data-value="${v}">${l}</button>`;
-        }).join('');
     case 'area':
       if (_openAreaKey && _drillAreaLevel === 2) {
+        if (_openAreaKey === 'security') {
+          return `<button class="drill-back" data-drill-back="area">← Área</button>` +
+            label('Segurança') +
+            [['','Todas'],['soc','SOC / Blue Team'],['pentest','Pentest'],['grc','GRC'],['appsec','AppSec'],['cloudsec','Cloud Sec']].map(([v,l]) => {
+              const active = v === '' ? s.specs.length === 0 : s.specs.includes(v);
+              return `<button class="mode-btn ${active ? 'active' : ''}" data-filter="spec" data-value="${v}">${l}</button>`;
+            }).join('');
+        }
         return `<button class="drill-back" data-drill-back="area">← ${AREA_BTN_LABELS[_openAreaKey] || _openAreaKey}</button>` +
           buildSubPanel(_openAreaKey);
       }
@@ -1487,7 +1502,11 @@ function _buildDrillPanelHTML(cat) {
           const cnt    = s.subAreaFilters.filter(v => v.startsWith(key + ':')).length;
           const active = cnt > 0;
           return `<button class="mode-btn drill-area-btn ${active ? 'active' : ''}" data-areabtn="${key}">${lbl}${cnt > 0 ? ` (${cnt})` : ''} ▸</button>`;
-        }).join('');
+        }).join('') +
+        (() => {
+          const cnt = s.specs.length;
+          return `<button class="mode-btn drill-area-btn ${cnt > 0 ? 'active' : ''}" data-areabtn="security">Segurança${cnt > 0 ? ` (${cnt})` : ''} ▸</button>`;
+        })();
     default: return '';
   }
 }
@@ -1495,6 +1514,16 @@ function _buildDrillPanelHTML(cat) {
 function _drillRefreshBar() {
   const bar = $('#drill-bar');
   if (bar) bar.innerHTML = _buildDrillBarHTML();
+  // Atualiza badge e seta do botão toggle
+  const toggleBtn = $('#btn-adv-toggle');
+  if (toggleBtn) {
+    const cnt = _countActiveFilters();
+    const badge = toggleBtn.querySelector('.drill-badge');
+    if (cnt > 0) {
+      if (badge) badge.textContent = cnt;
+      else toggleBtn.insertAdjacentHTML('beforeend', `<span class="drill-badge">${cnt}</span>`);
+    } else { badge?.remove(); }
+  }
 }
 
 function _drillShow(cat) {
@@ -1541,6 +1570,22 @@ function _refreshAreaBtn(key) {
 
 function bindJobsPageEvents() {
   const s = store.ui.jobSearch;
+
+  // Botão "Filtros avançados" — mostra/esconde a drill bar
+  $('#btn-adv-toggle')?.addEventListener('click', () => {
+    _drillBarVisible = !_drillBarVisible;
+    const bar   = $('#drill-bar');
+    const panel = $('#drill-panel');
+    const arrow = $('#btn-adv-toggle')?.querySelector('.adv-arrow');
+    if (!_drillBarVisible) {
+      if (bar)   bar.style.display = 'none';
+      if (panel) { panel.style.display = 'none'; _drillOpen = ''; }
+    } else {
+      if (bar)   bar.style.display = 'flex';
+    }
+    if (arrow) arrow.textContent = _drillBarVisible ? '▲' : '▼';
+    _drillRefreshBar();
+  });
 
   // Drilldown bar — abre/fecha painel de categoria
   $('#drill-bar')?.addEventListener('click', e => {
