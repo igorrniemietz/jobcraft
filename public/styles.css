@@ -1671,6 +1671,11 @@ body.rp-hidden .rp-reopen-tab { transform: translateY(-50%) translateX(0); }
   color: var(--text-mut); margin-right: 4px; flex-shrink: 0;
 }
 
+.drill-extras {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  padding: 6px 0 4px;
+}
+
 .drill-back {
   display: inline-flex; align-items: center; gap: 4px;
   padding: 4px 10px;

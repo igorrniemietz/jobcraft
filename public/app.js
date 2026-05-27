@@ -847,8 +847,7 @@ function renderJobsPage() {
           ${_buildDrillBarHTML()}
         </div>
         <div class="drill-panel" id="drill-panel" style="display:none"></div>
-
-        <div class="mission-footer">
+        <div class="drill-extras" id="drill-extras" style="${_drillBarVisible ? '' : 'display:none'}">
           <label class="toggle-expired-label">
             <input type="checkbox" id="ms-hide-pcd" ${s.hidePcd ? 'checked' : ''}>
             <span>Ocultar vagas PCD</span>
@@ -857,6 +856,9 @@ function renderJobsPage() {
             <input type="checkbox" id="ms-hide-expired" ${s.hideExpired ? 'checked' : ''}>
             <span>Ocultar vagas encerradas</span>
           </label>
+        </div>
+
+        <div class="mission-footer">
           <div class="mission-actions" style="margin-left:auto">
             <button class="btn-clear" id="ms-clear" type="button">Limpar</button>
             <button class="btn-search" id="ms-search" type="button">
@@ -1574,14 +1576,17 @@ function bindJobsPageEvents() {
   // Botão "Filtros avançados" — mostra/esconde a drill bar
   $('#btn-adv-toggle')?.addEventListener('click', () => {
     _drillBarVisible = !_drillBarVisible;
-    const bar   = $('#drill-bar');
-    const panel = $('#drill-panel');
-    const arrow = $('#btn-adv-toggle')?.querySelector('.adv-arrow');
+    const bar    = $('#drill-bar');
+    const panel  = $('#drill-panel');
+    const extras = $('#drill-extras');
+    const arrow  = $('#btn-adv-toggle')?.querySelector('.adv-arrow');
     if (!_drillBarVisible) {
-      if (bar)   bar.style.display = 'none';
-      if (panel) { panel.style.display = 'none'; _drillOpen = ''; }
+      if (bar)    bar.style.display = 'none';
+      if (extras) extras.style.display = 'none';
+      if (panel)  { panel.style.display = 'none'; _drillOpen = ''; }
     } else {
-      if (bar)   bar.style.display = 'flex';
+      if (bar)    bar.style.display = 'flex';
+      if (extras) extras.style.display = 'flex';
     }
     if (arrow) arrow.textContent = _drillBarVisible ? '▲' : '▼';
     _drillRefreshBar();
