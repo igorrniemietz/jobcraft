@@ -1595,6 +1595,100 @@ body.rp-hidden .rp-reopen-tab { transform: translateY(-50%) translateX(0); }
 }
 @media (max-width: 700px) { .mission-filters { grid-template-columns: 1fr; } }
 
+/* ── Filtros avançados toggle ─────────────────────────────── */
+.adv-toggle-row {
+  padding: 8px 0 2px;
+  border-top: 1px solid var(--border);
+}
+.btn-adv-toggle {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 0;
+  background: none; border: none;
+  color: var(--text-mut);
+  font-size: 11px; font-weight: 600; letter-spacing: .3px;
+  cursor: pointer; transition: color .15s var(--ease);
+}
+.btn-adv-toggle:hover { color: var(--snes-royal); }
+.adv-arrow { font-size: 9px; }
+
+/* ── Drilldown filter bar ─────────────────────────────────── */
+.drill-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 6px 0 6px;
+}
+
+.drill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-body);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 0;
+  transition: all .15s var(--ease);
+}
+.drill-btn:hover { border-color: var(--snes-royal-light); color: var(--snes-royal); }
+.drill-btn.has-active { border-color: var(--snes-royal); color: var(--snes-royal); }
+.drill-btn.open {
+  background: var(--snes-royal); color: #fff;
+  border-color: var(--snes-royal-deep);
+  box-shadow: 3px 3px 0 var(--snes-royal-deep);
+}
+.drill-btn.open.has-active { border-color: var(--snes-royal-deep); color: #fff; }
+
+.drill-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--snes-royal); color: #fff;
+  font-size: 9px; font-weight: 700;
+  min-width: 16px; height: 16px; padding: 0 4px;
+  border-radius: 8px;
+}
+.drill-btn.open .drill-badge { background: #fff; color: var(--snes-royal); }
+
+.drill-panel {
+  flex-wrap: wrap;
+  gap: 5px;
+  align-items: center;
+  padding: 10px 0 8px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+  animation: drill-in .12s ease;
+}
+@keyframes drill-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.drill-panel-label {
+  font-size: 9px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .8px;
+  color: var(--text-mut); margin-right: 4px; flex-shrink: 0;
+}
+
+.drill-extras {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  padding: 6px 0 4px;
+}
+
+.drill-back {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  background: var(--surface); color: var(--text-body);
+  font-size: 11px; font-weight: 600;
+  cursor: pointer; border-radius: 0;
+  transition: all .15s var(--ease);
+  margin-right: 6px;
+}
+.drill-back:hover { border-color: var(--snes-royal-light); color: var(--snes-royal); }
+
+/* ── Legacy inline rows (mantidos para CSS coverage) ─────── */
 .inline-filter-row {
   display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
 }
@@ -1633,29 +1727,29 @@ body.rp-hidden .rp-reopen-tab { transform: translateY(-50%) translateX(0); }
 }
 .mission-actions { margin-left: auto; display: flex; gap: 10px; }
 .btn-clear {
-  padding: 10px 18px; border-radius: 0;
+  padding: 7px 14px; border-radius: 0;
   border: 2px solid var(--border); background: var(--surface);
-  font-size: 13px; font-weight: 600; color: var(--text-body);
+  font-size: 12px; font-weight: 600; color: var(--text-body);
   cursor: pointer;
   transition: all .15s var(--ease);
 }
 .btn-clear:hover { border-color: var(--snes-royal-light); color: var(--snes-royal); }
 .btn-search {
-  display: inline-flex; align-items: center; gap: 8px;
-  padding: 10px 20px; border-radius: 0;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 16px; border-radius: 0;
   background: var(--snes-royal);
   border: 2px solid var(--snes-royal-deep);
-  color: white; font-size: 13px; font-weight: 700;
+  color: white; font-size: 12px; font-weight: 700;
   cursor: pointer;
-  box-shadow: 4px 4px 0 var(--snes-royal-deep);
+  box-shadow: 3px 3px 0 var(--snes-royal-deep);
   transition: all .15s var(--ease);
 }
 .btn-search:hover {
   background: var(--snes-royal-deep);
   transform: translate(2px, 2px);
-  box-shadow: 2px 2px 0 var(--snes-obsidian);
+  box-shadow: 1px 1px 0 var(--snes-obsidian);
 }
-.btn-search-arrow { font-size: 16px; }
+.btn-search-arrow { font-size: 14px; }
 
 /* ============================================================
    Painel de mercado (MERCADO)
