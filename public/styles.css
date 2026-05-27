@@ -1727,29 +1727,29 @@ body.rp-hidden .rp-reopen-tab { transform: translateY(-50%) translateX(0); }
 }
 .mission-actions { margin-left: auto; display: flex; gap: 10px; }
 .btn-clear {
-  padding: 10px 18px; border-radius: 0;
+  padding: 7px 14px; border-radius: 0;
   border: 2px solid var(--border); background: var(--surface);
-  font-size: 13px; font-weight: 600; color: var(--text-body);
+  font-size: 12px; font-weight: 600; color: var(--text-body);
   cursor: pointer;
   transition: all .15s var(--ease);
 }
 .btn-clear:hover { border-color: var(--snes-royal-light); color: var(--snes-royal); }
 .btn-search {
-  display: inline-flex; align-items: center; gap: 8px;
-  padding: 10px 20px; border-radius: 0;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 16px; border-radius: 0;
   background: var(--snes-royal);
   border: 2px solid var(--snes-royal-deep);
-  color: white; font-size: 13px; font-weight: 700;
+  color: white; font-size: 12px; font-weight: 700;
   cursor: pointer;
-  box-shadow: 4px 4px 0 var(--snes-royal-deep);
+  box-shadow: 3px 3px 0 var(--snes-royal-deep);
   transition: all .15s var(--ease);
 }
 .btn-search:hover {
   background: var(--snes-royal-deep);
   transform: translate(2px, 2px);
-  box-shadow: 2px 2px 0 var(--snes-obsidian);
+  box-shadow: 1px 1px 0 var(--snes-obsidian);
 }
-.btn-search-arrow { font-size: 16px; }
+.btn-search-arrow { font-size: 14px; }
 
 /* ============================================================
    Painel de mercado (MERCADO)
