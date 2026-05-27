@@ -779,7 +779,7 @@ function jobMini(j, dynMatch) {
 /* ============== Jobs — Nova Missão ============== */
 function renderJobsPage() {
   markJobsVisited();
-  _drillOpen = ''; _openAreaKey = ''; _drillAreaLevel = 1; _drillBarVisible = false;
+  _openAreaKey = '';
   const s = store.ui.jobSearch;
   const skillsHtml = s.skills.map(sk => `
     <span class="mission-skill-tag" data-skill="${escapeHtml(sk)}">
@@ -836,18 +836,73 @@ function renderJobsPage() {
           </div>
         </div>
 
-        <div class="adv-toggle-row">
-          <button class="btn-adv-toggle" id="btn-adv-toggle" type="button">
-            <span class="adv-arrow">${_drillBarVisible ? '▲' : '▼'}</span>
-            Filtros avançados
-            ${_countActiveFilters() > 0 ? `<span class="drill-badge">${_countActiveFilters()}</span>` : ''}
-          </button>
+        <div class="mission-filters">
+          <div class="inline-filter-row">
+            <span class="inline-filter-label">Contrato:</span>
+            <div class="inline-filter-opts">
+              ${filterBtns('contract', [['CLT','CLT'],['PJ','PJ'],['Estágio','Estágio']])}
+            </div>
+          </div>
+          <div class="inline-filter-row">
+            <span class="inline-filter-label">Nível:</span>
+            <div class="inline-filter-opts">
+              ${filterBtns('level', [['Júnior','Júnior'],['Pleno','Pleno'],['Sênior','Sênior']])}
+            </div>
+          </div>
+          <div class="inline-filter-row">
+            <span class="inline-filter-label">Regime:</span>
+            <div class="inline-filter-opts">
+              ${filterBtns('mode', [['todos','Todos'],['remoto','Remoto'],['híbrido','Híbrido'],['presencial','Presencial']])}
+            </div>
+          </div>
+          <div class="inline-filter-row">
+            <span class="inline-filter-label">Região:</span>
+            <div class="inline-filter-opts">
+              ${filterBtns('region', [['todas','Todas'],['br','Brasil 🇧🇷'],['internacional','Internacional 🌎']])}
+            </div>
+          </div>
+          <div class="inline-filter-row" style="grid-column:1/-1">
+            <span class="inline-filter-label">Publicação:</span>
+            <div class="inline-filter-opts">
+              ${filterBtns('dateFilter', [['all','Todas'],['1d','Hoje'],['7d','7 dias'],['30d','30 dias']])}
+            </div>
+          </div>
+          <div class="inline-filter-row" style="grid-column:1/-1">
+            <span class="inline-filter-label">Área:</span>
+            <div class="inline-filter-opts filter-toggle-row">
+              ${[['dev','Dev'],['mobile','Mobile'],['dados','Dados'],['ia','IA & ML'],['devopscloud','DevOps'],['produtoqa','Produto'],['suporte','Suporte']].map(([key,lbl]) => {
+                const active = s.subAreaFilters.filter(v => v.startsWith(key + ':'));
+                const isActive = active.length > 0;
+                const btnLabel = active.length === 1
+                  ? (SUBAREA_BTN_LABELS[active[0]] || ('+ ' + lbl))
+                  : active.length > 1 ? `+ ${lbl} (${active.length})` : ('+ ' + lbl);
+                return `<button class="filter-toggle-btn area-top-btn ${isActive ? 'has-active' : ''}" data-areabtn="${key}" type="button"><span class="ftb-label">${btnLabel}</span>${isActive ? `<span class="ftb-x" data-cleararea="${key}">×</span>` : ''}</button>`;
+              }).join('')}
+              ${(() => {
+                const hasSpecs  = s.specs.length > 0;
+                const specLabel = hasSpecs
+                  ? (s.specs.length === 1 ? (SPEC_BTN_LABELS[s.specs[0]] || '+ Segurança') : `+ Segurança (${s.specs.length})`)
+                  : '+ Segurança';
+                return `<button class="filter-toggle-btn area-top-btn ${hasSpecs ? 'has-active' : ''}" id="ftb-security" data-panel="fpl-security" type="button"><span class="ftb-label">${specLabel}</span>${hasSpecs ? `<span class="ftb-x" data-clearfilter="specs">×</span>` : ''}</button>`;
+              })()}
+            </div>
+          </div>
+          <div class="filter-expand-panel filter-subarea-panel" id="fpl-subarea"
+               style="display:${(s.areaFilter && AREA_SUBOPTIONS[s.areaFilter]) ? 'flex' : 'none'}">
+            ${s.areaFilter && AREA_SUBOPTIONS[s.areaFilter] ? `
+              <span class="subarea-back-label">▸ ${AREA_BTN_LABELS[s.areaFilter] || s.areaFilter}</span>
+              ${buildSubPanel(s.areaFilter)}` : ''}
+          </div>
+          <div class="filter-expand-panel filter-subarea-panel" id="fpl-security" style="display:none">
+            <span class="subarea-back-label">▸ Segurança</span>
+            ${[['','Todas'],['soc','SOC / Blue Team'],['pentest','Pentest'],['grc','GRC'],['appsec','AppSec'],['cloudsec','Cloud Security']].map(([val,lbl]) => {
+              const active = val === '' ? s.specs.length === 0 : s.specs.includes(val);
+              return `<button class="mode-btn sub-mode-btn ${active ? 'active' : ''}" data-filter="spec" data-value="${val}">${lbl}</button>`;
+            }).join('')}
+          </div>
         </div>
-        <div class="drill-bar" id="drill-bar" style="${_drillBarVisible ? '' : 'display:none'}">
-          ${_buildDrillBarHTML()}
-        </div>
-        <div class="drill-panel" id="drill-panel" style="display:none"></div>
-        <div class="drill-extras" id="drill-extras" style="${_drillBarVisible ? '' : 'display:none'}">
+
+        <div class="mission-footer">
           <label class="toggle-expired-label">
             <input type="checkbox" id="ms-hide-pcd" ${s.hidePcd ? 'checked' : ''}>
             <span>Ocultar vagas PCD</span>
@@ -856,9 +911,6 @@ function renderJobsPage() {
             <input type="checkbox" id="ms-hide-expired" ${s.hideExpired ? 'checked' : ''}>
             <span>Ocultar vagas encerradas</span>
           </label>
-        </div>
-
-        <div class="mission-footer">
           <div class="mission-actions" style="margin-left:auto">
             <button class="btn-clear" id="ms-clear" type="button">Limpar</button>
             <button class="btn-search" id="ms-search" type="button">
@@ -1573,87 +1625,62 @@ function _refreshAreaBtn(key) {
 function bindJobsPageEvents() {
   const s = store.ui.jobSearch;
 
-  // Botão "Filtros avançados" — mostra/esconde a drill bar
-  $('#btn-adv-toggle')?.addEventListener('click', () => {
-    _drillBarVisible = !_drillBarVisible;
-    const bar    = $('#drill-bar');
-    const panel  = $('#drill-panel');
-    const extras = $('#drill-extras');
-    const arrow  = $('#btn-adv-toggle')?.querySelector('.adv-arrow');
-    if (!_drillBarVisible) {
-      if (bar)    bar.style.display = 'none';
-      if (extras) extras.style.display = 'none';
-      if (panel)  { panel.style.display = 'none'; _drillOpen = ''; }
-    } else {
-      if (bar)    bar.style.display = 'flex';
-      if (extras) extras.style.display = 'flex';
+  // Área: botões de toggle (área individual + segurança)
+  $('.filter-toggle-row')?.addEventListener('click', e => {
+    const clearAreaX = e.target.closest('[data-cleararea]');
+    if (clearAreaX) {
+      const key = clearAreaX.dataset.cleararea;
+      s.subAreaFilters = s.subAreaFilters.filter(v => !v.startsWith(key + ':'));
+      if (!s.subAreaFilters.length) s.areaFilter = '';
+      if (_openAreaKey === key) {
+        const subPanel = $('#fpl-subarea');
+        if (subPanel) subPanel.innerHTML = `<span class="subarea-back-label">▸ ${AREA_BTN_LABELS[key] || key}</span>${buildSubPanel(key)}`;
+      }
+      _refreshAreaBtn(key); updateJobResults(); return;
     }
-    if (arrow) arrow.textContent = _drillBarVisible ? '▲' : '▼';
-    _drillRefreshBar();
-  });
-
-  // Drilldown bar — abre/fecha painel de categoria
-  $('#drill-bar')?.addEventListener('click', e => {
-    const btn = e.target.closest('[data-drill]');
-    if (btn) _drillShow(btn.dataset.drill);
-  });
-
-  // Drilldown panel — seleção de filtros + drilldown de área
-  $('#drill-panel')?.addEventListener('click', e => {
-    // Botão "voltar" no nível 2 de área
-    const backBtn = e.target.closest('[data-drill-back]');
-    if (backBtn) {
-      _drillAreaLevel = 1; _openAreaKey = '';
-      const panel = $('#drill-panel');
-      if (panel) panel.innerHTML = _buildDrillPanelHTML('area');
-      _drillRefreshBar();
-      return;
+    const clearSecX = e.target.closest('[data-clearfilter]');
+    if (clearSecX) {
+      const filter = clearSecX.dataset.clearfilter;
+      if (Array.isArray(s[filter])) s[filter] = []; else s[filter] = '';
+      _refreshFilterToggle();
+      const secBtn = clearSecX.closest('.filter-toggle-btn');
+      if (secBtn) { const p = $('#' + secBtn.dataset.panel); if (p) p.style.display = 'none'; secBtn.classList.remove('open','has-active'); }
+      updateJobResults(); return;
     }
-    // Botão de área (vai para nível 2 com sub-opções)
     const areaBtn = e.target.closest('[data-areabtn]');
     if (areaBtn) {
-      _openAreaKey = areaBtn.dataset.areabtn; _drillAreaLevel = 2;
-      const panel = $('#drill-panel');
-      if (panel) panel.innerHTML = _buildDrillPanelHTML('area');
+      const key = areaBtn.dataset.areabtn;
+      const subPanel = $('#fpl-subarea');
+      const secPanel = $('#fpl-security'); const secBtn2 = $('#ftb-security');
+      if (secPanel) secPanel.style.display = 'none';
+      if (secBtn2) { secBtn2.classList.remove('open'); if (!s.specs.length) secBtn2.classList.remove('has-active'); }
+      if (_openAreaKey === key && subPanel?.style.display !== 'none') {
+        if (subPanel) subPanel.style.display = 'none';
+        areaBtn.classList.remove('open'); _openAreaKey = '';
+      } else {
+        if (_openAreaKey && _openAreaKey !== key) document.querySelector(`[data-areabtn="${_openAreaKey}"]`)?.classList.remove('open');
+        _openAreaKey = key;
+        if (subPanel && AREA_SUBOPTIONS[key]) {
+          subPanel.innerHTML = `<span class="subarea-back-label">▸ ${AREA_BTN_LABELS[key] || key}</span>${buildSubPanel(key)}`;
+          subPanel.style.display = 'flex';
+        }
+        areaBtn.classList.add('open');
+      }
       return;
     }
-    // Botão de filtro regular
-    const btn = e.target.closest('[data-filter]');
-    if (!btn) return;
-    const filter = btn.dataset.filter;
-    const value  = btn.dataset.value;
-    if (filter === 'mode' || filter === 'region' || filter === 'dateFilter') {
-      s[filter] = value;
-      $$(`[data-filter="${filter}"]`).forEach(b => b.classList.toggle('active', b.dataset.value === value));
-    } else if (filter === 'spec') {
-      if (value === '') {
-        s.specs = [];
-        $$('[data-filter="spec"]').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-      } else {
-        if (s.specs.includes(value)) { s.specs = s.specs.filter(v => v !== value); btn.classList.remove('active'); }
-        else { s.specs.push(value); btn.classList.add('active'); }
-        $('[data-filter="spec"][data-value=""]')?.classList.toggle('active', s.specs.length === 0);
-      }
-    } else if (filter === 'subAreaFilter') {
-      const areaKey = _openAreaKey || (value && value.split(':')[0]);
-      if (value === '') {
-        s.subAreaFilters = s.subAreaFilters.filter(v => !v.startsWith(areaKey + ':'));
-        $$('[data-filter="subAreaFilter"]').forEach(b => b.classList.toggle('active', b.dataset.value === ''));
-      } else {
-        if (s.subAreaFilters.includes(value)) { s.subAreaFilters = s.subAreaFilters.filter(v => v !== value); btn.classList.remove('active'); }
-        else { s.subAreaFilters.push(value); btn.classList.add('active'); }
-        const activeForArea = s.subAreaFilters.filter(v => v.startsWith(areaKey + ':'));
-        $('[data-filter="subAreaFilter"][data-value=""]')?.classList.toggle('active', activeForArea.length === 0);
-      }
-      s.areaFilter = areaKey;
+    const toggleBtn = e.target.closest('[data-panel]');
+    if (!toggleBtn) return;
+    const panelId = toggleBtn.dataset.panel; const panel = $('#' + panelId);
+    if (!panel) return;
+    if (panel.style.display !== 'none') {
+      panel.style.display = 'none'; toggleBtn.classList.remove('open');
+      if (!s.specs.length) toggleBtn.classList.remove('has-active');
     } else {
-      const key = filter + 's';
-      if (s[key].includes(value)) { s[key] = s[key].filter(v => v !== value); btn.classList.remove('active'); }
-      else { s[key].push(value); btn.classList.add('active'); }
+      const subPanel = $('#fpl-subarea');
+      if (subPanel) subPanel.style.display = 'none';
+      if (_openAreaKey) { document.querySelector(`[data-areabtn="${_openAreaKey}"]`)?.classList.remove('open'); _openAreaKey = ''; }
+      panel.style.display = 'flex'; toggleBtn.classList.add('open'); toggleBtn.classList.add('has-active');
     }
-    _drillRefreshBar();
-    updateJobResults();
   });
 
   $('#ms-cargo')?.addEventListener('input', e => { s.cargo = e.target.value; updateJobResults(); });
@@ -1718,7 +1745,41 @@ function bindJobsPageEvents() {
     renderRightPanel(s.cargo || s.skills.join(' '));
   });
 
-  // (filtros agora tratados via #drill-panel — ver handler acima)
+  // Filtros inline: contrato, nível, regime, região, data, sub-área
+  $('.mission-filters')?.addEventListener('click', e => {
+    const btn = e.target.closest('[data-filter]');
+    if (!btn) return;
+    const filter = btn.dataset.filter; const value = btn.dataset.value;
+    if (filter === 'subAreaFilter') {
+      const areaKey = _openAreaKey || (value && value.split(':')[0]);
+      if (value === '') {
+        s.subAreaFilters = s.subAreaFilters.filter(v => !v.startsWith(areaKey + ':'));
+        $$('[data-filter="subAreaFilter"]').forEach(b => b.classList.toggle('active', b.dataset.value === ''));
+      } else {
+        if (s.subAreaFilters.includes(value)) { s.subAreaFilters = s.subAreaFilters.filter(v => v !== value); btn.classList.remove('active'); }
+        else { s.subAreaFilters.push(value); btn.classList.add('active'); }
+        const activeForArea = s.subAreaFilters.filter(v => v.startsWith(areaKey + ':'));
+        $('[data-filter="subAreaFilter"][data-value=""]')?.classList.toggle('active', activeForArea.length === 0);
+      }
+      s.areaFilter = areaKey; if (areaKey) _refreshAreaBtn(areaKey);
+    } else if (filter === 'mode' || filter === 'region' || filter === 'dateFilter') {
+      s[filter] = value;
+      $$(`[data-filter="${filter}"]`).forEach(b => b.classList.toggle('active', b.dataset.value === value));
+    } else if (filter === 'spec') {
+      if (value === '') { s.specs = []; $$('[data-filter="spec"]').forEach(b => b.classList.remove('active')); btn.classList.add('active'); }
+      else {
+        if (s.specs.includes(value)) { s.specs = s.specs.filter(v => v !== value); btn.classList.remove('active'); }
+        else { s.specs.push(value); btn.classList.add('active'); }
+        $('[data-filter="spec"][data-value=""]')?.classList.toggle('active', s.specs.length === 0);
+      }
+      _refreshFilterToggle();
+    } else {
+      const key = filter + 's';
+      if (s[key].includes(value)) { s[key] = s[key].filter(v => v !== value); btn.classList.remove('active'); }
+      else { s[key].push(value); btn.classList.add('active'); }
+    }
+    updateJobResults();
+  });
 
   $('#ms-clear')?.addEventListener('click', () => {
     s.cargo = ''; s.localidade = ''; s.skills = []; s.mode = 'todos'; s.region = 'todas';
