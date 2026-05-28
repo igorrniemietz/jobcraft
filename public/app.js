@@ -416,8 +416,14 @@ function bindShell() {
       document.body.classList.remove('sb-open');
     });
   });
+  // Sidebar colapsado por padrão; persiste preferência no localStorage
+  const sbPref = localStorage.getItem('jc-sb-collapsed');
+  if (sbPref === null || sbPref === '1') {
+    document.body.classList.add('sb-collapsed');
+  }
   $('#sidebar-toggle').addEventListener('click', () => {
     document.body.classList.toggle('sb-collapsed');
+    localStorage.setItem('jc-sb-collapsed', document.body.classList.contains('sb-collapsed') ? '1' : '0');
   });
   $('#sidebar-open')?.addEventListener('click', () => {
     document.body.classList.toggle('sb-open');
