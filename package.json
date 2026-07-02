@@ -14,6 +14,7 @@
     "docker:logs":     "docker compose -f docker-compose.dev.yml logs -f",
     "deploy:hml":      "node sync-hml.js",
     "sync-push":       "node sync-push.js",
-    "sync-hml":        "node sync-hml.js"
+    "sync-hml":        "node sync-hml.js",
+    "test":            "node --test test/*.test.js"
   }
 }
