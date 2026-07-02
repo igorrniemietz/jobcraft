@@ -3,15 +3,22 @@ const { getJSON, sleep } = require('../http');
 const { fromGreenhouse } = require('../normalize');
 
 // Empresas BR tech confirmadas no Greenhouse (validadas ao vivo 2026-05-17)
+// +3 validadas ao vivo em 2026-07-01: ifood, hotmart, zup innovation.
+// Descartados nesta rodada (token não resolve ou usam outro ATS):
+// creditas, pismo (404 na API apesar de indícios online), loft/dock (Gupy),
+// cora (InHire), belvo/loggi/conta azul (ATS não confirmado).
 const COMPANIES = [
-  { slug: 'nubank',          name: 'Nubank'           },
-  { slug: 'quintoandar',     name: 'QuintoAndar'      },
-  { slug: 'rdstation',       name: 'RD Station'       },
-  { slug: 'stone',           name: 'Stone'            },
-  { slug: 'ebanx',           name: 'EBANX'            },
-  { slug: 'gympass',         name: 'Gympass'          },
-  { slug: 'vtex',            name: 'VTEX'             },
-  { slug: 'wildlifestudios', name: 'Wildlife Studios' },
+  { slug: 'nubank',           name: 'Nubank'           },
+  { slug: 'quintoandar',      name: 'QuintoAndar'      },
+  { slug: 'rdstation',        name: 'RD Station'       },
+  { slug: 'stone',            name: 'Stone'            },
+  { slug: 'ebanx',            name: 'EBANX'            },
+  { slug: 'gympass',          name: 'Gympass'          },
+  { slug: 'vtex',             name: 'VTEX'             },
+  { slug: 'wildlifestudios',  name: 'Wildlife Studios' },
+  { slug: 'ifoodcarreiras',   name: 'iFood'            },
+  { slug: 'hotmartcareersbr', name: 'Hotmart'          },
+  { slug: 'zupinnovation',    name: 'Zup Innovation'   },
 ];
 
 // Filtra vagas em localização BR
@@ -52,4 +59,4 @@ async function fetchGreenhouse() {
   return results;
 }
 
-module.exports = { fetchGreenhouse };
+module.exports = { fetchGreenhouse, COMPANIES };
