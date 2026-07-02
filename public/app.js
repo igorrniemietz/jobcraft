@@ -1,7 +1,7 @@
 /* Jobcraft — SPA bootstrap */
 
 /* ============== localStorage helpers ============== */
-const LS = { profile: 'jc-profile', saved: 'jc-saved', apps: 'jc-apps', quests: 'jc-quests', achievements: 'jc-achievements' };
+const LS = { profile: 'jc-profile', saved: 'jc-saved', apps: 'jc-apps', quests: 'jc-quests', achievements: 'jc-achievements', courses: 'jc-courses' };
 
 /* ============== Daily Quests ============== */
 const QUEST_DEFS = [
@@ -80,6 +80,18 @@ function lsSet(key, val) {
   try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
 }
 
+/* ============== Progresso de cursos (persistido) ============== */
+function hydrateCourseProgress(courses) {
+  const saved = lsGet(LS.courses, {});
+  courses.forEach(c => { if (saved[c.id] != null) c.progress = saved[c.id]; });
+  return courses;
+}
+function persistCourseProgress() {
+  const saved = lsGet(LS.courses, {});
+  store.courses.forEach(c => { saved[c.id] = c.progress; });
+  lsSet(LS.courses, saved);
+}
+
 const store = {
   user: null,
   jobs: [],
@@ -145,7 +157,7 @@ async function boot() {
     fetchJSON('/data/achievements.json'),
     fetchJSON('/data/leaderboard.json'),
   ]);
-  Object.assign(store, { user, jobs: [], courses, certs, achievements, leaderboard });
+  Object.assign(store, { user, jobs: [], courses: hydrateCourseProgress(courses), certs, achievements, leaderboard });
   store.quests = buildDailyQuests();
 
   loadProfile();
@@ -1960,6 +1972,8 @@ function renderCourses() {
           const xpGain = Math.round((course.xp || 60) * 0.10);
           addXP(xpGain, 'course');
           toast(`+${xpGain} XP — curso iniciado! Continue pelo link aberto.`);
+          persistCourseProgress();
+          refreshQuests();
           renderCourses();
         }
       } else {
@@ -1969,6 +1983,8 @@ function renderCourses() {
         addXP(xpGain, 'course');
         const verb = course.progress === 100 ? 'concluído' : isStart ? 'iniciado' : 'avançado';
         toast(`+${xpGain} XP — curso ${verb}!`);
+        persistCourseProgress();
+        refreshQuests();
         renderCourses();
       }
     });
@@ -2355,6 +2371,8 @@ function renderProfile() {
         const xpGain = course.progress === 100 ? course.xp : Math.round(course.xp * 0.10);
         addXP(xpGain, 'course');
         toast(`+${xpGain} XP — curso ${course.progress === 100 ? 'concluído' : isStart ? 'iniciado' : 'avançado'}!`);
+        persistCourseProgress();
+        refreshQuests();
         renderProfile();
       }
     });
