@@ -8,6 +8,8 @@ const store       = require('./src/jobStore');
 const userStore   = require('./src/userStore');
 const courseStore = require('./src/courseStore');
 const scheduler   = require('./src/scheduler');
+const { buildJobsStatus } = require('./src/buildStatus');
+const { safeJoin }        = require('./src/safeJoin');
 
 const PORT = process.env.PORT || 8080;
 const ROOT = path.join(__dirname, 'public');
@@ -31,13 +33,6 @@ const MIME = {
 };
 
 /* ── helpers ──────────────────────────────────────────────────── */
-function safeJoin(root, urlPath) {
-  const decoded = decodeURIComponent(urlPath.split('?')[0]);
-  const target  = path.normalize(path.join(root, decoded));
-  if (!target.startsWith(root)) return null;
-  return target;
-}
-
 function readBody(req) {
   return new Promise(resolve => {
     let body = '';
@@ -72,16 +67,7 @@ const server = http.createServer(async (req, res) => {
 
   /* GET /api/jobs/status — sync log */
   if (pathname === '/api/jobs/status') {
-    return sendJSON(res, {
-      ok:    true,
-      total: store.count(),
-      sources: {
-        gupy:     { enabled: process.env.GUPY_ENABLED !== 'false',     count: store.count('gupy') },
-        remotive: { enabled: process.env.REMOTIVE_ENABLED !== 'false', count: store.count('remotive') },
-        adzuna:   { enabled: !!(process.env.ADZUNA_APP_ID && process.env.ADZUNA_APP_KEY && process.env.ADZUNA_ENABLED !== 'false'), count: store.count('adzuna') },
-      },
-      syncLog: store.getSyncLog(),
-    });
+    return sendJSON(res, buildJobsStatus(store));
   }
 
   /* POST /api/jobs/sync — manual sync trigger (admin) */
