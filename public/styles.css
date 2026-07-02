@@ -1036,7 +1036,6 @@ h3 { font-size: 16px; font-weight: 700; }
   .mobile-only { display: grid !important; }
   .user-meta { display: none; }
   .hud-xp-block { display: none; }
-  .hud-potions  { display: none; }
   #topbar { padding: 0 12px; }
   .kpi-grid { grid-template-columns: 1fr; }
   .courses-grid, .cert-grid { grid-template-columns: 1fr; }
@@ -1117,23 +1116,6 @@ h3 { font-size: 16px; font-weight: 700; }
 .hud-coin-wrap { display: flex; align-items: center; gap: 5px; flex-shrink: 0; margin-left: 14px; }
 .pixel-coin { display: block; image-rendering: pixelated; }
 
-/* ── Poções HUD ──────────────────────────────────────────── */
-.hud-potions {
-  display: flex;
-  align-items: flex-end;
-  gap: 6px;
-  padding-right: 14px;
-  border-right: 1px solid rgba(91,79,179,.25);
-  margin-right: 2px;
-}
-.pixel-potion {
-  display: block;
-  image-rendering: pixelated;
-  cursor: default;
-  opacity: .82;
-  transition: opacity .14s, transform .14s;
-}
-.pixel-potion:hover { opacity: 1; transform: translateY(-3px); }
 .hud-xpbar-outer {
   position: relative;
   height: 14px;
