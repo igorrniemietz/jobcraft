@@ -56,7 +56,7 @@ Perguntei ao usuário se queria seguir com a **Etapa 0 do PLANO_DB (nick privacy
 sem resposta quando a sessão foi encerrada.
 
 ### Os 2 problemas estruturais mais graves (ainda não resolvidos)
-1. Produção exibe dados fictícios como reais (perfil "Igor Reis" hardcoded,
+1. Produção exibe dados fictícios como reais (perfil "Usuário 1" hardcoded,
    leaderboard com 10 NPCs fixos, `/api/jobs` não roda no Vercel estático).
 2. Backend de gamificação existe (`server.js` + `userStore.js`, rotas completas)
    mas está **desconectado do frontend**, que vive 100% de `localStorage`.

@@ -96,9 +96,9 @@ function purge() {
 }
 
 function getAll({ source } = {}) {
-  const all = [..._store.values()];
+  const all = [..._store.values()].sort((a, b) => b.updatedAt - a.updatedAt);
   if (source) return all.filter(j => j.source === source || j.sources?.includes(source));
-  return all.sort((a, b) => b.updatedAt - a.updatedAt);
+  return all;
 }
 
 function count(source) {

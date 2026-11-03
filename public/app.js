@@ -756,13 +756,14 @@ function renderDashboard() {
     </div>
   `;
 
-  view.addEventListener('click', e => {
+  // onclick (not addEventListener) so re-rendering the dashboard doesn't stack listeners on #view
+  view.onclick = e => {
     const qEl = e.target.closest('.quest');
     if (!qEl) return;
     const quest = buildDailyQuests().find(q => q.id === qEl.dataset.id);
     if (!quest || quest.done || !quest.ready) return;
     claimQuest(quest.id);
-  });
+  };
 }
 
 function questRow(q) {
@@ -2244,7 +2245,7 @@ function renderProfile() {
     ? profileSkills.map(s => `<span class="chip">${escapeHtml(s)}</span>`).join('')
     : `<span style="color:var(--text-mut);font-size:13px">Comece cursos para construir suas skills.</span>`;
 
-  const recentActs = (store.user.activities || []).slice(-5).reverse();
+  const recentActs = (store.user.activities || []).slice(0, 5);
   const timelineHtml = recentActs.length > 0
     ? recentActs.map(a => `
       <div class="tl"><div class="tld"><i data-lucide="${activityIcon(a.type)}"></i></div>

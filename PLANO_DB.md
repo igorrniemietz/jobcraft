@@ -49,7 +49,7 @@ Puramente frontend. Sem banco de dados. Pode ser feito agora.
 
 **Lógica de máscara:**
 ```
-"Igor Reis"   → "I*** R***"
+"Usuário 1"   → "U*** 1"
 "CloudStr1fe" → "C**********"
 ```
 NPCs nunca são mascarados.
@@ -60,7 +60,7 @@ NPCs nunca são mascarados.
 
 ## Etapa 1 — Login + perfil editável *(~3h)*
 
-Elimina o nome hardcoded "Igor Reis" no `user.json`.
+Elimina o nome hardcoded "Usuário 1" no `user.json`.
 
 **Tabela Supabase:**
 ```sql

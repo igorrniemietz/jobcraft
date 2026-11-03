@@ -47,3 +47,9 @@ test('safeJoin: aceita a própria raiz (edge case do path.sep)', () => {
   const { root } = makeRootWithEvilSibling();
   assert.equal(path.normalize(safeJoin(root, '/')), path.normalize(root + path.sep));
 });
+
+test('safeJoin: %-escape malformado retorna null em vez de lançar', () => {
+  const { root } = makeRootWithEvilSibling();
+  assert.equal(safeJoin(root, '/%E0%A4%A'), null);
+  assert.equal(safeJoin(root, '/a%00b'), null);
+});
