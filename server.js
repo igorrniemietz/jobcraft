@@ -10,6 +10,7 @@ const courseStore = require('./src/courseStore');
 const scheduler   = require('./src/scheduler');
 const { buildJobsStatus } = require('./src/buildStatus');
 const { safeJoin }        = require('./src/safeJoin');
+const { decodeJobId }     = require('./src/jobId');
 
 const PORT = process.env.PORT || 8080;
 const ROOT = path.join(__dirname, 'public');
@@ -95,7 +96,8 @@ const server = http.createServer(async (req, res) => {
   /* POST /api/saved/:id — toggle salvar/remover */
   const saveMatch = pathname.match(/^\/api\/saved\/(.+)$/);
   if (saveMatch && req.method === 'POST') {
-    const jobId = decodeURIComponent(saveMatch[1]);
+    const jobId = decodeJobId(saveMatch[1]);
+    if (!jobId) return send(res, 400, JSON.stringify({ ok: false, error: 'id inválido' }), { 'Content-Type': 'application/json' });
     const nowSaved = userStore.toggleSaved(jobId);
     return sendJSON(res, { ok: true, id: jobId, saved: nowSaved, savedAt: nowSaved ? userStore.savedList()[jobId] : null });
   }
@@ -122,7 +124,8 @@ const server = http.createServer(async (req, res) => {
   /* DELETE /api/applications/:id — remover */
   const appMatch = pathname.match(/^\/api\/applications\/(.+)$/);
   if (appMatch) {
-    const jobId = decodeURIComponent(appMatch[1]);
+    const jobId = decodeJobId(appMatch[1]);
+    if (!jobId) return send(res, 400, JSON.stringify({ ok: false, error: 'id inválido' }), { 'Content-Type': 'application/json' });
     if (req.method === 'POST') {
       const entry = userStore.applyToJob(jobId);
       return sendJSON(res, { ok: true, id: jobId, ...entry });
