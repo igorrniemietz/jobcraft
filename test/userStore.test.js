@@ -34,6 +34,15 @@ test('addXP: ação "quest" usa o amount informado pelo chamador', () => {
   assert.equal(result.xp, 25);
 });
 
+test('addXP: amount não numérico ou absurdo não corrompe o perfil', () => {
+  const userStore = freshUserStore();
+  assert.equal(userStore.addXP('quest', '5').earned, 0);
+  assert.equal(userStore.addXP('quest', NaN).earned, 0);
+  assert.equal(userStore.addXP('quest', -50).earned, 0);
+  assert.equal(userStore.addXP('quest', 1e12).earned, 10000);
+  assert.equal(typeof userStore.getProfile().xp, 'number');
+});
+
 test('addXP: mesma ação no mesmo dia não incrementa o streak de novo', () => {
   const userStore = freshUserStore();
   userStore.addXP('save');

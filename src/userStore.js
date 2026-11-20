@@ -98,13 +98,17 @@ const XP_REWARDS = {
   quest:     null,  // amount provided by caller
 };
 
+const MAX_XP_PER_ACTION = 10000;
+
 function getProfile() {
   return { ..._data.profile };
 }
 
 function addXP(action, amount) {
   const p = _data.profile;
-  const earned = (action === 'quest' || !XP_REWARDS[action]) ? (amount || 0) : XP_REWARDS[action];
+  const raw    = (action === 'quest' || !XP_REWARDS[action]) ? amount : XP_REWARDS[action];
+  // amount comes from the request body: a string/NaN would corrupt p.xp (string concat)
+  const earned = Number.isFinite(raw) ? Math.min(Math.floor(raw), MAX_XP_PER_ACTION) : 0;
   if (earned <= 0) return { ...p, earned: 0, leveledUp: false };
 
   // Streak: check if last activity was today or yesterday
